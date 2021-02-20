@@ -1,6 +1,6 @@
 # ITensorsInfiniteMPS
 
-This is a package for working with infinite MPS based on the (ITensors.jl)[https://github.com/ITensor/ITensors.jl] library. The goal is to provide basic tools for infinite MPS that match the functionality that is available for finite MPS in ITensors.jl, for example gauging infinite MPS with `orthogonalize`, `InfiniteMPS + InfiniteMPS`, `InfiniteMPO * InfiniteMPS`, gate evolution, computing low-lying excited states with VUMPS, etc.
+This is a package for working with infinite MPS based on the [ITensors.jl](https://github.com/ITensor/ITensors.jl) library. The goal is to provide basic tools for infinite MPS that match the functionality that is available for finite MPS in ITensors.jl, for example gauging infinite MPS with `orthogonalize`, `InfiniteMPS + InfiniteMPS`, `InfiniteMPO * InfiniteMPS`, gate evolution, computing low-lying excited states with VUMPS, etc.
 
 This is a work in progress. Here are some examples of the interface:
 ```julia
