@@ -161,7 +161,14 @@ function InfiniteMPS(ElT::Type, s::Vector{<:Index};
                      cell = 1)
   s = addtags.(s, (celltags(cell),))
   N = length(s)
-  l₀ = [Index(space; tags = default_link_tags("l", n, cell), dir = linksdir) for n in 1:N]
+  s_hasqns = any(hasqns, s)
+  kwargs(n) = if s_hasqns
+    (tags = default_link_tags("l", n, cell), dir = linksdir)
+  else
+    # TODO: support non-QN constructor that accepts `dir`
+    (tags = default_link_tags("l", n, cell),)
+  end
+  l₀ = [Index(space; kwargs(n)...) for n in 1:N]
   l₋₁ᴺ = replacetags(l₀[N], celltags(cell) => celltags(cell-1))
   l = OffsetVector(append!([l₋₁ᴺ], l₀), -1)
   A = [ITensor(ElT, dag(l[n-1]), s[n], l[n]) for n in 1:N]
