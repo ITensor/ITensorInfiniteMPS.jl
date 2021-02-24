@@ -11,6 +11,7 @@ using LinearAlgebra
 using OffsetArrays
 
 include("ITensors.jl")
+include("ITensorNetworks.jl")
 include("itensormap.jl")
 
 import Base:
@@ -24,10 +25,12 @@ import ITensors:
 export
   InfiniteMPS,
   ITensorMap,
+  ITensorNetwork,
   input_inds,
   nsites,
   output_inds,
   ⊕,
+  ⊗,
   ×
 
 #
