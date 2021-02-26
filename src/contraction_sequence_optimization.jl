@@ -57,8 +57,9 @@ module ContractionSequenceOptimization
         best_cost[] = cost
         best_sequence .= sequence
       end
-
-      for (a, b) in IterTools.subsets(remaining, Val(2))
+      for aᵢ in 1:length(remaining)-1, bᵢ in aᵢ+1:length(remaining)
+        a = remaining[aᵢ]
+        b = remaining[bᵢ]
         Tᵈ, current_cost = contract_inds_cost(T[a], T[b])
         new_cost = cost + current_cost
         if new_cost ≥ best_cost[]
@@ -66,7 +67,7 @@ module ContractionSequenceOptimization
         end
         new_sequence = push!(copy(sequence), a => b)
         new_T = push!(copy(T), Tᵈ)
-        new_remaining = setdiff(remaining, [a, b])
+        new_remaining = deleteat!(copy(remaining), (aᵢ, bᵢ))
         push!(new_remaining, length(new_T))
         _depth_first_constructive(new_sequence, new_T, new_remaining, new_cost)
       end

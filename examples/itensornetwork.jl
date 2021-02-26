@@ -12,7 +12,7 @@ using ITensorsInfiniteMPS.ContractionSequenceOptimization
 
 Random.seed!(1234)
 
-N = 8 # Tensors in the network
+N = 9 # Tensors in the network
 
 Sz0 = ("Sz", 0) => 1
 Sz1 = ("Sz", 1) => 1
