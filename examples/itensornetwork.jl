@@ -10,7 +10,7 @@ using StatsBase # For sample
 # Testing for improved algorithms
 using ITensorsInfiniteMPS.ContractionSequenceOptimization
 
-function main(N; enable_caching = false)
+function main(N)
   Random.seed!(1234)
 
   Sz0 = ("Sz", 0) => 1
@@ -55,20 +55,35 @@ function main(N; enable_caching = false)
   #@show Tree(sequence)
   #@profview ITensorsInfiniteMPS.optimal_contraction_sequence(TN)
 
-  stats = @timed depth_first_constructive(T; enable_caching = enable_caching)
-  sequence2, cost2 = stats.value
-  time = stats.time
-  #@show cost2
-  #@show sequence2
-  #@show Tree(sequence2)
-  println(N, "  ", time, "  ", cost2, "  ", sequence2)
+  #@show depth_first_constructive(T; enable_caching = false)
+  #@show depth_first_constructive(T; enable_caching = true)
+  time_nocache = @belapsed depth_first_constructive($T; enable_caching = false)
+  time_cache = @belapsed depth_first_constructive($T; enable_caching = true)
+  println(N, "  ", time_nocache, "  ", time_cache)
   #@profview depth_first_constructive(T)
 end
 
 #
-# 62cd05c58dffcd278bb87b7df10e616357a0e2f4
+# XXX conclusion: don't use a cache for N ≤ 6
+# From profile.jl, with matrix multiplication, don't
+# use a cache for N ≤ 8.
+# Compromise, in automatic mode, don't use cache for N ≤ 7:
 #
-# XXX: enable_caching = false for N < 7
+# if enable_cache == "auto"
+#   enable_cache = N ≤ 7 ? false : true
+# end
+#
+# N  Time no cache          Time cache
+# 2  3.7330312185297084e-8  3.722356495468278e-8
+# 3  1.9124e-6              1.841e-6
+# 4  2.6265e-5              3.2672e-5
+# 5  4.8373e-5              7.8543e-5
+# 6  0.000430398            0.000567019
+# 7  0.00729831             0.006720812
+# 8  0.109269226            0.064463596
+# 9  10.443669111           4.492020944
+#
+# 62cd05c58dffcd278bb87b7df10e616357a0e2f4
 #
 # enable_caching = false
 #

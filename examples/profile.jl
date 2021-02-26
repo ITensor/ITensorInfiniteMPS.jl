@@ -3,6 +3,8 @@ using ITensorsInfiniteMPS
 using ITensorsInfiniteMPS.ContractionSequenceOptimization
 using ProfileView
 
+include("optimize_3.jl")
+
 function main(N, d = 2; random_order = false)
   @show N
   @show d
@@ -18,10 +20,19 @@ function main(N, d = 2; random_order = false)
     return v
   end
   f(A, N; kwargs...) = for _ in 1:N depth_first_constructive(A; kwargs...) end
+  f3(A, N; kwargs...) = for _ in 1:N optimize_3(A; kwargs...) end
 
   AN = A⃗(N; random_order = random_order)
   display(inds.(AN))
   println()
+
+  if N == 3
+    println()
+    println("Specialized for 3 tensors")
+    @show optimize_3(AN)
+    @btime optimize_3($AN)
+    @profview f3(AN, 1e6)
+  end
 
   println("Sequence optimization time, no caching")
   enable_caching = false
@@ -53,11 +64,13 @@ end
 #
 # d = 2, matrix multiplications
 #
+# XXX conclusion: don't use a cache for N ≤ 8
+#
 # Starting from optimal ordering
 #
 # N  No caching    Caching      Contraction time
 # 2  37.923 ns     38.069 ns    854.769 ns
-# 3  1.835 μs      3.812 μs     1.663 μs
+# 3  1.835 μs      3.812 μs     1.663 μs         # 399.065 ns with special optimization path
 # 4  5.878 μs      13.506 μs    2.462 μs
 # 5  30.853 μs     67.228 μs    4.128 μs
 # 6  221.736 μs    424.022 μs   5.276 μs
@@ -70,7 +83,7 @@ end
 #
 # N  No caching    Caching
 # 2  38.701 ns     38.693 ns
-# 3  2.311 μs      4.630 μs
+# 3  2.311 μs      4.630 μs    # 399.065 ns with special optimization path
 # 4  6.179 μs      14.231 μs
 # 5  30.074 μs     67.212 μs
 # 6  237.478 μs    445.363 μs
