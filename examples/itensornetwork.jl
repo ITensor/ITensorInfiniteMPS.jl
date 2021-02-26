@@ -7,9 +7,12 @@ using ProfileView
 using Random # For seed!
 using StatsBase # For sample
 
+# Testing for improved algorithms
+using ITensorsInfiniteMPS.ContractionSequenceOptimization
+
 Random.seed!(1234)
 
-N = 8 # Tensors in the network
+N = 6 # Tensors in the network
 
 Sz0 = ("Sz", 0) => 1
 Sz1 = ("Sz", 1) => 1
@@ -45,12 +48,18 @@ end
 # Can just use indsnetwork, this recreates indsnetwork
 TN = ⊗(T...)
 
-@show N
-sequence, cost = @time ITensorsInfiniteMPS.optimal_contraction_sequence(TN)
-@show cost
-@show sequence
-@show Tree(sequence)
+# @show N
+# sequence, cost = @time ITensorsInfiniteMPS.optimal_contraction_sequence(TN)
+# @show cost
+# @show sequence
+# @show Tree(sequence)
 #@profview ITensorsInfiniteMPS.optimal_contraction_sequence(TN)
+
+sequence2, cost2 = @time depth_first_constructive(T)
+@show cost2
+@show sequence2
+@show Tree(sequence2)
+#@profview depth_first_constructive(T)
 
 #
 # commit 3a31f201b71fa660b7709a733cd79e8c31c08dae

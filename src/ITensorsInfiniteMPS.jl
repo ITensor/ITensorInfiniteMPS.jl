@@ -9,10 +9,12 @@ using Infinities
 using LinearAlgebra
 # For indexing starting from something other than 0.
 using OffsetArrays
+using IterTools
 
 include("ITensors.jl")
 include("ITensorNetworks.jl")
 include("itensormap.jl")
+include("contraction_sequence_optimization.jl")
 
 import Base:
   getindex,
