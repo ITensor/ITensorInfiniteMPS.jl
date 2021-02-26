@@ -58,21 +58,25 @@ module ContractionSequenceOptimization
   # and returns the original integer dimensions
   function inds_to_ints(T::Vector{Vector{IndexT}}) where {IndexT <: Index}
     N = length(T)
-    uniqueinds = ∪(T...)
     ind_to_int = Dict{IndexT, Int}()
-    for p in pairs(uniqueinds)
-      int, ind = p
-      ind_to_int[ind] = int
-    end
     ints = Vector{Int}[Vector{Int}(undef, length(T[n])) for n in 1:N]
-    for n in 1:N
+    ind_dims = Vector{Int}(undef, sum(length, T))
+    x = 0
+    @inbounds for n in 1:N
       T_n = T[n]
       ints_n = ints[n]
       for j in 1:length(ints_n)
-        ints_n[j] = ind_to_int[T_n[j]]
+        i = T_n[j]
+        i_label = get!(ind_to_int, i) do
+          x += 1
+          ind_dims[x] = dim(i)
+          x
+        end
+        ints_n[j] = i_label
       end
     end
-    return ints, dim.(uniqueinds)
+    resize!(ind_dims, x)
+    return ints, ind_dims
   end
 
   function depth_first_constructive(T::Vector{Vector{IndexT}}) where {IndexT <: Index}
