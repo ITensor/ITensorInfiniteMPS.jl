@@ -56,11 +56,24 @@ TN = ⊗(T...)
 #@show Tree(sequence)
 #@profview ITensorsInfiniteMPS.optimal_contraction_sequence(TN)
 
-sequence2, cost2 = @time depth_first_constructive(T)
+stats = @timed depth_first_constructive(T)
+sequence2, cost2 = stats.value
+time = stats.time
 @show cost2
 @show sequence2
 @show Tree(sequence2)
+println(N, "  ", time, "  ", cost2, "  ", sequence2)
 #@profview depth_first_constructive(T)
+
+#
+# de8fc59563ad546b1f0b6be1af130a260e3f67d5
+#
+# Results
+# N  time(s)      cost   sequence
+# 7  0.015418301  1744   [2 => 4, 6 => 8, 5 => 9, 1 => 10, 7 => 11, 3 => 12]
+# 8  0.164726236  4928   [1 => 6, 2 => 3, 4 => 9, 5 => 11, 8 => 12, 10 => 13, 7 => 14]
+# 9  13.03959649  82432  [1 => 4, 9 => 10, 5 => 11, 7 => 12, 3 => 13, 8 => 14, 6 => 15, 2 => 16]
+
 
 #
 # commit 3a31f201b71fa660b7709a733cd79e8c31c08dae

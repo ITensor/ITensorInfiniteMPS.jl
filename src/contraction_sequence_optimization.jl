@@ -51,8 +51,9 @@ module ContractionSequenceOptimization
     best_cost = Ref(typemax(Int))
     best_sequence = Vector{Pair{Int, Int}}(undef, length(T)-1)
     function _depth_first_constructive(sequence, T, remaining, cost)
-      # Only should get here if the contraction was the best
       if length(remaining) == 1
+        # Only should get here if the contraction was the best
+        # Otherwise it would have hit the `continue` below
         @assert cost ≤ best_cost[]
         best_cost[] = cost
         best_sequence .= sequence
