@@ -93,40 +93,41 @@ module ContractionSequenceOptimization
     return trees[end]
   end
 
+  function _depth_first_constructive!(optimal_sequence, optimal_cost, cost_cache, sequence, T, ind_dims, remaining, cost)
+    if length(remaining) == 1
+      # Only should get here if the contraction was the best
+      # Otherwise it would have hit the `continue` below
+      @assert cost ≤ optimal_cost[]
+      optimal_cost[] = cost
+      optimal_sequence .= sequence
+    end
+    for aᵢ in 1:length(remaining)-1, bᵢ in aᵢ+1:length(remaining)
+      a = remaining[aᵢ]
+      b = remaining[bᵢ]
+      Tᵈ, current_cost = get!(cost_cache, (T[a], T[b])) do
+        contract_inds_cost((T[a], T[b]), ind_dims)
+      end
+      new_cost = cost + current_cost
+      if new_cost ≥ optimal_cost[]
+        continue
+      end
+      new_sequence = push!(copy(sequence), a => b)
+      new_T = push!(copy(T), Tᵈ)
+      new_remaining = deleteat!(copy(remaining), (aᵢ, bᵢ))
+      push!(new_remaining, length(new_T))
+      _depth_first_constructive!(optimal_sequence, optimal_cost, cost_cache, new_sequence, new_T, ind_dims, new_remaining, new_cost)
+    end
+  end
+
   # TODO: use the initial sequence as a guess sequence, which
   # can be used to prune the tree
   function depth_first_constructive(T::Vector{Vector{Int}}, ind_dims::Vector{Int})
-    best_cost = Ref(typemax(Int))
-    best_sequence = Vector{Pair{Int, Int}}(undef, length(T)-1)
+    optimal_cost = Ref(typemax(Int))
+    optimal_sequence = Vector{Pair{Int, Int}}(undef, length(T)-1)
     # Memoize index contractions and costs that have already been seen
     cost_cache = Dict{Tuple{Vector{Int}, Vector{Int}}, Tuple{Vector{Int}, Int}}()
-    function _depth_first_constructive(sequence, T, remaining, cost)
-      if length(remaining) == 1
-        # Only should get here if the contraction was the best
-        # Otherwise it would have hit the `continue` below
-        @assert cost ≤ best_cost[]
-        best_cost[] = cost
-        best_sequence .= sequence
-      end
-      for aᵢ in 1:length(remaining)-1, bᵢ in aᵢ+1:length(remaining)
-        a = remaining[aᵢ]
-        b = remaining[bᵢ]
-        Tᵈ, current_cost = get!(cost_cache, (T[a], T[b])) do
-          contract_inds_cost((T[a], T[b]), ind_dims)
-        end
-        new_cost = cost + current_cost
-        if new_cost ≥ best_cost[]
-          continue
-        end
-        new_sequence = push!(copy(sequence), a => b)
-        new_T = push!(copy(T), Tᵈ)
-        new_remaining = deleteat!(copy(remaining), (aᵢ, bᵢ))
-        push!(new_remaining, length(new_T))
-        _depth_first_constructive(new_sequence, new_T, new_remaining, new_cost)
-      end
-    end
-    _depth_first_constructive(Pair{Int, Int}[], T, collect(1:length(T)), 0)
-    return pair_sequence_to_tree(best_sequence, length(T)), best_cost[]
+    _depth_first_constructive!(optimal_sequence, optimal_cost, cost_cache, Pair{Int, Int}[], T, ind_dims, collect(1:length(T)), 0)
+    return pair_sequence_to_tree(optimal_sequence, length(T)), optimal_cost[]
   end
 
 end # module ContractionSequenceOptimization
