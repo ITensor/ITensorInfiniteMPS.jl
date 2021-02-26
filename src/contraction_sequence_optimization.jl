@@ -49,8 +49,12 @@ module ContractionSequenceOptimization
     return isR, cost
   end
 
-  function depth_first_constructive(T::Vector{<: ITensor})
-    return depth_first_constructive(collect.(inds.(T)))
+  function contract_inds_cost(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT <: Index}
+    N1 = length(is1)
+    isR = vcat(is1, is2)
+    remove_common_pair!(isR, N1, 1)
+    cost = Int(sqrt(_dim(is1) * _dim(is2) * _dim(isR)))
+    return isR, cost
   end
 
   # Converts the indices to integer labels
@@ -77,11 +81,6 @@ module ContractionSequenceOptimization
     end
     resize!(ind_dims, x)
     return ints, ind_dims
-  end
-
-  function depth_first_constructive(T::Vector{Vector{IndexT}}) where {IndexT <: Index}
-    T′, ind_dims = inds_to_ints(T)
-    return depth_first_constructive(T′, ind_dims)
   end
 
   # Convert a contraction sequence in pair form to tree format
@@ -119,14 +118,78 @@ module ContractionSequenceOptimization
     end
   end
 
+  # No caching
+  function _depth_first_constructive!(optimal_sequence, optimal_cost, sequence, T, remaining, cost)
+    if length(remaining) == 1
+      # Only should get here if the contraction was the best
+      # Otherwise it would have hit the `continue` below
+      @assert cost ≤ optimal_cost[]
+      optimal_cost[] = cost
+      optimal_sequence .= sequence
+    end
+    for aᵢ in 1:length(remaining)-1, bᵢ in aᵢ+1:length(remaining)
+      a = remaining[aᵢ]
+      b = remaining[bᵢ]
+      Tᵈ, current_cost = contract_inds_cost(T[a], T[b])
+      new_cost = cost + current_cost
+      if new_cost ≥ optimal_cost[]
+        continue
+      end
+      new_sequence = push!(copy(sequence), a => b)
+      new_T = push!(copy(T), Tᵈ)
+      new_remaining = deleteat!(copy(remaining), (aᵢ, bᵢ))
+      push!(new_remaining, length(new_T))
+      _depth_first_constructive!(optimal_sequence, optimal_cost, new_sequence, new_T, new_remaining, new_cost)
+    end
+  end
+
+  function depth_first_constructive(T::Vector{<: ITensor}; enable_caching::Bool = false)
+    if length(T) == 1
+      return Any[1], 0
+    elseif length(T) == 2
+      return Any[1 2], 0
+    end
+    return depth_first_constructive(inds.(T); enable_caching = enable_caching)
+  end
+
+  function depth_first_constructive(T::Vector{IndexSetT}; enable_caching::Bool = false) where {IndexSetT <: IndexSet}
+    N = length(T)
+    IndexT = eltype(IndexSetT)
+    Tinds = Vector{IndexT}[Vector{IndexT}(undef, length(T[n])) for n in 1:N]
+    for n in 1:N
+      T_n = T[n]
+      Tinds_n = Tinds[n]
+      for j in 1:length(Tinds_n)
+        Tinds_n[j] = T_n[j]
+      end
+    end
+    return depth_first_constructive(Tinds; enable_caching = enable_caching)
+  end
+
+  function depth_first_constructive(T::Vector{Vector{IndexT}}; enable_caching = enable_caching) where {IndexT <: Index}
+    return if enable_caching
+      T′, ind_dims = inds_to_ints(T)
+      depth_first_constructive_caching(T′, ind_dims)
+    else
+      depth_first_constructive_no_caching(T)
+    end
+  end
+
   # TODO: use the initial sequence as a guess sequence, which
   # can be used to prune the tree
-  function depth_first_constructive(T::Vector{Vector{Int}}, ind_dims::Vector{Int})
+  function depth_first_constructive_caching(T::Vector{Vector{Int}}, ind_dims::Vector{Int})
     optimal_cost = Ref(typemax(Int))
     optimal_sequence = Vector{Pair{Int, Int}}(undef, length(T)-1)
     # Memoize index contractions and costs that have already been seen
     cost_cache = Dict{Tuple{Vector{Int}, Vector{Int}}, Tuple{Vector{Int}, Int}}()
     _depth_first_constructive!(optimal_sequence, optimal_cost, cost_cache, Pair{Int, Int}[], T, ind_dims, collect(1:length(T)), 0)
+    return pair_sequence_to_tree(optimal_sequence, length(T)), optimal_cost[]
+  end
+
+  function depth_first_constructive_no_caching(T::Vector{Vector{IndexT}}) where {IndexT <: Index}
+    optimal_cost = Ref(typemax(Int))
+    optimal_sequence = Vector{Pair{Int, Int}}(undef, length(T)-1)
+    _depth_first_constructive!(optimal_sequence, optimal_cost, Pair{Int, Int}[], T, collect(1:length(T)), 0)
     return pair_sequence_to_tree(optimal_sequence, length(T)), optimal_cost[]
   end
 
