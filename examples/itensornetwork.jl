@@ -12,7 +12,7 @@ using ITensorsInfiniteMPS.ContractionSequenceOptimization
 
 Random.seed!(1234)
 
-N = 6 # Tensors in the network
+N = 8 # Tensors in the network
 
 Sz0 = ("Sz", 0) => 1
 Sz1 = ("Sz", 1) => 1
@@ -48,11 +48,12 @@ end
 # Can just use indsnetwork, this recreates indsnetwork
 TN = ⊗(T...)
 
-# @show N
-# sequence, cost = @time ITensorsInfiniteMPS.optimal_contraction_sequence(TN)
-# @show cost
-# @show sequence
-# @show Tree(sequence)
+@show N
+
+#sequence, cost = @time ITensorsInfiniteMPS.optimal_contraction_sequence(TN)
+#@show cost
+#@show sequence
+#@show Tree(sequence)
 #@profview ITensorsInfiniteMPS.optimal_contraction_sequence(TN)
 
 sequence2, cost2 = @time depth_first_constructive(T)
