@@ -3,8 +3,6 @@ using ITensorsInfiniteMPS
 using ITensorsInfiniteMPS.ContractionSequenceOptimization
 using ProfileView
 
-include("optimize_3.jl")
-
 function main(N, d = 2; random_order = false)
   @show N
   @show d
@@ -20,19 +18,10 @@ function main(N, d = 2; random_order = false)
     return v
   end
   f(A, N; kwargs...) = for _ in 1:N depth_first_constructive(A; kwargs...) end
-  f3(A, N; kwargs...) = for _ in 1:N optimize_3(A; kwargs...) end
 
   AN = A⃗(N; random_order = random_order)
   display(inds.(AN))
   println()
-
-  if N == 3
-    println()
-    println("Specialized for 3 tensors")
-    @show optimize_3(AN)
-    @btime optimize_3($AN)
-    @profview f3(AN, 1e6)
-  end
 
   println("Sequence optimization time, no caching")
   enable_caching = false
@@ -51,7 +40,7 @@ function main(N, d = 2; random_order = false)
     println()
     println("Contraction time")
     @btime *($AN...)
-    #@profview f(AN, 1e6; enable_caching = enable_caching)
+    @profview f(AN, 1e6; enable_caching = false)
   end
 
   return
@@ -59,6 +48,15 @@ end
 
 #
 # Results
+#
+# d = 2, matrix multiplications
+#
+# Micro optimizations for N=3 case
+# Currently, most of the time is spent constructing the tree
+# structure Any[3, [1, 2]]
+#
+# N  Time
+# 3  128.497 ns
 #
 # 62cd05c58dffcd278bb87b7df10e616357a0e2f4
 #

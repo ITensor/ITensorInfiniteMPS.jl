@@ -37,6 +37,28 @@ module ContractionSequenceOptimization
     end
   end
 
+  function contract_inds(is1, is2)
+    IndexT = eltype(is1)
+    N1 = length(is1)
+    N2 = length(is2)
+    isR = IndexT[]
+    for n1 in 1:N1
+      i1 = is1[n1]
+      n2 = findfirst(==(i1), is2)
+      if !isnothing(n2)
+        push!(isR, i1)
+      end
+    end
+    for n2 in 1:N2
+      i2 = is2[n2]
+      n1 = findfirst(==(i2), is1)
+      if !isnothing(n1)
+        push!(isR, dag(i2))
+      end
+    end
+    return isR
+  end
+
   # Return the noncommon indices and the cost of contraction
   # Recursively removes pairs of indices that are common
   # between the IndexSets (TODO: use this for symdiff in ITensors.jl)
@@ -51,62 +73,31 @@ module ContractionSequenceOptimization
 
   function contract_inds_cost(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT <: Index}
     N1 = length(is1)
-    isR = vcat(is1, is2)
-    remove_common_pair!(isR, N1, 1)
+
+    # This is pretty slow
+    #isR = vcat(is1, is2)
+    #remove_common_pair!(isR, N1, 1)
+
+    isR = contract_inds(is1, is2)
+
     cost = Int(sqrt(_dim(is1) * _dim(is2) * _dim(isR)))
     return isR, cost
   end
 
-  function optimize_three_tensor_contraction_sequence(T::Vector{<: ITensor})
-    @assert length(T) == 3
-    indsT = [inds(t) for t in T]
-    return optimize_three_tensor_contraction_sequence(indsT)
+  function optimize_contraction_sequence(T1::ITensor, T2::ITensor, T3::ITensor)
+    return optimize_contraction_sequence(inds(T1), inds(T2), inds(T3))
   end
 
-  function optimize_three_tensor_contraction_sequence(T::Vector{<: IndexSet})
-    N = length(T)
-    IndexT = eltype(T[1])
-    Tinds = Vector{IndexT}[Vector{IndexT}(undef, length(T[n])) for n in 1:N]
-    for n in 1:N
-      T_n = T[n]
-      Tinds_n = Tinds[n]
-      for j in 1:length(Tinds_n)
-        Tinds_n[j] = T_n[j]
-      end
-    end
-    return optimize_three_tensor_contraction_sequence(Tinds)
-  end
-
-  function compute_cost(external_dims::Tuple{Int, Int, Int},
-                        internal_dims::Tuple{Int, Int, Int})
-    dim11, dim22, dim33 = external_dims
-    dim12, dim23, dim31 = internal_dims
-    cost12 = dim11 * dim22 * dim12 * dim23 * dim31
-    return cost12 + dim11 * dim22 * dim33 * dim31 * dim23
-  end
-
-  function three_tensor_contraction_sequence(which_sequence::Int)::Vector{Any}
-    @assert 1 ≤ which_sequence ≤ 3
-    return if which_sequence == 1
-      Any[3, Any[1, 2]]
-    elseif which_sequence == 2
-      Any[1, Any[2, 3]]
-    else
-      Any[2, Any[3, 1]]
-    end
-  end
-
-  function optimize_three_tensor_contraction_sequence(is::Vector{Vector{IndexT}}) where {IndexT <: Index}
-    @assert length(is) == 3
-    is1 = is[1]
-    is2 = is[2]
-    is3 = is[3]
-    dim2 = _dim(is2)
-    dim3 = _dim(is3)
+  function optimize_contraction_sequence(is1::IndexSet, is2::IndexSet, is3::IndexSet)
+    N1 = length(is1)
+    N2 = length(is2)
+    N3 = length(is3)
+    dim2 = dim(is2)
+    dim3 = dim(is3)
     dim11 = 1
     dim12 = 1
     dim31 = 1
-    @inbounds for n1 in 1:length(is1)
+    @inbounds for n1 in 1:N1
       i1 = is1[n1]
       n2 = findfirst(==(i1), is2)
       if isnothing(n2)
@@ -116,11 +107,9 @@ module ContractionSequenceOptimization
           continue
         end
         dim31 *= dim(i1)
-        deleteat!(is3, n3)
         continue
       end
       dim12 *= dim(i1)
-      deleteat!(is2, n2)
     end
     dim23 = 1
     @inbounds for n2 in 1:length(is2)
@@ -128,7 +117,6 @@ module ContractionSequenceOptimization
       n3 = findfirst(==(i2), is3)
       if !isnothing(n3)
         dim23 *= dim(i2)
-        deleteat!(is3, n3)
       end
     end
     dim22 = dim2 ÷ (dim12 * dim23)
@@ -145,6 +133,25 @@ module ContractionSequenceOptimization
     mincost, which_sequence = findmin((cost1, cost2, cost3))
     sequence = three_tensor_contraction_sequence(which_sequence)
     return sequence, mincost
+  end
+
+  function compute_cost(external_dims::Tuple{Int, Int, Int},
+                        internal_dims::Tuple{Int, Int, Int})
+    dim11, dim22, dim33 = external_dims
+    dim12, dim23, dim31 = internal_dims
+    cost12 = dim11 * dim22 * dim12 * dim23 * dim31
+    return cost12 + dim11 * dim22 * dim33 * dim31 * dim23
+  end
+
+  function three_tensor_contraction_sequence(which_sequence::Int)::Vector{Any}
+    @assert 1 ≤ which_sequence ≤ 3
+    return if which_sequence == 1
+      Any[3, [1, 2]]
+    elseif which_sequence == 2
+      Any[1, [2, 3]]
+    else
+      Any[2, [3, 1]]
+    end
   end
 
   # Converts the indices to integer labels
@@ -239,9 +246,10 @@ module ContractionSequenceOptimization
     elseif length(T) == 2
       return Any[1 2], 0
     elseif length(T) == 3
-      return optimize_three_tensor_contraction_sequence(T)
+      return optimize_contraction_sequence(T[1], T[2], T[3])
     end
-    return depth_first_constructive(inds.(T); enable_caching = enable_caching)
+    indsT = [inds(Tₙ) for Tₙ in T]
+    return depth_first_constructive(indsT; enable_caching = enable_caching)
   end
 
   function depth_first_constructive(T::Vector{IndexSetT}; enable_caching::Bool = false) where {IndexSetT <: IndexSet}

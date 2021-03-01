@@ -64,14 +64,34 @@ function main(N)
 end
 
 #
-# XXX conclusion: don't use a cache for N ≤ 6
-# From profile.jl, with matrix multiplication, don't
-# use a cache for N ≤ 8.
+# XXX conclusion: using a cache hurts performance N ≤ 6
+# (compared to not using a cache).
+# From profile.jl, with matrix multiplication,
+# using a cache for N ≤ 8 hurt performance.
 # Compromise, in automatic mode, don't use cache for N ≤ 7:
 #
 # if enable_cache == "auto"
 #   enable_cache = N ≤ 7 ? false : true
 # end
+#
+# TODO: make a specialized `ContractionSequence` binary tree type?
+# Move to ITensors.jl.
+# Implement:
+#
+#   # A could be a Vector{<:ITensor} as well.
+#   contract(A...; sequence = [...])
+#   contract(A; opt_alg = "auto")  # Choose automatically (turn off when N > 8)
+#   contract(A; opt_alg = nothing) # No sequence optimization
+#   contract_sequence(A)  # Output the sequence used to contract A. Can be passed back in `sequence`.
+#
+#   @contract A * B * C opt_alg = "auto"
+#
+#   # O
+#   seq = @contract_sequence A * B * C opt_alg = "auto"
+#   @contract A * B * C sequence = seq
+#
+#
+# 012ca5ab0a086a01a4b53ad15e2f0d97aaeaaff7
 #
 # N  Time no cache          Time cache
 # 2  3.7330312185297084e-8  3.722356495468278e-8
