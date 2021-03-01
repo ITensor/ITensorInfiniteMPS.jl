@@ -1,9 +1,12 @@
 
 module ContractionSequenceOptimization
 
-  using ITensors
+  using
+    ITensors,
+    IterTools
 
-  export depth_first_constructive
+  export depth_first_constructive,
+         breadth_first_constructive
 
   function _dim(is::Vector{<: Index})
     isempty(is) && return 1
@@ -45,14 +48,14 @@ module ContractionSequenceOptimization
     for n1 in 1:N1
       i1 = is1[n1]
       n2 = findfirst(==(i1), is2)
-      if !isnothing(n2)
+      if isnothing(n2)
         push!(isR, i1)
       end
     end
     for n2 in 1:N2
       i2 = is2[n2]
       n1 = findfirst(==(i2), is1)
-      if !isnothing(n1)
+      if isnothing(n1)
         push!(isR, dag(i2))
       end
     end
@@ -291,6 +294,115 @@ module ContractionSequenceOptimization
     optimal_sequence = Vector{Pair{Int, Int}}(undef, length(T)-1)
     _depth_first_constructive!(optimal_sequence, optimal_cost, Pair{Int, Int}[], T, collect(1:length(T)), 0)
     return pair_sequence_to_tree(optimal_sequence, length(T)), optimal_cost[]
+  end
+
+  function contraction_cost(T::Vector{Vector{IndexT}}, a::Vector{Int}, b::Vector{Int}) where {IndexT <: Index}
+    # The set of tensor indices `a` and `b`
+    Tᵃ = T[a]
+    Tᵇ = T[b]
+
+    # XXX TODO: this should use a cache to store the results
+    # of the contraction
+    indsTᵃ = symdiff(Tᵃ...)
+    indsTᵇ = symdiff(Tᵇ...)
+    indsTᵃTᵇ = symdiff(indsTᵃ, indsTᵇ)
+    cost = Int(sqrt(prod(_dim(indsTᵃ) * prod(_dim(indsTᵇ) * _dim(indsTᵃTᵇ)))))
+    return cost
+  end
+
+  #
+  # Breadth-first constructive approach
+  #
+
+  function breadth_first_constructive(T::Vector{<: ITensor})
+    if length(T) == 1
+      return Any[1], 0
+    elseif length(T) == 2
+      return Any[1 2], 0
+    elseif length(T) == 3
+      return optimize_contraction_sequence(T[1], T[2], T[3])
+    end
+    indsT = [inds(Tₙ) for Tₙ in T]
+    return breadth_first_constructive(indsT)
+  end
+
+  function breadth_first_constructive(T::Vector{IndexSetT}) where {IndexSetT <: IndexSet}
+    N = length(T)
+    IndexT = eltype(IndexSetT)
+    Tinds = Vector{IndexT}[Vector{IndexT}(undef, length(T[n])) for n in 1:N]
+    for n in 1:N
+      T_n = T[n]
+      Tinds_n = Tinds[n]
+      for j in 1:length(Tinds_n)
+        Tinds_n[j] = T_n[j]
+      end
+    end
+    return breadth_first_constructive(Tinds)
+  end
+
+  function breadth_first_constructive(T::Vector{Vector{IndexT}}) where {IndexT <: Index}
+    n = length(T)
+
+    # `S[c]` is the set of all objects made up by
+    # contracting `c` unique tensors from `S¹`,
+    # the set of `n` tensors which make of `T`
+    S = Vector{Vector{Vector{Int}}}(undef, n)
+    for c in 1:n
+      S[c] = collect(IterTools.subsets(1:n, c))
+    end
+
+    # A cache of the optimal costs of contracting a set of
+    # tensors, for example [1, 2, 3].
+    # Make sure they are sorted before hashing.
+    cost_cache = Dict{Vector{Int}, Int}()
+
+    # TODO: a cache of the uncontracted indices of a set of
+    # tensors
+    #inds_cache = Dict{Vector{Vector{Int}}, Int}()
+
+    # A cache of the best sequence found
+    sequence_cache = Dict{Vector{Int}, Vector{Any}}()
+
+    # c is the total number of tensors being contracted
+    # in the current sequence
+    for c in 2:n
+      # For each pair of sets Sᵈ, Sᶜ⁻ᵈ, 1 ≤ d ≤ ⌊c/2⌋
+      for d in 1:c÷2
+        # TODO: if c-d == d, change iteration to IterTools.subsets(S[d], 2) to avoid iterating over both `a,b` and `b,a`.
+        for a in S[d], b in S[c-d]
+          # Check that each element of S¹ appears
+          # at most once in (TᵃTᵇ)
+          ab = sort(a ∪ b)
+          if length(ab) == length(a) + length(b)
+            # Determine the cost μ of contracting Tᵃ, Tᵇ
+            μ = contraction_cost(T, a, b)
+            if length(a) > 1
+              μ += cost_cache[a]
+            end
+            if length(b) > 1
+              μ += cost_cache[b]
+            end
+            old_cost = get(cost_cache, ab, typemax(Int))
+            if μ < old_cost
+              cost_cache[ab] = μ
+              if length(a) == 1
+                sequence_a = only(a)
+              else
+                sequence_a = sequence_cache[a]
+              end
+              if length(b) == 1
+                sequence_b = only(b)
+              else
+                sequence_b = sequence_cache[b]
+              end
+              sequence_cache[ab] = Any[sequence_a, sequence_b]
+            end
+
+          end
+        end
+      end
+    end
+    return sequence_cache[[1:n...]], cost_cache[[1:n...]]
   end
 
 end # module ContractionSequenceOptimization
