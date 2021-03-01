@@ -368,12 +368,20 @@ module ContractionSequenceOptimization
     for c in 2:n
       # For each pair of sets Sᵈ, Sᶜ⁻ᵈ, 1 ≤ d ≤ ⌊c/2⌋
       for d in 1:c÷2
-        # TODO: if c-d == d, change iteration to IterTools.subsets(S[d], 2) to avoid iterating over both `a,b` and `b,a`.
         for a in S[d], b in S[c-d]
-          # Check that each element of S¹ appears
-          # at most once in (TᵃTᵇ)
-          ab = sort(a ∪ b)
-          if length(ab) == length(a) + length(b)
+          valid_sequence = false
+          if !any(x -> any(==(x), a), b)
+            # Check that each element of S¹ appears
+            # at most once in (TᵃTᵇ).
+            ab = sort(vcat(a, b))
+            valid_sequence = true
+          end
+          if d == c-d && b ≤ a
+            # Also, when d == c-d, check that b > a so that
+            # that case (a,b) and (b,a) are not repeated
+            valid_sequence = false
+          end
+          if valid_sequence
             # Determine the cost μ of contracting Tᵃ, Tᵇ
             μ = contraction_cost(T, a, b)
             if length(a) > 1

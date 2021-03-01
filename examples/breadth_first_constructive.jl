@@ -4,6 +4,10 @@ using ITensorsInfiniteMPS.ContractionSequenceOptimization
 using ProfileView
 using Random
 
+# Profile breadth-first constructive approach
+profile_breadth_first_constructive(A, N) =
+  for _ in 1:N breadth_first_constructive(A) end
+
 function main(N, d = 2; random_order = false)
   Random.seed!(1234)
 
@@ -35,6 +39,8 @@ function main(N, d = 2; random_order = false)
   println("Breadth-first constructive")
   enable_caching = false
   @show @time breadth_first_constructive(AN)
+
+  @profview profile_breadth_first_constructive(AN, 1e4)
 
   println()
   println("Depth-first constructive")
