@@ -13,11 +13,12 @@ module ContractionSequenceOptimization
     return mapreduce(dim, *, is)
   end
 
-  function _dim(is::Vector{Int}, ind_dims::Vector{Int})
+  # `is` could be Vector{Int} for BitSet
+  function _dim(is, ind_dims::Vector{Int})
     isempty(is) && return 1
     dim = 1
-    for n in 1:length(is)
-      dim *= ind_dims[is[n]]
+    for i in is
+      dim *= ind_dims[i]
     end
     return dim
   end
@@ -183,6 +184,31 @@ module ContractionSequenceOptimization
     return ints, ind_dims
   end
 
+  # Converts the indices to integer labels stored in BitSets
+  # and returns a Vector that takes those labels
+  # and returns the original integer dimensions
+  function inds_to_bitsets(T::Vector{Vector{IndexT}}) where {IndexT <: Index}
+    N = length(T)
+    ind_to_int = Dict{IndexT, Int}()
+    ints = map(_ -> BitSet(), 1:N)
+    ind_dims = Vector{Int}(undef, sum(length, T))
+    x = 0
+    @inbounds for n in 1:N
+      T_n = T[n]
+      for j in 1:length(T_n)
+        i = T_n[j]
+        i_label = get!(ind_to_int, i) do
+          x += 1
+          ind_dims[x] = dim(i)
+          x
+        end
+        push!(ints[n], i_label)
+      end
+    end
+    resize!(ind_dims, x)
+    return ints, ind_dims
+  end
+
   # Convert a contraction sequence in pair form to tree format
   function pair_sequence_to_tree(pairs::Vector{Pair{Int, Int}}, N::Int)
     trees = Any[1:N...]
@@ -296,7 +322,8 @@ module ContractionSequenceOptimization
     return pair_sequence_to_tree(optimal_sequence, length(T)), optimal_cost[]
   end
 
-  function contraction_cost(T::Vector{Vector{IndexT}}, a::Vector{Int}, b::Vector{Int}) where {IndexT <: Index}
+  function contraction_cost(T::Vector{Vector{IndexT}}, a::Vector{Int},
+                            b::Vector{Int}) where {IndexT <: Index}
     # The set of tensor indices `a` and `b`
     Tᵃ = T[a]
     Tᵇ = T[b]
@@ -307,6 +334,50 @@ module ContractionSequenceOptimization
     indsTᵇ = symdiff(Tᵇ...)
     indsTᵃTᵇ = symdiff(indsTᵃ, indsTᵇ)
     cost = Int(sqrt(prod(_dim(indsTᵃ) * prod(_dim(indsTᵇ) * _dim(indsTᵃTᵇ)))))
+    return cost
+  end
+
+  function contraction_cost(T::Vector{BitSet}, dims::Vector{Int}, a::BitSet,
+                            b::BitSet) where {IndexT <: Index}
+    # The set of tensor indices `a` and `b`
+    Tᵃ = [T[aₙ] for aₙ in a]
+    Tᵇ = [T[bₙ] for bₙ in b]
+
+    # XXX TODO: this should use a cache to store the results
+    # of the contraction
+    indsTᵃ = symdiff(Tᵃ...)
+    indsTᵇ = symdiff(Tᵇ...)
+    indsTᵃTᵇ = symdiff(indsTᵃ, indsTᵇ)
+    dim_a = _dim(indsTᵃ, dims)
+    dim_b = _dim(indsTᵇ, dims)
+    dim_ab = _dim(indsTᵃTᵇ, dims)
+    cost = Int(sqrt(Base.Checked.checked_mul(dim_a, dim_b, dim_ab)))
+    return cost
+  end
+
+  function contraction_cost!(inds_cache::Dict{BitSet, BitSet},
+                             T::Vector{BitSet}, dims::Vector{Int}, a::BitSet,
+                             b::BitSet, ab::BitSet) where {IndexT <: Index}
+    # The set of tensor indices `a` and `b`
+    Tᵃ = [T[aₙ] for aₙ in a]
+    Tᵇ = [T[bₙ] for bₙ in b]
+
+    # XXX TODO: this should use a cache to store the results
+    # of the contraction
+    #indsTᵃ = symdiff(Tᵃ...)
+    #indsTᵇ = symdiff(Tᵇ...)
+
+    indsTᵃ = inds_cache[a]
+    indsTᵇ = inds_cache[b]
+
+    indsTᵃTᵇ = symdiff(indsTᵃ, indsTᵇ)
+
+    inds_cache[ab] = indsTᵃTᵇ
+
+    dim_a = _dim(indsTᵃ, dims)
+    dim_b = _dim(indsTᵇ, dims)
+    dim_ab = _dim(indsTᵃTᵇ, dims)
+    cost = Int(sqrt(Base.Checked.checked_mul(dim_a, dim_b, dim_ab)))
     return cost
   end
 
@@ -337,31 +408,47 @@ module ContractionSequenceOptimization
         Tinds_n[j] = T_n[j]
       end
     end
-    return breadth_first_constructive(Tinds)
+    Tlabels, Tdims = inds_to_bitsets(Tinds)
+    return breadth_first_constructive(Tlabels, Tdims)
   end
 
-  function breadth_first_constructive(T::Vector{Vector{IndexT}}) where {IndexT <: Index}
+  function _cmp(A::BitSet, B::BitSet)
+    for (a, b) in zip(A, B)
+      if !isequal(a, b)
+        return isless(a, b) ? -1 : 1
+      end
+    end
+    return cmp(length(A), length(B))
+  end
+
+  # Returns true when `A` is less than `B` in lexicographic order.
+  _isless(A::BitSet, B::BitSet) = _cmp(A, B) < 0
+ 
+  function breadth_first_constructive(T::Vector{BitSet}, dims::Vector{Int})
     n = length(T)
 
     # `S[c]` is the set of all objects made up by
     # contracting `c` unique tensors from `S¹`,
     # the set of `n` tensors which make of `T`
-    S = Vector{Vector{Vector{Int}}}(undef, n)
+    S = Vector{Vector{BitSet}}(undef, n)
     for c in 1:n
-      S[c] = collect(IterTools.subsets(1:n, c))
+      S[c] = map(BitSet, IterTools.subsets(1:n, c))
     end
 
     # A cache of the optimal costs of contracting a set of
     # tensors, for example [1, 2, 3].
     # Make sure they are sorted before hashing.
-    cost_cache = Dict{Vector{Int}, Int}()
+    cost_cache = Dict{BitSet, Int}()
 
     # TODO: a cache of the uncontracted indices of a set of
     # tensors
-    #inds_cache = Dict{Vector{Vector{Int}}, Int}()
+    inds_cache = Dict{BitSet, BitSet}()
+    for i in 1:n
+      inds_cache[BitSet([i])] = T[i]
+    end
 
     # A cache of the best sequence found
-    sequence_cache = Dict{Vector{Int}, Vector{Any}}()
+    sequence_cache = Dict{BitSet, Vector{Any}}()
 
     # c is the total number of tensors being contracted
     # in the current sequence
@@ -373,17 +460,17 @@ module ContractionSequenceOptimization
           if !any(x -> any(==(x), a), b)
             # Check that each element of S¹ appears
             # at most once in (TᵃTᵇ).
-            ab = sort(vcat(a, b))
+            ab = union(a, b)
             valid_sequence = true
           end
-          if d == c-d && b ≤ a
+          if d == c-d && _isless(b, a)
             # Also, when d == c-d, check that b > a so that
             # that case (a,b) and (b,a) are not repeated
             valid_sequence = false
           end
           if valid_sequence
             # Determine the cost μ of contracting Tᵃ, Tᵇ
-            μ = contraction_cost(T, a, b)
+            μ = contraction_cost!(inds_cache, T, dims, a, b, ab)
             if length(a) > 1
               μ += cost_cache[a]
             end
@@ -410,7 +497,7 @@ module ContractionSequenceOptimization
         end
       end
     end
-    return sequence_cache[[1:n...]], cost_cache[[1:n...]]
+    return sequence_cache[BitSet(1:n)], cost_cache[BitSet(1:n)]
   end
 
 end # module ContractionSequenceOptimization

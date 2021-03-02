@@ -15,10 +15,6 @@ function main(N, d = 2; random_order = false)
   @show d
 
   function A⃗(N; random_order = false)
-    #i = Index(d, "i")
-    #A = randomITensor(i', dag(i))
-    #v = [prime(A, n) for n in reverse(0:N-1)]
-
     χ = [d:d+N-1..., d]
     @show χ
     @show length(χ)
@@ -40,7 +36,7 @@ function main(N, d = 2; random_order = false)
   enable_caching = false
   @show @time breadth_first_constructive(AN)
 
-  @profview profile_breadth_first_constructive(AN, 1e4)
+  #@profview profile_breadth_first_constructive(AN, 1e4)
 
   println()
   println("Depth-first constructive")
