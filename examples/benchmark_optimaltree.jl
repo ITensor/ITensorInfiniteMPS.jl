@@ -88,7 +88,12 @@ function main(nnodes; profile = false)
   #@show stats_itensor.time
   #@show stats_itensor.value
 
-  stats_itensor = @timed breadth_first_constructive(UInt128, tensornetwork)
+  stats_itensor = @timed breadth_first_constructive(UInt128, BitSet, tensornetwork)
+  println()
+  @show stats_itensor.time
+  @show stats_itensor.value
+
+  stats_itensor = @timed breadth_first_constructive(UInt128, UInt128, tensornetwork)
 
   println()
   @show stats_itensor.time
@@ -96,11 +101,12 @@ function main(nnodes; profile = false)
 
   @show stats_tensoroperations.time / stats_itensor.time
 
-  profile_breadth_first_constructive(::Type{T}, A, N) where {T} =
-    for _ in 1:N breadth_first_constructive(T, A) end
+  profile_breadth_first_constructive(::Type{TensorT},
+                                     ::Type{IndexSetT}, A, N) where {TensorT, IndexSetT} =
+    for _ in 1:N breadth_first_constructive(TensorT, IndexSetT, A) end
 
   if profile
-    @profview profile_breadth_first_constructive(UInt128, tensornetwork, round(Int, 1/stats_itensor.time, RoundUp))
+    @profview profile_breadth_first_constructive(UInt128, UInt128, tensornetwork, round(Int, 1/stats_itensor.time, RoundUp))
   end
 end
 

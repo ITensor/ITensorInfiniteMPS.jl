@@ -14,11 +14,25 @@ module ContractionSequenceOptimization
   end
 
   # `is` could be Vector{Int} for BitSet
-  function _dim(is, ind_dims::Vector{Int})
+  function _dim(is::IndexSetT, ind_dims::Vector{Int}) where {IndexSetT <: Union{Vector{Int}, BitSet}}
     isempty(is) && return 1
     dim = 1
     for i in is
       dim *= ind_dims[i]
+    end
+    return dim
+  end
+
+  function _dim(is::Unsigned, ind_dims::Vector{Int})
+    _isemptyset(is) && return 1
+    dim = 1
+    i = 1
+    @inbounds while !iszero(is)
+      if isodd(is)
+        dim = Base.Checked.checked_mul(dim, ind_dims[i])
+      end
+      is = is >> 1
+      i += 1
     end
     return dim
   end
@@ -187,7 +201,7 @@ module ContractionSequenceOptimization
   # Converts the indices to integer labels stored in BitSets
   # and returns a Vector that takes those labels
   # and returns the original integer dimensions
-  function inds_to_bitsets(T::Vector{Vector{IndexT}}) where {IndexT <: Index}
+  function inds_to_bitsets(::Type{BitSet}, T::Vector{Vector{IndexT}}) where {IndexT <: Index}
     N = length(T)
     ind_to_int = Dict{IndexT, Int}()
     ints = map(_ -> BitSet(), 1:N)
@@ -207,6 +221,12 @@ module ContractionSequenceOptimization
     end
     resize!(ind_dims, x)
     return ints, ind_dims
+  end
+
+  function inds_to_bitsets(::Type{T}, Tinds::Vector{Vector{IndexT}}) where {T <: Unsigned, IndexT <: Index}
+    ints, ind_dims = inds_to_bitsets(BitSet, Tinds)
+    uints = T[bitset(T, int) for int in ints]
+    return uints, ind_dims
   end
 
   # Convert a contraction sequence in pair form to tree format
@@ -359,7 +379,8 @@ module ContractionSequenceOptimization
   # Breadth-first constructive approach
   #
 
-  function breadth_first_constructive(::Type{TensorSet}, T::Vector{<: ITensor}) where {TensorSet}
+  function breadth_first_constructive(::Type{TensorSetT}, ::Type{IndexSetT},
+                                      T::Vector{<: ITensor}) where {TensorSetT, IndexSetT}
     if length(T) == 1
       return Any[1], 0
     elseif length(T) == 2
@@ -368,10 +389,11 @@ module ContractionSequenceOptimization
       return optimize_contraction_sequence(T[1], T[2], T[3])
     end
     indsT = [inds(Tₙ) for Tₙ in T]
-    return breadth_first_constructive(TensorSet, indsT)
+    return breadth_first_constructive(TensorSetT, IndexSetT, indsT)
   end
 
-  function breadth_first_constructive(::Type{TensorSet}, T::Vector{IndexSetT}) where {IndexSetT <: IndexSet, TensorSet}
+  function breadth_first_constructive(::Type{TensorSetT}, ::Type{LabelSetT},
+                                      T::Vector{IndexSetT}) where {IndexSetT <: IndexSet, TensorSetT, LabelSetT}
     N = length(T)
     IndexT = eltype(IndexSetT)
     Tinds = Vector{IndexT}[Vector{IndexT}(undef, length(T[n])) for n in 1:N]
@@ -382,8 +404,8 @@ module ContractionSequenceOptimization
         Tinds_n[j] = T_n[j]
       end
     end
-    Tlabels, Tdims = inds_to_bitsets(Tinds)
-    return breadth_first_constructive_cost_cap(TensorSet, Tlabels, Tdims)
+    Tlabels, Tdims = inds_to_bitsets(LabelSetT, Tinds)
+    return breadth_first_constructive_cost_cap(TensorSetT, Tlabels, Tdims)
   end
 
   function _cmp(A::BitSet, B::BitSet)
@@ -491,7 +513,10 @@ module ContractionSequenceOptimization
   _intersect(s1::T, s2::T) where {T<:Unsigned} = s1 & s2
   _union(s1::BitSet, s2::BitSet) = union(s1, s2)
   _union(s1::T, s2::T) where {T<:Unsigned} = s1 | s2
+  _setdiff(s1::BitSet, s2::BitSet) = setdiff(s1, s2)
   _setdiff(s1::T, s2::T) where {T<:Unsigned} = s1 & (~s2)
+  _symdiff(s1::BitSet, s2::BitSet) = symdiff(s1, s2)
+  _symdiff(s1::T, s2::T) where {T<:Unsigned} = xor(s1, s2)
   _isemptyset(s::BitSet) = isempty(s)
   _isemptyset(s::Unsigned) = iszero(s)
 
@@ -503,9 +528,9 @@ module ContractionSequenceOptimization
   _set(x::T) where {T <: Unsigned} = BitSet(findall(==(1), digits(x; base = 2, pad = sizeof(T))))
   _set(x::BitSet) = x
 
-  function contraction_cost!(inds_cache::Dict{SetT, BitSet},
-                             T::Vector{BitSet}, dims::Vector{Int}, a::SetT,
-                             b::SetT, ab::SetT) where {SetT, IndexT <: Index}
+  function contraction_cost!(inds_cache::Dict{SetT, IndexSetT},
+                             T::Vector{IndexSetT}, dims::Vector{Int}, a::SetT,
+                             b::SetT, ab::SetT) where {SetT, IndexSetT, IndexT <: Index}
     # The set of tensor indices `a` and `b`
     #Tᵃ = [T[aₙ] for aₙ in a]
     #Tᵇ = [T[bₙ] for bₙ in b]
@@ -518,7 +543,7 @@ module ContractionSequenceOptimization
     indsTᵃ = inds_cache[a]
     indsTᵇ = inds_cache[b]
 
-    indsTᵃTᵇ = symdiff(indsTᵃ, indsTᵇ)
+    indsTᵃTᵇ = _symdiff(indsTᵃ, indsTᵇ)
 
     inds_cache[ab] = indsTᵃTᵇ
 
@@ -537,8 +562,9 @@ module ContractionSequenceOptimization
     return cost
   end
 
-  function breadth_first_constructive_cost_cap(::Type{TensorSet}, T::Vector{BitSet},
-                                               dims::Vector{Int}) where {TensorSet}
+  function breadth_first_constructive_cost_cap(::Type{TensorSetT},
+                                               T::Vector{IndexSetT},
+                                               dims::Vector{Int}) where {TensorSetT, IndexSetT}
     n = length(T)
 
     # TODO: have the sets S store the optimal costs,
@@ -551,15 +577,15 @@ module ContractionSequenceOptimization
     # `S[c]` is the set of all objects made up by
     # contracting `c` unique tensors from `S¹`,
     # the set of `n` tensors which make of `T`
-    S = Vector{Vector{TensorSet}}(undef, n)
-    S[1] = map(i -> bitset(TensorSet, [i]), 1:n)
+    S = Vector{Vector{TensorSetT}}(undef, n)
+    S[1] = map(i -> bitset(TensorSetT, [i]), 1:n)
     for c in 2:n
       # Initialized to empty
-      S[c] = TensorSet[]
+      S[c] = TensorSetT[]
     end
 
     # Flags for whether or not the tensor is new
-    isnew = Dict{TensorSet, Bool}()
+    isnew = Dict{TensorSetT, Bool}()
     for i in 1:n
       isnew[S[1][i]] = false
     end
@@ -567,17 +593,17 @@ module ContractionSequenceOptimization
     # A cache of the optimal costs of contracting a set of
     # tensors, for example [1, 2, 3].
     # Make sure they are sorted before hashing.
-    cost_cache = Dict{TensorSet, Int}()
+    cost_cache = Dict{TensorSetT, Int}()
 
     # TODO: a cache of the uncontracted indices of a set of
     # tensors
-    inds_cache = Dict{TensorSet, BitSet}()
+    inds_cache = Dict{TensorSetT, IndexSetT}()
     for i in 1:n
       inds_cache[S[1][i]] = T[i]
     end
 
     # A cache of the best sequence found
-    sequence_cache = Dict{TensorSet, Vector{Any}}()
+    sequence_cache = Dict{TensorSetT, Vector{Any}}()
 
     μᶜᵃᵖ = 1
     μᵒˡᵈ = 0
@@ -664,7 +690,7 @@ module ContractionSequenceOptimization
         isnew[a] = false
       end
     end # while isempty(S[n])
-    Sⁿ = bitset(TensorSet, 1:n)
+    Sⁿ = bitset(TensorSetT, 1:n)
     return sequence_cache[Sⁿ], cost_cache[Sⁿ]
   end
 
