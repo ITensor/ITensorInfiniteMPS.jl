@@ -14,18 +14,18 @@ module ContractionSequenceOptimization
   end
 
   # `is` could be Vector{Int} for BitSet
-  function _dim(is::IndexSetT, ind_dims::Vector{Int}) where {IndexSetT <: Union{Vector{Int}, BitSet}}
-    isempty(is) && return 1
-    dim = 1
+  function _dim(is::IndexSetT, ind_dims::Vector) where {IndexSetT <: Union{Vector{Int}, BitSet}}
+    isempty(is) && return one(eltype(inds_dims))
+    dim = one(eltype(ind_dims))
     for i in is
       dim *= ind_dims[i]
     end
     return dim
   end
 
-  function _dim(is::Unsigned, ind_dims::Vector{Int})
-    _isemptyset(is) && return 1
-    dim = 1
+  function _dim(is::Unsigned, ind_dims::Vector)
+    _isemptyset(is) && return one(eltype(inds_dims))
+    dim = one(eltype(ind_dims))
     i = 1
     @inbounds while !iszero(is)
       if isodd(is)
@@ -177,11 +177,11 @@ module ContractionSequenceOptimization
   # Converts the indices to integer labels
   # and returns a Vector that takes those labels
   # and returns the original integer dimensions
-  function inds_to_ints(T::Vector{Vector{IndexT}}) where {IndexT <: Index}
+  function inds_to_ints(::Type{DimT}, T::Vector{Vector{IndexT}}) where {IndexT <: Index, DimT}
     N = length(T)
     ind_to_int = Dict{IndexT, Int}()
     ints = Vector{Int}[Vector{Int}(undef, length(T[n])) for n in 1:N]
-    ind_dims = Vector{Int}(undef, sum(length, T))
+    ind_dims = Vector{DimT}(undef, sum(length, T))
     x = 0
     @inbounds for n in 1:N
       T_n = T[n]
@@ -204,11 +204,11 @@ module ContractionSequenceOptimization
   # and returns a Vector that takes those labels
   # and returns the original integer dimensions
   # TODO: directly make an unsigned integer instead of a BitSet.
-  function inds_to_bitsets(::Type{BitSet}, T::Vector{Vector{IndexT}}) where {IndexT <: Index}
+  function inds_to_bitsets(::Type{BitSet}, ::Type{DimT}, T::Vector{Vector{IndexT}}) where {IndexT <: Index, DimT}
     N = length(T)
     ind_to_int = Dict{IndexT, Int}()
     ints = map(_ -> BitSet(), 1:N)
-    ind_dims = Vector{Int}(undef, sum(length, T))
+    ind_dims = Vector{DimT}(undef, sum(length, T))
     x = 0
     @inbounds for n in 1:N
       T_n = T[n]
@@ -226,8 +226,8 @@ module ContractionSequenceOptimization
     return ints, ind_dims
   end
 
-  function inds_to_bitsets(::Type{T}, Tinds::Vector{Vector{IndexT}}) where {T <: Unsigned, IndexT <: Index}
-    ints, ind_dims = inds_to_bitsets(BitSet, Tinds)
+  function inds_to_bitsets(::Type{T}, ::Type{DimT}, Tinds::Vector{Vector{IndexT}}) where {T <: Unsigned, IndexT <: Index, DimT}
+    ints, ind_dims = inds_to_bitsets(BitSet, DimT, Tinds)
     uints = T[bitset(T, int) for int in ints]
     return uints, ind_dims
   end
@@ -382,8 +382,8 @@ module ContractionSequenceOptimization
   # Breadth-first constructive approach
   #
 
-  function breadth_first_constructive(::Type{TensorSetT}, ::Type{IndexSetT},
-                                      T::Vector{<: ITensor}; fscale::Function = maximum) where {TensorSetT, IndexSetT}
+  function breadth_first_constructive(::Type{TensorSetT}, ::Type{IndexSetT}, ::Type{DimT},
+                                      T::Vector{<: ITensor}; fscale::Function = maximum) where {TensorSetT, IndexSetT, DimT}
     if length(T) == 1
       return Any[1], 0
     elseif length(T) == 2
@@ -392,11 +392,11 @@ module ContractionSequenceOptimization
       return optimize_contraction_sequence(T[1], T[2], T[3])
     end
     indsT = [inds(Tₙ) for Tₙ in T]
-    return breadth_first_constructive(TensorSetT, IndexSetT, indsT; fscale = fscale)
+    return breadth_first_constructive(TensorSetT, IndexSetT, DimT, indsT; fscale = fscale)
   end
 
-  function breadth_first_constructive(::Type{TensorSetT}, ::Type{LabelSetT},
-                                      T::Vector{IndexSetT}; fscale = maximum) where {IndexSetT <: IndexSet, TensorSetT, LabelSetT}
+  function breadth_first_constructive(::Type{TensorSetT}, ::Type{LabelSetT}, ::Type{DimT},
+                                      T::Vector{IndexSetT}; fscale = maximum) where {IndexSetT <: IndexSet, TensorSetT, LabelSetT, DimT}
     N = length(T)
     IndexT = eltype(IndexSetT)
     Tinds = Vector{IndexT}[Vector{IndexT}(undef, length(T[n])) for n in 1:N]
@@ -407,7 +407,7 @@ module ContractionSequenceOptimization
         Tinds_n[j] = T_n[j]
       end
     end
-    Tlabels, Tdims = inds_to_bitsets(LabelSetT, Tinds)
+    Tlabels, Tdims = inds_to_bitsets(LabelSetT, DimT, Tinds)
     return breadth_first_constructive_cost_cap(TensorSetT, Tlabels, Tdims; fscale = fscale)
   end
 
@@ -556,7 +556,7 @@ module ContractionSequenceOptimization
     return cost, indsTᵃTᵇ
   end
 
-  function contraction_cost(indsTᵃ::IndexSetT, indsTᵇ::IndexSetT, dims::Vector{Int}) where {IndexSetT <: Unsigned}
+  function contraction_cost(indsTᵃ::IndexSetT, indsTᵇ::IndexSetT, dims::Vector) where {IndexSetT <: Unsigned}
     unionTᵃTᵇ = _union(indsTᵃ, indsTᵇ)
     cost = _dim(unionTᵃTᵇ, dims)
     indsTᵃTᵇ = _setdiff(unionTᵃTᵇ, _intersect(indsTᵃ, indsTᵇ))
@@ -568,7 +568,7 @@ module ContractionSequenceOptimization
 
   function breadth_first_constructive_cost_cap(::Type{TensorSetT},
                                                T::Vector{IndexSetT},
-                                               dims::Vector{Int};
+                                               dims::Vector;
                                                fscale::Function = maximum) where {TensorSetT, IndexSetT}
     n = length(T)
 
