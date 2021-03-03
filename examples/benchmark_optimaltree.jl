@@ -5,6 +5,7 @@ using TensorOperations
 using GraphPlot
 using LightGraphs
 using ProfileView
+using Statistics
 
 hascommoninds(inds1::Vector{Int}, inds2::Vector{Int}) =
   any(i₁ -> any(==(i₁), inds2), inds1)
@@ -57,15 +58,15 @@ end
 # Simple matrix multiplication chain
 matmul_network(N::Int) = [[n, n+1] for n in 1:N]
 
-function main(nnodes; profile = false)
+function main(nnodes; profile = false, fscale = maximum)
   network = matmul_network(nnodes)
-
   @show nnodes
 
   # Take the network and turn it into an edgelist to plot
   #gplothtml(SimpleGraph(Edge.(indslist_to_edgelist(network))))
 
   # The dimension of index n
+  #_dim(n) = 2
   _dim(n) = n == length(allinds) ? 2 : n+1
   #_dim(n) = TensorOperations.Power{:χ}(1,1)
 
@@ -82,31 +83,33 @@ function main(nnodes; profile = false)
 
   tensornetwork = itensor_network(network, ind_dims)
 
-  #stats_itensor = @timed breadth_first_constructive(BitSet, tensornetwork)
-  #
+  #stats_itensor = @timed breadth_first_constructive(BitSet, BitSet, tensornetwork)
   #println()
   #@show stats_itensor.time
   #@show stats_itensor.value
 
-  stats_itensor = @timed breadth_first_constructive(UInt128, BitSet, tensornetwork)
+  stats_itensor = @timed breadth_first_constructive(UInt128, BitSet, tensornetwork; fscale = fscale)
   println()
   @show stats_itensor.time
   @show stats_itensor.value
+  if @isdefined stats_tensoroperations
+    @show stats_tensoroperations.time / stats_itensor.time
+  end
 
-  stats_itensor = @timed breadth_first_constructive(UInt128, UInt128, tensornetwork)
-
+  stats_itensor = @timed breadth_first_constructive(UInt128, UInt128, tensornetwork; fscale = fscale)
   println()
   @show stats_itensor.time
   @show stats_itensor.value
-
-  @show stats_tensoroperations.time / stats_itensor.time
+  if @isdefined stats_tensoroperations
+    @show stats_tensoroperations.time / stats_itensor.time
+  end
 
   profile_breadth_first_constructive(::Type{TensorT},
-                                     ::Type{IndexSetT}, A, N) where {TensorT, IndexSetT} =
-    for _ in 1:N breadth_first_constructive(TensorT, IndexSetT, A) end
+                                     ::Type{IndexSetT}, A, N; fscale) where {TensorT, IndexSetT} =
+    for _ in 1:N breadth_first_constructive(TensorT, IndexSetT, A; fscale = fscale) end
 
   if profile
-    @profview profile_breadth_first_constructive(UInt128, UInt128, tensornetwork, round(Int, 1/stats_itensor.time, RoundUp))
+    @profview profile_breadth_first_constructive(UInt128, UInt128, tensornetwork, round(Int, 1/stats_itensor.time, RoundUp); fscale = fscale)
   end
 end
 

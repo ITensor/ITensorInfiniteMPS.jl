@@ -380,7 +380,7 @@ module ContractionSequenceOptimization
   #
 
   function breadth_first_constructive(::Type{TensorSetT}, ::Type{IndexSetT},
-                                      T::Vector{<: ITensor}) where {TensorSetT, IndexSetT}
+                                      T::Vector{<: ITensor}; fscale::Function = maximum) where {TensorSetT, IndexSetT}
     if length(T) == 1
       return Any[1], 0
     elseif length(T) == 2
@@ -389,11 +389,11 @@ module ContractionSequenceOptimization
       return optimize_contraction_sequence(T[1], T[2], T[3])
     end
     indsT = [inds(Tₙ) for Tₙ in T]
-    return breadth_first_constructive(TensorSetT, IndexSetT, indsT)
+    return breadth_first_constructive(TensorSetT, IndexSetT, indsT; fscale = fscale)
   end
 
   function breadth_first_constructive(::Type{TensorSetT}, ::Type{LabelSetT},
-                                      T::Vector{IndexSetT}) where {IndexSetT <: IndexSet, TensorSetT, LabelSetT}
+                                      T::Vector{IndexSetT}; fscale = maximum) where {IndexSetT <: IndexSet, TensorSetT, LabelSetT}
     N = length(T)
     IndexT = eltype(IndexSetT)
     Tinds = Vector{IndexT}[Vector{IndexT}(undef, length(T[n])) for n in 1:N]
@@ -405,7 +405,7 @@ module ContractionSequenceOptimization
       end
     end
     Tlabels, Tdims = inds_to_bitsets(LabelSetT, Tinds)
-    return breadth_first_constructive_cost_cap(TensorSetT, Tlabels, Tdims)
+    return breadth_first_constructive_cost_cap(TensorSetT, Tlabels, Tdims; fscale = fscale)
   end
 
   function _cmp(A::BitSet, B::BitSet)
@@ -564,7 +564,8 @@ module ContractionSequenceOptimization
 
   function breadth_first_constructive_cost_cap(::Type{TensorSetT},
                                                T::Vector{IndexSetT},
-                                               dims::Vector{Int}) where {TensorSetT, IndexSetT}
+                                               dims::Vector{Int};
+                                               fscale::Function = maximum) where {TensorSetT, IndexSetT}
     n = length(T)
 
     # TODO: have the sets S store the optimal costs,
@@ -607,9 +608,10 @@ module ContractionSequenceOptimization
 
     μᶜᵃᵖ = 1
     μᵒˡᵈ = 0
-    ξᵐⁱⁿ = minimum(dims)
+    # Scale the cost lower bound by this amount
+    ξᶠᵃᶜᵗ = fscale(dims)
     # For now, don't support dimension 1 indices
-    @assert ξᵐⁱⁿ > 1
+    @assert ξᶠᵃᶜᵗ > 1
 
     while isempty(S[n])
       μⁿᵉˣᵗ = typemax(Int)
@@ -684,8 +686,7 @@ module ContractionSequenceOptimization
         end # for d in 1:c÷2
       end # for c in 2:n
       μᵒˡᵈ = μᶜᵃᵖ
-      # TODO: use ξᵐᵃˣ?
-      μᶜᵃᵖ = max(μⁿᵉˣᵗ, ξᵐⁱⁿ*μᶜᵃᵖ)
+      μᶜᵃᵖ = max(μⁿᵉˣᵗ, ξᶠᵃᶜᵗ * μᶜᵃᵖ)
       for a in eachindex(isnew)
         isnew[a] = false
       end
