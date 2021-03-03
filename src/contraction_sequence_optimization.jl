@@ -29,6 +29,8 @@ module ContractionSequenceOptimization
     i = 1
     @inbounds while !iszero(is)
       if isodd(is)
+        # TODO: determine if overflow really needs to be checked
+        #dim = dim * ind_dims[i]
         dim = Base.Checked.checked_mul(dim, ind_dims[i])
       end
       is = is >> 1
@@ -201,6 +203,7 @@ module ContractionSequenceOptimization
   # Converts the indices to integer labels stored in BitSets
   # and returns a Vector that takes those labels
   # and returns the original integer dimensions
+  # TODO: directly make an unsigned integer instead of a BitSet.
   function inds_to_bitsets(::Type{BitSet}, T::Vector{Vector{IndexT}}) where {IndexT <: Index}
     N = length(T)
     ind_to_int = Dict{IndexT, Int}()
@@ -209,7 +212,7 @@ module ContractionSequenceOptimization
     x = 0
     @inbounds for n in 1:N
       T_n = T[n]
-      for j in 1:length(T_n)
+      @inbounds for j in 1:length(T_n)
         i = T_n[j]
         i_label = get!(ind_to_int, i) do
           x += 1
@@ -508,6 +511,19 @@ module ContractionSequenceOptimization
     return set
   end
 
+  # Return the position of the first nonzero bit
+  function findfirst_nonzero_bit(i::Unsigned)
+    n = 0
+    @inbounds while !iszero(i)
+      if isodd(i)
+        return n+1
+      end
+      i = i >> 1
+      n += 1
+    end
+    return n
+  end
+
   _isless(s1::T, s2::T) where {T <: Unsigned} = s1 < s2
   _intersect(s1::BitSet, s2::BitSet) = intersect(s1, s2)
   _intersect(s1::T, s2::T) where {T<:Unsigned} = s1 & s2
@@ -522,44 +538,37 @@ module ContractionSequenceOptimization
 
   # TODO: use _first instead, optimize to avoid using _set
   _only(s::BitSet) = only(s)
-  _only(s::Unsigned) = only(_set(s))
+  _only(s::Unsigned) = findfirst_nonzero_bit(s)
 
   # Turn the bitset back into a set
-  _set(x::T) where {T <: Unsigned} = BitSet(findall(==(1), digits(x; base = 2, pad = sizeof(T))))
-  _set(x::BitSet) = x
+  # XXX: make this faster
+  #_set(x::T) where {T <: Unsigned} = BitSet(findall(==(1), digits(x; base = 2, pad = sizeof(T))))
+  #_set(x::BitSet) = x
 
-  function contraction_cost!(inds_cache::Dict{SetT, IndexSetT},
-                             T::Vector{IndexSetT}, dims::Vector{Int}, a::SetT,
-                             b::SetT, ab::SetT) where {SetT, IndexSetT, IndexT <: Index}
-    # The set of tensor indices `a` and `b`
-    #Tᵃ = [T[aₙ] for aₙ in a]
-    #Tᵇ = [T[bₙ] for bₙ in b]
-
-    # XXX TODO: this should use a cache to store the results
-    # of the contraction
-    #indsTᵃ = symdiff(Tᵃ...)
-    #indsTᵇ = symdiff(Tᵇ...)
-
+  function contraction_cost(inds_cache::Dict{SetT, BitSet},
+                            T::Vector{BitSet}, dims::Vector{Int}, a::SetT,
+                            b::SetT, ab::SetT) where {SetT, IndexT <: Index}
     indsTᵃ = inds_cache[a]
     indsTᵇ = inds_cache[b]
-
     indsTᵃTᵇ = _symdiff(indsTᵃ, indsTᵇ)
-
-    inds_cache[ab] = indsTᵃTᵇ
-
     dim_a = _dim(indsTᵃ, dims)
     dim_b = _dim(indsTᵇ, dims)
     dim_ab = _dim(indsTᵃTᵇ, dims)
-
-    #cost = Int(sqrt(Base.Checked.checked_mul(dim_a, dim_b, dim_ab)))
-    
-    # Perform the sqrt first to avoid overflow
+    # Perform the sqrt first to avoid overflow.
+    # Alternatively, use a larger integer type.
     cost = round(Int, sqrt(dim_a) * sqrt(dim_b) * sqrt(dim_ab))
-    
-    # Convert to larger integer type to avoid overflow
-    #cost = Int(sqrt(Base.Checked.checked_mul(UInt128(dim_a), UInt128(dim_b), UInt128(dim_ab))))
+    return cost, indsTᵃTᵇ
+  end
 
-    return cost
+  function contraction_cost(inds_cache::Dict{SetT, IndexSetT},
+                            T::Vector{IndexSetT}, dims::Vector{Int}, a::SetT,
+                            b::SetT, ab::SetT) where {SetT, IndexSetT <: Unsigned, IndexT <: Index}
+    indsTᵃ = inds_cache[a]
+    indsTᵇ = inds_cache[b]
+    unionTᵃTᵇ = _union(indsTᵃ, indsTᵇ)
+    cost = _dim(unionTᵃTᵇ, dims)
+    indsTᵃTᵇ = _setdiff(unionTᵃTᵇ, _intersect(indsTᵃ, indsTᵇ))
+    return cost, indsTᵃTᵇ
   end
 
   function breadth_first_constructive_cost_cap(::Type{TensorSetT},
@@ -640,7 +649,7 @@ module ContractionSequenceOptimization
             # inds_cache unless it gets added to S[c] below
             ab = _union(a, b)
 
-            μ = contraction_cost!(inds_cache, T, dims, a, b, ab)
+            μ, inds_ab = contraction_cost(inds_cache, T, dims, a, b, ab)
 
             if d > 1
               μ += cost_cache[a]
@@ -668,6 +677,7 @@ module ContractionSequenceOptimization
 
               if μ < old_cost
                 cost_cache[ab] = μ
+                inds_cache[ab] = inds_ab
                 if d == 1
                   sequence_a = _only(a)
                 else

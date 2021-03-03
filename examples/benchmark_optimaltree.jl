@@ -83,13 +83,20 @@ function main(nnodes; profile = false, fscale = maximum)
 
   tensornetwork = itensor_network(network, ind_dims)
 
-  #stats_itensor = @timed breadth_first_constructive(BitSet, BitSet, tensornetwork)
-  #println()
-  #@show stats_itensor.time
-  #@show stats_itensor.value
+  if nnodes ≤ 16 && length(allinds) ≤ 16
+    stats_itensor = @timed breadth_first_constructive(UInt16, UInt16, tensornetwork; fscale = fscale)
+    println()
+    println("UInt16, UInt16")
+    @show stats_itensor.time
+    @show stats_itensor.value
+    if @isdefined stats_tensoroperations
+      @show stats_tensoroperations.time / stats_itensor.time
+    end
+  end
 
-  stats_itensor = @timed breadth_first_constructive(UInt128, BitSet, tensornetwork; fscale = fscale)
+  stats_itensor = @timed breadth_first_constructive(UInt32, UInt32, tensornetwork; fscale = fscale)
   println()
+  println("UInt32, UInt32")
   @show stats_itensor.time
   @show stats_itensor.value
   if @isdefined stats_tensoroperations
@@ -98,6 +105,16 @@ function main(nnodes; profile = false, fscale = maximum)
 
   stats_itensor = @timed breadth_first_constructive(UInt128, UInt128, tensornetwork; fscale = fscale)
   println()
+  println("UInt128, UInt128")
+  @show stats_itensor.time
+  @show stats_itensor.value
+  if @isdefined stats_tensoroperations
+    @show stats_tensoroperations.time / stats_itensor.time
+  end
+
+  stats_itensor = @timed breadth_first_constructive(BitSet, BitSet, tensornetwork)
+  println()
+  println("BitSet, BitSet")
   @show stats_itensor.time
   @show stats_itensor.value
   if @isdefined stats_tensoroperations
@@ -109,7 +126,7 @@ function main(nnodes; profile = false, fscale = maximum)
     for _ in 1:N breadth_first_constructive(TensorT, IndexSetT, A; fscale = fscale) end
 
   if profile
-    @profview profile_breadth_first_constructive(UInt128, UInt128, tensornetwork, round(Int, 1/stats_itensor.time, RoundUp); fscale = fscale)
+    @profview profile_breadth_first_constructive(UInt16, UInt16, tensornetwork, round(Int, 3/stats_itensor.time, RoundUp); fscale = fscale)
   end
 end
 
