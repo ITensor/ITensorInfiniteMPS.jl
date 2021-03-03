@@ -38,14 +38,14 @@ function main(N, d = 2; random_order = false)
 
   #@profview profile_breadth_first_constructive(AN, 1e4)
 
-  println()
-  println("Depth-first constructive")
-  enable_caching = false
-  @show @time depth_first_constructive(AN; enable_caching = false)
+  # println()
+  # println("Depth-first constructive")
+  # enable_caching = false
+  # @show @time depth_first_constructive(AN; enable_caching = false)
 
   println()
   display(inds.(AN))
 
-  return
+  return AN
 end
 

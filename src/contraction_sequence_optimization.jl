@@ -355,37 +355,11 @@ module ContractionSequenceOptimization
     return cost
   end
 
-  function contraction_cost!(inds_cache::Dict{BitSet, BitSet},
-                             T::Vector{BitSet}, dims::Vector{Int}, a::BitSet,
-                             b::BitSet, ab::BitSet) where {IndexT <: Index}
-    # The set of tensor indices `a` and `b`
-    Tᵃ = [T[aₙ] for aₙ in a]
-    Tᵇ = [T[bₙ] for bₙ in b]
-
-    # XXX TODO: this should use a cache to store the results
-    # of the contraction
-    #indsTᵃ = symdiff(Tᵃ...)
-    #indsTᵇ = symdiff(Tᵇ...)
-
-    indsTᵃ = inds_cache[a]
-    indsTᵇ = inds_cache[b]
-
-    indsTᵃTᵇ = symdiff(indsTᵃ, indsTᵇ)
-
-    inds_cache[ab] = indsTᵃTᵇ
-
-    dim_a = _dim(indsTᵃ, dims)
-    dim_b = _dim(indsTᵇ, dims)
-    dim_ab = _dim(indsTᵃTᵇ, dims)
-    cost = Int(sqrt(Base.Checked.checked_mul(dim_a, dim_b, dim_ab)))
-    return cost
-  end
-
   #
   # Breadth-first constructive approach
   #
 
-  function breadth_first_constructive(T::Vector{<: ITensor})
+  function breadth_first_constructive(::Type{TensorSet}, T::Vector{<: ITensor}) where {TensorSet}
     if length(T) == 1
       return Any[1], 0
     elseif length(T) == 2
@@ -394,10 +368,10 @@ module ContractionSequenceOptimization
       return optimize_contraction_sequence(T[1], T[2], T[3])
     end
     indsT = [inds(Tₙ) for Tₙ in T]
-    return breadth_first_constructive(indsT)
+    return breadth_first_constructive(TensorSet, indsT)
   end
 
-  function breadth_first_constructive(T::Vector{IndexSetT}) where {IndexSetT <: IndexSet}
+  function breadth_first_constructive(::Type{TensorSet}, T::Vector{IndexSetT}) where {IndexSetT <: IndexSet, TensorSet}
     N = length(T)
     IndexT = eltype(IndexSetT)
     Tinds = Vector{IndexT}[Vector{IndexT}(undef, length(T[n])) for n in 1:N]
@@ -409,7 +383,7 @@ module ContractionSequenceOptimization
       end
     end
     Tlabels, Tdims = inds_to_bitsets(Tinds)
-    return breadth_first_constructive(Tlabels, Tdims)
+    return breadth_first_constructive_cost_cap(TensorSet, Tlabels, Tdims)
   end
 
   function _cmp(A::BitSet, B::BitSet)
@@ -432,6 +406,7 @@ module ContractionSequenceOptimization
     # the set of `n` tensors which make of `T`
     S = Vector{Vector{BitSet}}(undef, n)
     for c in 1:n
+      # TODO: with cost capping, initialize these to empty
       S[c] = map(BitSet, IterTools.subsets(1:n, c))
     end
 
@@ -498,6 +473,199 @@ module ContractionSequenceOptimization
       end
     end
     return sequence_cache[BitSet(1:n)], cost_cache[BitSet(1:n)]
+  end
+
+  bitset(::Type{BitSet}, ints) = BitSet(ints)
+
+  function bitset(::Type{T}, ints) where {T <: Unsigned}
+    set = zero(T)
+    u = one(T)
+    for i in ints
+      set |= (u<<(i-1))
+    end
+    return set
+  end
+
+  _isless(s1::T, s2::T) where {T <: Unsigned} = s1 < s2
+  _intersect(s1::BitSet, s2::BitSet) = intersect(s1, s2)
+  _intersect(s1::T, s2::T) where {T<:Unsigned} = s1 & s2
+  _union(s1::BitSet, s2::BitSet) = union(s1, s2)
+  _union(s1::T, s2::T) where {T<:Unsigned} = s1 | s2
+  _setdiff(s1::T, s2::T) where {T<:Unsigned} = s1 & (~s2)
+  _isemptyset(s::BitSet) = isempty(s)
+  _isemptyset(s::Unsigned) = iszero(s)
+
+  # TODO: use _first instead, optimize to avoid using _set
+  _only(s::BitSet) = only(s)
+  _only(s::Unsigned) = only(_set(s))
+
+  # Turn the bitset back into a set
+  _set(x::T) where {T <: Unsigned} = BitSet(findall(==(1), digits(x; base = 2, pad = sizeof(T))))
+  _set(x::BitSet) = x
+
+  function contraction_cost!(inds_cache::Dict{SetT, BitSet},
+                             T::Vector{BitSet}, dims::Vector{Int}, a::SetT,
+                             b::SetT, ab::SetT) where {SetT, IndexT <: Index}
+    # The set of tensor indices `a` and `b`
+    #Tᵃ = [T[aₙ] for aₙ in a]
+    #Tᵇ = [T[bₙ] for bₙ in b]
+
+    # XXX TODO: this should use a cache to store the results
+    # of the contraction
+    #indsTᵃ = symdiff(Tᵃ...)
+    #indsTᵇ = symdiff(Tᵇ...)
+
+    indsTᵃ = inds_cache[a]
+    indsTᵇ = inds_cache[b]
+
+    indsTᵃTᵇ = symdiff(indsTᵃ, indsTᵇ)
+
+    inds_cache[ab] = indsTᵃTᵇ
+
+    dim_a = _dim(indsTᵃ, dims)
+    dim_b = _dim(indsTᵇ, dims)
+    dim_ab = _dim(indsTᵃTᵇ, dims)
+
+    #cost = Int(sqrt(Base.Checked.checked_mul(dim_a, dim_b, dim_ab)))
+    
+    # Perform the sqrt first to avoid overflow
+    cost = round(Int, sqrt(dim_a) * sqrt(dim_b) * sqrt(dim_ab))
+    
+    # Convert to larger integer type to avoid overflow
+    #cost = Int(sqrt(Base.Checked.checked_mul(UInt128(dim_a), UInt128(dim_b), UInt128(dim_ab))))
+
+    return cost
+  end
+
+  function breadth_first_constructive_cost_cap(::Type{TensorSet}, T::Vector{BitSet},
+                                               dims::Vector{Int}) where {TensorSet}
+    n = length(T)
+
+    # TODO: have the sets S store the optimal costs,
+    # indices, sequences, and original tensors
+    # (inds = BitSet[], μ = 0, sequence = Any[], tensors = [])
+    # This is to avoid the Dict caches.
+    # Maybe make it a dictionary, for example:
+    # S[2][BitSet((1,2))] = (inds = BitSet((1,2,4)), μ = 124, sequence = Any[1, 2], old = true)
+
+    # `S[c]` is the set of all objects made up by
+    # contracting `c` unique tensors from `S¹`,
+    # the set of `n` tensors which make of `T`
+    S = Vector{Vector{TensorSet}}(undef, n)
+    S[1] = map(i -> bitset(TensorSet, [i]), 1:n)
+    for c in 2:n
+      # Initialized to empty
+      S[c] = TensorSet[]
+    end
+
+    # Flags for whether or not the tensor is new
+    isnew = Dict{TensorSet, Bool}()
+    for i in 1:n
+      isnew[S[1][i]] = false
+    end
+
+    # A cache of the optimal costs of contracting a set of
+    # tensors, for example [1, 2, 3].
+    # Make sure they are sorted before hashing.
+    cost_cache = Dict{TensorSet, Int}()
+
+    # TODO: a cache of the uncontracted indices of a set of
+    # tensors
+    inds_cache = Dict{TensorSet, BitSet}()
+    for i in 1:n
+      inds_cache[S[1][i]] = T[i]
+    end
+
+    # A cache of the best sequence found
+    sequence_cache = Dict{TensorSet, Vector{Any}}()
+
+    μᶜᵃᵖ = 1
+    μᵒˡᵈ = 0
+    ξᵐⁱⁿ = minimum(dims)
+    # For now, don't support dimension 1 indices
+    @assert ξᵐⁱⁿ > 1
+
+    while isempty(S[n])
+      μⁿᵉˣᵗ = typemax(Int)
+
+      # c is the total number of tensors being contracted
+      # in the current sequence
+      for c in 2:n
+        # For each pair of sets Sᵈ, Sᶜ⁻ᵈ, 1 ≤ d ≤ ⌊c/2⌋
+        for d in 1:c÷2
+          for a in S[d], b in S[c-d]
+
+            if d == c-d && _isless(b, a)
+              # When d == c-d (the subset sizes are equal), check that
+              # b > a so that that case (a,b) and (b,a) are not repeated
+              continue
+            end
+
+            if !_isemptyset(_intersect(a, b))
+              # Check that each element of S¹ appears
+              # at most once in (TᵃTᵇ).
+              continue
+            end
+
+            # Determine the cost μ of contracting Tᵃ, Tᵇ
+            # TODO: this doesn't need to get added to the
+            # inds_cache unless it gets added to S[c] below
+            ab = _union(a, b)
+
+            μ = contraction_cost!(inds_cache, T, dims, a, b, ab)
+
+            if d > 1
+              μ += cost_cache[a]
+            end
+            if c-d > 1
+              μ += cost_cache[b]
+            end
+
+            if isnew[a] || isnew[b]
+              μ⁰ = 0
+            else
+              μ⁰ = μᵒˡᵈ
+            end
+
+            if μ > μᶜᵃᵖ && μ < μⁿᵉˣᵗ
+              μⁿᵉˣᵗ = μ
+            end
+
+            if μ⁰ < μ ≤ μᶜᵃᵖ
+              if ab ∉ S[c]
+                push!(S[c], ab)
+              end
+
+              old_cost = get(cost_cache, ab, typemax(Int))
+
+              if μ < old_cost
+                cost_cache[ab] = μ
+                if d == 1
+                  sequence_a = _only(a)
+                else
+                  sequence_a = sequence_cache[a]
+                end
+                if c-d == 1
+                  sequence_b = _only(b)
+                else
+                  sequence_b = sequence_cache[b]
+                end
+                sequence_cache[ab] = Any[sequence_a, sequence_b]
+                isnew[ab] = true
+              end
+            end # if μ⁰ < μ ≤ μᶜᵃᵖ
+          end # for a in S[d], b in S[c-d]
+        end # for d in 1:c÷2
+      end # for c in 2:n
+      μᵒˡᵈ = μᶜᵃᵖ
+      # TODO: use ξᵐᵃˣ?
+      μᶜᵃᵖ = max(μⁿᵉˣᵗ, ξᵐⁱⁿ*μᶜᵃᵖ)
+      for a in eachindex(isnew)
+        isnew[a] = false
+      end
+    end # while isempty(S[n])
+    Sⁿ = bitset(TensorSet, 1:n)
+    return sequence_cache[Sⁿ], cost_cache[Sⁿ]
   end
 
 end # module ContractionSequenceOptimization
