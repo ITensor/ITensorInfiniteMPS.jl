@@ -94,13 +94,15 @@ function main(nnodes; profile = false, fscale = maximum)
     end
   end
 
-  stats_itensor = @timed breadth_first_constructive(UInt32, UInt32, tensornetwork; fscale = fscale)
-  println()
-  println("UInt32, UInt32")
-  @show stats_itensor.time
-  @show stats_itensor.value
-  if @isdefined stats_tensoroperations
-    @show stats_tensoroperations.time / stats_itensor.time
+  if nnodes ≤ 32 && length(allinds) ≤ 32
+    stats_itensor = @timed breadth_first_constructive(UInt32, UInt32, tensornetwork; fscale = fscale)
+    println()
+    println("UInt32, UInt32")
+    @show stats_itensor.time
+    @show stats_itensor.value
+    if @isdefined stats_tensoroperations
+      @show stats_tensoroperations.time / stats_itensor.time
+    end
   end
 
   stats_itensor = @timed breadth_first_constructive(UInt128, UInt128, tensornetwork; fscale = fscale)
@@ -112,21 +114,21 @@ function main(nnodes; profile = false, fscale = maximum)
     @show stats_tensoroperations.time / stats_itensor.time
   end
 
-  stats_itensor = @timed breadth_first_constructive(BitSet, BitSet, tensornetwork)
-  println()
-  println("BitSet, BitSet")
-  @show stats_itensor.time
-  @show stats_itensor.value
-  if @isdefined stats_tensoroperations
-    @show stats_tensoroperations.time / stats_itensor.time
-  end
+  #stats_itensor = @timed breadth_first_constructive(BitSet, BitSet, tensornetwork)
+  #println()
+  #println("BitSet, BitSet")
+  #@show stats_itensor.time
+  #@show stats_itensor.value
+  #if @isdefined stats_tensoroperations
+  #  @show stats_tensoroperations.time / stats_itensor.time
+  #end
 
   profile_breadth_first_constructive(::Type{TensorT},
                                      ::Type{IndexSetT}, A, N; fscale) where {TensorT, IndexSetT} =
     for _ in 1:N breadth_first_constructive(TensorT, IndexSetT, A; fscale = fscale) end
 
   if profile
-    @profview profile_breadth_first_constructive(UInt16, UInt16, tensornetwork, round(Int, 3/stats_itensor.time, RoundUp); fscale = fscale)
+    @profview profile_breadth_first_constructive(UInt128, UInt128, tensornetwork, round(Int, 3/stats_itensor.time, RoundUp); fscale = fscale)
   end
 end
 

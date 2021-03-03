@@ -545,11 +545,7 @@ module ContractionSequenceOptimization
   #_set(x::T) where {T <: Unsigned} = BitSet(findall(==(1), digits(x; base = 2, pad = sizeof(T))))
   #_set(x::BitSet) = x
 
-  function contraction_cost(inds_cache::Dict{SetT, BitSet},
-                            T::Vector{BitSet}, dims::Vector{Int}, a::SetT,
-                            b::SetT, ab::SetT) where {SetT, IndexT <: Index}
-    indsTᵃ = inds_cache[a]
-    indsTᵇ = inds_cache[b]
+  function contraction_cost(indsTᵃ::BitSet, indsTᵇ::BitSet, dims::Vector{Int}) where {IndexSetT <: Unsigned}
     indsTᵃTᵇ = _symdiff(indsTᵃ, indsTᵇ)
     dim_a = _dim(indsTᵃ, dims)
     dim_b = _dim(indsTᵇ, dims)
@@ -560,11 +556,7 @@ module ContractionSequenceOptimization
     return cost, indsTᵃTᵇ
   end
 
-  function contraction_cost(inds_cache::Dict{SetT, IndexSetT},
-                            T::Vector{IndexSetT}, dims::Vector{Int}, a::SetT,
-                            b::SetT, ab::SetT) where {SetT, IndexSetT <: Unsigned, IndexT <: Index}
-    indsTᵃ = inds_cache[a]
-    indsTᵇ = inds_cache[b]
+  function contraction_cost(indsTᵃ::IndexSetT, indsTᵇ::IndexSetT, dims::Vector{Int}) where {IndexSetT <: Unsigned}
     unionTᵃTᵇ = _union(indsTᵃ, indsTᵇ)
     cost = _dim(unionTᵃTᵇ, dims)
     indsTᵃTᵇ = _setdiff(unionTᵃTᵇ, _intersect(indsTᵃ, indsTᵇ))
@@ -594,26 +586,31 @@ module ContractionSequenceOptimization
       S[c] = TensorSetT[]
     end
 
-    # Flags for whether or not the tensor is new
-    isnew = Dict{TensorSetT, Bool}()
+    cache = Dict{TensorSetT, NamedTuple{(:inds, :cost, :sequence, :isnew), Tuple{IndexSetT, Int64, Vector{Any}, Bool}}}()
     for i in 1:n
-      isnew[S[1][i]] = false
+      cache[S[1][i]] = (inds = T[i], cost = 0, sequence = Any[], isnew = false)
     end
 
-    # A cache of the optimal costs of contracting a set of
-    # tensors, for example [1, 2, 3].
-    # Make sure they are sorted before hashing.
-    cost_cache = Dict{TensorSetT, Int}()
+    ## # Flags for whether or not the tensor is new
+    ## isnew = Dict{TensorSetT, Bool}()
+    ## for i in 1:n
+    ##   isnew[S[1][i]] = false
+    ## end
 
-    # TODO: a cache of the uncontracted indices of a set of
-    # tensors
-    inds_cache = Dict{TensorSetT, IndexSetT}()
-    for i in 1:n
-      inds_cache[S[1][i]] = T[i]
-    end
+    ## # A cache of the optimal costs of contracting a set of
+    ## # tensors, for example [1, 2, 3].
+    ## # Make sure they are sorted before hashing.
+    ## cost_cache = Dict{TensorSetT, Int}()
 
-    # A cache of the best sequence found
-    sequence_cache = Dict{TensorSetT, Vector{Any}}()
+    ## # TODO: a cache of the uncontracted indices of a set of
+    ## # tensors
+    ## inds_cache = Dict{TensorSetT, IndexSetT}()
+    ## for i in 1:n
+    ##   inds_cache[S[1][i]] = T[i]
+    ## end
+
+    ## # A cache of the best sequence found
+    ## sequence_cache = Dict{TensorSetT, Vector{Any}}()
 
     μᶜᵃᵖ = 1
     μᵒˡᵈ = 0
@@ -645,20 +642,18 @@ module ContractionSequenceOptimization
             end
 
             # Determine the cost μ of contracting Tᵃ, Tᵇ
-            # TODO: this doesn't need to get added to the
-            # inds_cache unless it gets added to S[c] below
-            ab = _union(a, b)
-
-            μ, inds_ab = contraction_cost(inds_cache, T, dims, a, b, ab)
+            cache_a = cache[a]
+            cache_b = cache[b]
+            μ, inds_ab = contraction_cost(cache_a.inds, cache_b.inds, dims)
 
             if d > 1
-              μ += cost_cache[a]
+              μ += cache_a.cost
             end
             if c-d > 1
-              μ += cost_cache[b]
+              μ += cache_b.cost
             end
 
-            if isnew[a] || isnew[b]
+            if cache_a.isnew || cache_a.isnew
               μ⁰ = 0
             else
               μ⁰ = μᵒˡᵈ
@@ -669,27 +664,31 @@ module ContractionSequenceOptimization
             end
 
             if μ⁰ < μ ≤ μᶜᵃᵖ
+              ab = _union(a, b)
               if ab ∉ S[c]
                 push!(S[c], ab)
               end
 
-              old_cost = get(cost_cache, ab, typemax(Int))
+              # TODO: perform get and set `ab` in a single call
+              cache_ab = get(cache, ab, nothing)
+              old_cost = isnothing(cache_ab) ? typemax(Int) : cache_ab.cost
 
               if μ < old_cost
-                cost_cache[ab] = μ
-                inds_cache[ab] = inds_ab
+                cost_ab = μ
+                inds_ab = inds_ab
                 if d == 1
                   sequence_a = _only(a)
                 else
-                  sequence_a = sequence_cache[a]
+                  sequence_a = cache_a.sequence
                 end
                 if c-d == 1
                   sequence_b = _only(b)
                 else
-                  sequence_b = sequence_cache[b]
+                  sequence_b = cache_b.sequence
                 end
-                sequence_cache[ab] = Any[sequence_a, sequence_b]
-                isnew[ab] = true
+                sequence_ab = Any[sequence_a, sequence_b]
+                isnew_ab = true
+                cache[ab] = (inds = inds_ab, cost = cost_ab, sequence = sequence_ab, isnew = isnew_ab)
               end
             end # if μ⁰ < μ ≤ μᶜᵃᵖ
           end # for a in S[d], b in S[c-d]
@@ -697,12 +696,14 @@ module ContractionSequenceOptimization
       end # for c in 2:n
       μᵒˡᵈ = μᶜᵃᵖ
       μᶜᵃᵖ = max(μⁿᵉˣᵗ, ξᶠᵃᶜᵗ * μᶜᵃᵖ)
-      for a in eachindex(isnew)
-        isnew[a] = false
+      # Reset all tensors to old
+      for a in eachindex(cache)
+        cache_a = cache[a]
+        cache[a] = (inds = cache_a.inds, cost = cache_a.cost, sequence = cache_a.sequence, isnew = false)
       end
     end # while isempty(S[n])
     Sⁿ = bitset(TensorSetT, 1:n)
-    return sequence_cache[Sⁿ], cost_cache[Sⁿ]
+    return cache[Sⁿ].sequence, cache[Sⁿ].cost
   end
 
 end # module ContractionSequenceOptimization
