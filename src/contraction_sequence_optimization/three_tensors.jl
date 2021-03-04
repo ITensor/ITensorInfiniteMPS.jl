@@ -22,11 +22,11 @@ function three_tensor_contraction_sequence(which_sequence::Int)::Vector{Any}
   end
 end
 
-function optimal_contraction_sequence(T1::ITensor, T2::ITensor, T3::ITensor)
-  return optimal_contraction_sequence(inds(T1), inds(T2), inds(T3))
+function optimize_contraction_sequence(T1::ITensor, T2::ITensor, T3::ITensor)
+  return optimize_contraction_sequence(inds(T1), inds(T2), inds(T3))
 end
 
-function optimal_contraction_sequence(is1::IndexSet, is2::IndexSet, is3::IndexSet)
+function optimize_contraction_sequence(is1::IndexSet, is2::IndexSet, is3::IndexSet)
   N1 = length(is1)
   N2 = length(is2)
   N3 = length(is3)

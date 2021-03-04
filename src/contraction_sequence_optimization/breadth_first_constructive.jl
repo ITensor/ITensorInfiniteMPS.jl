@@ -3,40 +3,67 @@
 # Breadth-first constructive approach
 #
 
-function breadth_first_constructive(::Type{TensorSetT}, ::Type{IndexSetT}, ::Type{DimT},
-                                    T::Vector{<: ITensor}; fscale::Function = maximum) where {TensorSetT, IndexSetT, DimT}
+function breadth_first_constructive(T::Vector{<: ITensor}; fscale::Function = maximum)
   indsT = [inds(Tₙ) for Tₙ in T]
-  return breadth_first_constructive(TensorSetT, IndexSetT, DimT, indsT; fscale = fscale)
+  ntensors = length(indsT)
+  if ntensors ≤ 16
+    return breadth_first_constructive(UInt16, DimT, indsT; fscale = fscale)
+  elseif ntensors ≤ 32
+    return breadth_first_constructive(UInt32, DimT, indsT; fscale = fscale)
+  elseif ntensors ≤ 64
+    return breadth_first_constructive(UInt64, DimT, indsT; fscale = fscale)
+  elseif ntensors ≤ 128
+    return breadth_first_constructive(UInt128, DimT, indsT; fscale = fscale)
+  else
+    return breadth_first_constructive(BitSet, DimT, indsT; fscale = fscale)
+  end
+end
+
+function breadth_first_constructive(::Type{TensorSetT}, ::Type{DimT},
+                                    T::Vector{IndexSetT}; fscale = maximum) where {IndexSetT <: IndexSet, TensorSetT, DimT}
+  labels, dims = label_dims(DimT, T)
+  nlabels = length(dims)
+  if nlabels ≤ 16
+    return breadth_first_constructive(TensorSetT, UInt16, labels, dims; fscale = fscale)
+  elseif nlabels ≤ 32
+    return breadth_first_constructive(TensorSetT, UInt32, labels, dims; fscale = fscale)
+  elseif nlabels ≤ 64
+    return breadth_first_constructive(TensorSetT, UInt64, labels, dims; fscale = fscale)
+  elseif nlabels ≤ 128
+    return breadth_first_constructive(TensorSetT, UInt128, labels, dims; fscale = fscale)
+  else
+    return breadth_first_constructive(TensorSetT, BitSet, labels, dims; fscale = fscale)
+  end
+end
+
+function breadth_first_constructive(::Type{TensorSetT}, ::Type{LabelSetT}, labels::Vector, dims::Vector; fscale = maximum) where {TensorSetT, LabelSetT}
+  return breadth_first_constructive(TensorSetT, map(label -> bitset(LabelSetT, label), labels), dims; fscale = fscale)
+end
+
+function breadth_first_constructive(::Type{TensorSetT}, ::Type{LabelSetT}, ::Type{DimT},
+                                    T::Vector{<: ITensor}; fscale::Function = maximum) where {TensorSetT, LabelSetT, DimT}
+  indsT = [inds(Tₙ) for Tₙ in T]
+  return breadth_first_constructive(TensorSetT, LabelSetT, DimT, indsT; fscale = fscale)
 end
 
 function breadth_first_constructive(::Type{TensorSetT}, ::Type{LabelSetT}, ::Type{DimT},
                                     T::Vector{IndexSetT}; fscale = maximum) where {IndexSetT <: IndexSet, TensorSetT, LabelSetT, DimT}
-  N = length(T)
-  IndexT = eltype(IndexSetT)
-  Tinds = Vector{IndexT}[Vector{IndexT}(undef, length(T[n])) for n in 1:N]
-  for n in 1:N
-    T_n = T[n]
-    Tinds_n = Tinds[n]
-    for j in 1:length(Tinds_n)
-      Tinds_n[j] = T_n[j]
-    end
-  end
-  Tlabels, Tdims = inds_to_bitsets(LabelSetT, DimT, Tinds)
-  return breadth_first_constructive_cost_cap(TensorSetT, Tlabels, Tdims; fscale = fscale)
+  labels, dims = label_dims(DimT, T)
+  return breadth_first_constructive(TensorSetT, map(label -> bitset(LabelSetT, label), labels), dims; fscale = fscale)
 end
 
 # A type storing information about subnetworks
-const SubNetwork{IndexSetT} = NamedTuple{(:inds, :cost, :sequence, :isnew), Tuple{IndexSetT, Int64, Vector{Any}, Bool}}
+const SubNetwork{LabelSetT} = NamedTuple{(:inds, :cost, :sequence, :isnew), Tuple{LabelSetT, Int64, Vector{Any}, Bool}}
 
-function breadth_first_constructive_cost_cap(::Type{TensorSetT},
-                                             T::Vector{IndexSetT},
-                                             dims::Vector;
-                                             fscale::Function = maximum) where {TensorSetT, IndexSetT}
+function breadth_first_constructive(::Type{TensorSetT},
+                                    T::Vector{LabelSetT},
+                                    dims::Vector;
+                                    fscale::Function = maximum) where {TensorSetT, LabelSetT}
   n = length(T)
 
   # `cache[c]` is the set of all objects made up by
   # contracting `c` unique tensors from the original tensors `1:n`.
-  cache = Vector{Dict{TensorSetT, SubNetwork{IndexSetT}}}(undef, n)
+  cache = Vector{Dict{TensorSetT, SubNetwork{LabelSetT}}}(undef, n)
   for c in 1:n
     # Initialized to empty
     cache[c] = eltype(cache)()
@@ -53,7 +80,7 @@ function breadth_first_constructive_cost_cap(::Type{TensorSetT},
   # For now, don't support dimension 1 indices
   @assert ξᶠᵃᶜᵗ > 1
 
-  while isempty(cache[n]) #isempty(S[n])
+  while isempty(cache[n])
     μⁿᵉˣᵗ = typemax(Int)
 
     # c is the total number of tensors being contracted

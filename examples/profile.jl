@@ -3,9 +3,9 @@ using ITensorsInfiniteMPS
 using ITensorsInfiniteMPS.ContractionSequenceOptimization
 using ProfileView
 
-function main(N, d = 2; random_order = false)
-  @show N
-  @show d
+function main(N, d = 2; random_order = false, profile = false)
+  #@show N
+  #@show d
 
   i = Index(d, "i")
   A = randomITensor(i', dag(i))
@@ -17,30 +17,20 @@ function main(N, d = 2; random_order = false)
     end
     return v
   end
-  f(A, N; kwargs...) = for _ in 1:N depth_first_constructive(A; kwargs...) end
+  f(A, N) = for _ in 1:N depth_first_constructive(A) end
 
   AN = A⃗(N; random_order = random_order)
-  display(inds.(AN))
-  println()
+  #display(inds.(AN))
+  #println()
 
-  println("Sequence optimization time, no caching")
-  enable_caching = false
-  @show enable_caching
-  @show depth_first_constructive(AN; enable_caching = enable_caching)
-  @btime depth_first_constructive($AN; enable_caching = $enable_caching)
+  #println("Depth-first sequence optimization time")
+  #@show depth_first_constructive(AN)
+  time = @belapsed depth_first_constructive($AN)
+  println(N, "  ", time)
 
-  println()
-  println("Sequence optimization time, caching")
-  enable_caching = true
-  @show enable_caching
-  @show depth_first_constructive(AN; enable_caching = enable_caching)
-  @btime depth_first_constructive($AN; enable_caching = $enable_caching)
-
-  if !random_order
+  if profile
     println()
-    println("Contraction time")
-    @btime *($AN...)
-    @profview f(AN, 1e6; enable_caching = false)
+    @profview f(AN, 1e6)
   end
 
   return
@@ -50,6 +40,18 @@ end
 # Results
 #
 # d = 2, matrix multiplications
+#
+# Using bit sets for the index labels
+#
+# 2   1.7902e-6
+# 3   2.678e-6
+# 4   4.825571428571428e-6
+# 5   1.4088e-5
+# 6   8.8627e-5
+# 7   0.000769776
+# 8   0.00761083
+# 9   0.099911281
+# 10  1.293794184
 #
 # Micro optimizations for N=3 case
 # Currently, most of the time is spent constructing the tree

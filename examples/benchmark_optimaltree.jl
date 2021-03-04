@@ -82,8 +82,8 @@ function main(which_network; profile = false, fscale = maximum)
   #gplothtml(SimpleGraph(Edge.(indslist_to_edgelist(network))))
 
   # The dimension of index n
-  #_dim(n) = 100
-  _dim(n) = n == length(allinds) ? 2 : n+1
+  _dim(n) = 1000
+  #_dim(n) = n == length(allinds) ? 2 : n+1
   #_dim(n) = TensorOperations.Power{:χ}(1,1)
 
   allinds = sort(union(network...))
@@ -98,74 +98,18 @@ function main(which_network; profile = false, fscale = maximum)
 
   tensornetwork = itensor_network(network, ind_dims)
 
-    # Depth first
-    time_itensor = @belapsed depth_first_constructive($tensornetwork)
-    println()
-    println("Depth first")
-    @show time_itensor
-    if @isdefined time_tensoroperations
-      @show time_tensoroperations / time_itensor
-    end
-
-  DimT = UInt64
-
-  if nnodes ≤ 16 && length(allinds) ≤ 16
-    time_itensor = @belapsed breadth_first_constructive(UInt16, UInt16, $DimT, $tensornetwork; fscale = $fscale)
-    println()
-    println("UInt16, UInt16")
-    @show time_itensor
-    if @isdefined time_tensoroperations
-      @show time_tensoroperations / time_itensor
-    end
-  end
-
-  if nnodes ≤ 32 && length(allinds) ≤ 32
-    time_itensor = @belapsed breadth_first_constructive(UInt32, UInt32, $DimT, $tensornetwork; fscale = $fscale)
-    println()
-    println("UInt32, UInt32")
-    @show time_itensor
-    if @isdefined time_tensoroperations
-      @show time_tensoroperations / time_itensor
-    end
-  end
-
-  if nnodes ≤ 64 && length(allinds) ≤ 64
-    time_itensor = @belapsed breadth_first_constructive(UInt64, UInt64, $DimT, $tensornetwork; fscale = $fscale)
-    println()
-    println("UInt64, UInt64")
-    @show time_itensor
-    if @isdefined time_tensoroperations
-      @show time_tensoroperations / time_itensor
-    end
-  end
-
-  if nnodes ≤ 128 && length(allinds) ≤ 128
-    time_itensor = @belapsed breadth_first_constructive(UInt128, UInt128, $DimT, $tensornetwork; fscale = $fscale)
-    println()
-    println("UInt128, UInt128")
-    @show time_itensor
-    if @isdefined time_tensoroperations
-      @show time_tensoroperations / time_itensor
-    end
-  end
-
-  #stats_itensor = @timed breadth_first_constructive(BitSet, BitSet, DimT, tensornetwork)
-  #println()
-  #println("BitSet, BitSet")
-  #@show stats_itensor.time
-  #@show stats_itensor.value
-  #if @isdefined stats_tensoroperations
-  #  @show stats_tensoroperations.time / stats_itensor.time
-  #end
-
-  profile_breadth_first_constructive(::Type{TensorT},
-                                     ::Type{IndexSetT}, A, N; fscale) where {TensorT, IndexSetT} =
-    for _ in 1:N breadth_first_constructive(TensorT, IndexSetT, A; fscale = fscale) end
-
-  if profile
-    @profview profile_breadth_first_constructive(UInt128, UInt128, tensornetwork, round(Int, 3/stats_itensor.time, RoundUp); fscale = fscale)
+  time_itensor = @belapsed optimize_contraction_sequence($tensornetwork)
+  println()
+  println("ITensor")
+  @show time_itensor
+  if @isdefined time_tensoroperations
+    @show time_tensoroperations / time_itensor
   end
 end
+
+#
+# TODO: investigate _dim(n) = 2, N = 15 (takes 1 second)
+#
 
 #
 # Results:

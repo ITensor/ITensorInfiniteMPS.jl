@@ -34,7 +34,7 @@ function main(N, d = 2; random_order = false)
   println()
   println("Breadth-first constructive")
   enable_caching = false
-  @show @time breadth_first_constructive(AN)
+  @show @time breadth_first_constructive(UInt16, UInt16, UInt128, AN)
 
   #@profview profile_breadth_first_constructive(AN, 1e4)
 
