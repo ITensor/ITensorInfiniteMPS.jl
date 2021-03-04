@@ -14,7 +14,7 @@ using IterTools
 include("ITensors.jl")
 include("ITensorNetworks.jl")
 include("itensormap.jl")
-include("contraction_sequence_optimization.jl")
+include("contraction_sequence_optimization/contraction_sequence_optimization.jl")
 
 import Base:
   getindex,

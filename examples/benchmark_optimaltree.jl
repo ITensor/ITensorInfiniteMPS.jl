@@ -82,59 +82,74 @@ function main(which_network; profile = false, fscale = maximum)
   #gplothtml(SimpleGraph(Edge.(indslist_to_edgelist(network))))
 
   # The dimension of index n
-  _dim(n) = 100
-  #_dim(n) = n == length(allinds) ? 2 : n+1
+  #_dim(n) = 100
+  _dim(n) = n == length(allinds) ? 2 : n+1
   #_dim(n) = TensorOperations.Power{:χ}(1,1)
 
   allinds = sort(union(network...))
   ind_dims = Dict(allinds[n] => _dim(n) for n in 1:length(allinds))
 
-  local stats_tensoroperations
+  local time_tensoroperations
   try
-    stats_tensoroperations = @timed TensorOperations.optimaltree(network, ind_dims)
-    @show stats_tensoroperations.time
-    @show stats_tensoroperations.value
+    time_tensoroperations = @belapsed TensorOperations.optimaltree($network, $ind_dims)
+    @show time_tensoroperations
   catch
   end
 
   tensornetwork = itensor_network(network, ind_dims)
 
-  #@show @time depth_first_constructive(tensornetwork)
+    # Depth first
+    time_itensor = @belapsed depth_first_constructive($tensornetwork)
+    println()
+    println("Depth first")
+    @show time_itensor
+    if @isdefined time_tensoroperations
+      @show time_tensoroperations / time_itensor
+    end
 
-  DimT = UInt128
+  DimT = UInt64
 
   if nnodes ≤ 16 && length(allinds) ≤ 16
-    stats_itensor = @timed breadth_first_constructive(UInt16, UInt16, DimT, tensornetwork; fscale = fscale)
+    time_itensor = @belapsed breadth_first_constructive(UInt16, UInt16, $DimT, $tensornetwork; fscale = $fscale)
     println()
     println("UInt16, UInt16")
-    @show stats_itensor.time
-    @show stats_itensor.value
-    if @isdefined stats_tensoroperations
-      @show stats_tensoroperations.time / stats_itensor.time
+    @show time_itensor
+    if @isdefined time_tensoroperations
+      @show time_tensoroperations / time_itensor
     end
   end
 
   if nnodes ≤ 32 && length(allinds) ≤ 32
-    stats_itensor = @timed breadth_first_constructive(UInt32, UInt32, DimT, tensornetwork; fscale = fscale)
+    time_itensor = @belapsed breadth_first_constructive(UInt32, UInt32, $DimT, $tensornetwork; fscale = $fscale)
     println()
     println("UInt32, UInt32")
-    @show stats_itensor.time
-    @show stats_itensor.value
-    if @isdefined stats_tensoroperations
-      @show stats_tensoroperations.time / stats_itensor.time
+    @show time_itensor
+    if @isdefined time_tensoroperations
+      @show time_tensoroperations / time_itensor
     end
   end
 
-  stats_itensor = @timed breadth_first_constructive(UInt128, UInt128, DimT, tensornetwork; fscale = fscale)
-  println()
-  println("UInt128, UInt128")
-  @show stats_itensor.time
-  @show stats_itensor.value
-  if @isdefined stats_tensoroperations
-    @show stats_tensoroperations.time / stats_itensor.time
+  if nnodes ≤ 64 && length(allinds) ≤ 64
+    time_itensor = @belapsed breadth_first_constructive(UInt64, UInt64, $DimT, $tensornetwork; fscale = $fscale)
+    println()
+    println("UInt64, UInt64")
+    @show time_itensor
+    if @isdefined time_tensoroperations
+      @show time_tensoroperations / time_itensor
+    end
   end
 
-  #stats_itensor = @timed breadth_first_constructive(BitSet, BitSet, tensornetwork)
+  if nnodes ≤ 128 && length(allinds) ≤ 128
+    time_itensor = @belapsed breadth_first_constructive(UInt128, UInt128, $DimT, $tensornetwork; fscale = $fscale)
+    println()
+    println("UInt128, UInt128")
+    @show time_itensor
+    if @isdefined time_tensoroperations
+      @show time_tensoroperations / time_itensor
+    end
+  end
+
+  #stats_itensor = @timed breadth_first_constructive(BitSet, BitSet, DimT, tensornetwork)
   #println()
   #println("BitSet, BitSet")
   #@show stats_itensor.time
