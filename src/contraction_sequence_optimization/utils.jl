@@ -22,15 +22,15 @@ function _dim(is::IndexSetT, ind_dims::Vector) where {IndexSetT <: Union{Vector{
   return dim
 end
 
-function _dim(is::Unsigned, ind_dims::Vector)
+function _dim(is::Unsigned, ind_dims::Vector{DimT}) where {DimT}
   _isemptyset(is) && return one(eltype(ind_dims))
   dim = one(eltype(ind_dims))
   i = 1
   @inbounds while !iszero(is)
     if isodd(is)
-      # TODO: determine if overflow really needs to be checked
-      #dim = dim * ind_dims[i]
-      dim = Base.Checked.checked_mul(dim, ind_dims[i])
+      # TODO: use Base.Checked.mul_with_overflow
+      dim, overflow = Base.Checked.mul_with_overflow(dim, ind_dims[i])
+      overflow && return zero(DimT)
     end
     is = is >> 1
     i += 1
@@ -222,6 +222,21 @@ function bitset(::Type{T}, ints) where {T <: Unsigned}
   return set
 end
 
+# Return a vector of the positions of the nonzero bits
+# Used for debugging
+function findall_nonzero_bits(i::Unsigned)
+  nonzeros = Int[]
+  n = 1
+  @inbounds while !iszero(i)
+    if isodd(i)
+      push!(nonzeros, n)
+    end
+    i = i >> 1
+    n += 1
+  end
+  return nonzeros
+end
+
 # Return the position of the first nonzero bit
 function findfirst_nonzero_bit(i::Unsigned)
   n = 0
@@ -251,109 +266,56 @@ _isemptyset(s::Unsigned) = iszero(s)
 _only(s::BitSet) = only(s)
 _only(s::Unsigned) = findfirst_nonzero_bit(s)
 
-##
-## To delete, not used anymore
-##
+#
+# Adjacency matrix and connected components
+#
 
-## # XXX: is this being used?
-## function remove_common_pair!(isR, N1, n1)
-##   if n1 > N1
-##     return
-##   end
-##   N = length(isR)
-##   is1 = isR[n1]
-##   is2 = @view isR[N1+1:N]
-##   n2 = findfirst(==(is1), is2)
-##   if isnothing(n2)
-##     n1 += 1
-##     remove_common_pair!(isR, N1, n1)
-##   else
-##     deleteat!(isR, (n1, N1+n2))
-##     N1 -= 1
-##     remove_common_pair!(isR, N1, n1)
-##   end
-## end
-## 
-## # XXX: is this being used?
-## function contract_inds(is1, is2)
-##   IndexT = eltype(is1)
-##   N1 = length(is1)
-##   N2 = length(is2)
-##   isR = IndexT[]
-##   for n1 in 1:N1
-##     i1 = is1[n1]
-##     n2 = findfirst(==(i1), is2)
-##     if isnothing(n2)
-##       push!(isR, i1)
-##     end
-##   end
-##   for n2 in 1:N2
-##     i2 = is2[n2]
-##     n1 = findfirst(==(i2), is1)
-##     if isnothing(n1)
-##       push!(isR, dag(i2))
-##     end
-##   end
-##   return isR
-## end
-## 
-## # Return the noncommon indices and the cost of contraction
-## # Recursively removes pairs of indices that are common
-## # between the IndexSets (TODO: use this for symdiff in ITensors.jl)
-## function contract_inds_cost(is1is2::Tuple{Vector{Int}, Vector{Int}}, ind_dims::Vector{Int})
-##   is1, is2 = is1is2
-##   N1 = length(is1)
-##   isR = vcat(is1, is2)
-##   remove_common_pair!(isR, N1, 1)
-##   cost = Int(sqrt(_dim(is1, ind_dims) * _dim(is2, ind_dims) * _dim(isR, ind_dims)))
-##   return isR, cost
-## end
-## 
-## function contract_inds_cost(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT <: Index}
-##   N1 = length(is1)
-## 
-##   # This is pretty slow
-##   #isR = vcat(is1, is2)
-##   #remove_common_pair!(isR, N1, 1)
-## 
-##   isR = contract_inds(is1, is2)
-## 
-##   cost = Int(sqrt(_dim(is1) * _dim(is2) * _dim(isR)))
-##   return isR, cost
-## end
-## 
-## # XXX: is this being used?
-## function contraction_cost(T::Vector{Vector{IndexT}}, a::Vector{Int},
-##                           b::Vector{Int}) where {IndexT <: Index}
-##   # The set of tensor indices `a` and `b`
-##   Tᵃ = T[a]
-##   Tᵇ = T[b]
-## 
-##   # XXX TODO: this should use a cache to store the results
-##   # of the contraction
-##   indsTᵃ = symdiff(Tᵃ...)
-##   indsTᵇ = symdiff(Tᵇ...)
-##   indsTᵃTᵇ = symdiff(indsTᵃ, indsTᵇ)
-##   cost = Int(sqrt(prod(_dim(indsTᵃ) * prod(_dim(indsTᵇ) * _dim(indsTᵃTᵇ)))))
-##   return cost
-## end
-## 
-## # XXX: is this being used?
-## function contraction_cost(T::Vector{BitSet}, dims::Vector{Int}, a::BitSet,
-##                           b::BitSet) where {IndexT <: Index}
-##   # The set of tensor indices `a` and `b`
-##   Tᵃ = [T[aₙ] for aₙ in a]
-##   Tᵇ = [T[bₙ] for bₙ in b]
-## 
-##   # XXX TODO: this should use a cache to store the results
-##   # of the contraction
-##   indsTᵃ = symdiff(Tᵃ...)
-##   indsTᵇ = symdiff(Tᵇ...)
-##   indsTᵃTᵇ = symdiff(indsTᵃ, indsTᵇ)
-##   dim_a = _dim(indsTᵃ, dims)
-##   dim_b = _dim(indsTᵇ, dims)
-##   dim_ab = _dim(indsTᵃTᵇ, dims)
-##   cost = Int(sqrt(Base.Checked.checked_mul(dim_a, dim_b, dim_ab)))
-##   return cost
-## end
+# For a network of tensors T (stored as index labels), return the adjacency matrix.
+function adjacencymatrix(T::Vector, alldims::Vector)
+  # First break up the network into disconnected parts
+  N = length(T)
+  _adjacencymatrix = falses(N, N)
+  for nᵢ in 1:N-1, nⱼ in nᵢ+1:N
+    if _dim(_intersect(T[nᵢ], T[nⱼ]), alldims) > 1
+      _adjacencymatrix[nᵢ, nⱼ] = _adjacencymatrix[nⱼ, nᵢ] = true
+    end
+  end
+  return _adjacencymatrix
+end
+
+# For a given adjacency matrix of size n x n, connectedcomponents returns
+# a list of components that contains integer vectors, where every integer
+# vector groups the indices of the vertices of a connected component of the
+# graph encoded by A. The number of connected components is given by
+# length(components).
+function connectedcomponents(A::AbstractMatrix{Bool})
+  n = size(A, 1)
+  @assert size(A, 2) == n
+  components = Vector{Vector{Int}}(undef, 0)
+  assignedlist = falses((n,))
+  for i = 1:n
+    if !assignedlist[i]
+      assignedlist[i] = true
+      checklist = [i]
+      currentcomponent = [i]
+      while !isempty(checklist)
+        j = pop!(checklist)
+        for k = findall(A[j, :])
+          if !assignedlist[k]
+            push!(currentcomponent, k)
+            push!(checklist, k)
+            assignedlist[k] = true
+          end
+        end
+      end
+      push!(components, currentcomponent)
+    end
+  end
+  return components
+end
+
+# For a network of tensors T (stored as index labels), return the connected components
+# (splits up T into the connected components).
+connectedcomponents(T::Vector, alldims::Vector) =
+  connectedcomponents(adjacencymatrix(T, alldims))
 

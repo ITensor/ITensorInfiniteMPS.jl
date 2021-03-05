@@ -1,4 +1,9 @@
 
+#
+# `depth_first_constructive` is a very simple recursive implementation
+# but it is more difficult to cap the costs so scales very badly
+#
+
 function depth_first_constructive(T::Vector{<: ITensor}) where {LabelSetT}
   indsT = [inds(Tₙ) for Tₙ in T]
   return depth_first_constructive(DimT, indsT)
@@ -38,7 +43,7 @@ function depth_first_constructive(T::Vector, ind_dims::Vector)
   optimal_cost = Ref(typemax(eltype(ind_dims)))
   optimal_sequence = Vector{Pair{Int, Int}}(undef, length(T)-1)
   _depth_first_constructive!(optimal_sequence, optimal_cost, Pair{Int, Int}[], T, ind_dims, collect(1:length(T)), 0)
-  return pair_sequence_to_tree(optimal_sequence, length(T)), Int(optimal_cost[])
+  return pair_sequence_to_tree(optimal_sequence, length(T))
 end
 
 function _depth_first_constructive!(optimal_sequence, optimal_cost, sequence, T, ind_dims, remaining, cost)

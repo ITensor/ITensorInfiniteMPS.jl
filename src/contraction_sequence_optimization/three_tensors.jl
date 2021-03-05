@@ -70,6 +70,6 @@ function optimize_contraction_sequence(is1::IndexSet, is2::IndexSet, is3::IndexS
   cost3 = compute_cost(external_dims3, internal_dims3)
   mincost, which_sequence = findmin((cost1, cost2, cost3))
   sequence = three_tensor_contraction_sequence(which_sequence)
-  return sequence, mincost
+  return sequence
 end
 

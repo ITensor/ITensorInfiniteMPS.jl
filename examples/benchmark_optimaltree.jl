@@ -7,6 +7,9 @@ using LightGraphs
 using ProfileView
 using Statistics
 
+import ITensorsInfiniteMPS.ContractionSequenceOptimization:
+  depth_first_constructive
+
 hascommoninds(inds1::Vector{Int}, inds2::Vector{Int}) =
   any(i₁ -> any(==(i₁), inds2), inds1)
 
@@ -56,7 +59,9 @@ end
 #nnodes = length(network)
 
 # Simple matrix multiplication chain
-matmul_network(N::Int) = [[n, n+1] for n in 1:N]
+# This version deletes one index
+matmul_network(N::Int) = (𝒩 = [[n, n+1] for n in 1:N]; deleteat!(𝒩[N÷2], 2); deleteat!(𝒩[N÷2+1], 1); 𝒩)
+#matmul_network(N::Int) = [[n, n+1] for n in 1:N]
 
 function main(which_network; profile = false, fscale = maximum)
   @show which_network
@@ -82,29 +87,37 @@ function main(which_network; profile = false, fscale = maximum)
   #gplothtml(SimpleGraph(Edge.(indslist_to_edgelist(network))))
 
   # The dimension of index n
-  _dim(n) = 1000
+  _dim(n) = 2
   #_dim(n) = n == length(allinds) ? 2 : n+1
   #_dim(n) = TensorOperations.Power{:χ}(1,1)
 
   allinds = sort(union(network...))
   ind_dims = Dict(allinds[n] => _dim(n) for n in 1:length(allinds))
 
-  local time_tensoroperations
-  try
-    time_tensoroperations = @belapsed TensorOperations.optimaltree($network, $ind_dims)
-    @show time_tensoroperations
-  catch
+  if which_network ≠ "fullerene"
+    local time_tensoroperations
+    try
+      time_tensoroperations = @belapsed TensorOperations.optimaltree($network, $ind_dims)
+      @show time_tensoroperations
+    catch
+    end
   end
 
   tensornetwork = itensor_network(network, ind_dims)
 
-  time_itensor = @belapsed optimize_contraction_sequence($tensornetwork)
-  println()
-  println("ITensor")
-  @show time_itensor
-  if @isdefined time_tensoroperations
-    @show time_tensoroperations / time_itensor
+  if which_network ≠ "fullerene"
+    time_itensor = @belapsed contraction_sequence($tensornetwork)
+    println()
+    println("ITensor")
+    @show time_itensor
+    if @isdefined time_tensoroperations
+      @show time_tensoroperations / time_itensor
+    end
   end
+
+  @time @show TensorOperations.optimaltree(network, ind_dims)
+  @time @show contraction_sequence(tensornetwork)
+  return tensornetwork
 end
 
 #
