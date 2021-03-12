@@ -1,6 +1,6 @@
 using ITensors
-using ITensorsInfiniteMPS
-using ITensorsInfiniteMPS.ContractionSequenceOptimization
+using ITensorInfiniteMPS
+using ITensorInfiniteMPS.ContractionSequenceOptimization
 using ProfileView
 using Random
 

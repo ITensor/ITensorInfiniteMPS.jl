@@ -1,6 +1,6 @@
 using ITensors
-using ITensorsInfiniteMPS
-using ITensorsInfiniteMPS.ContractionSequenceOptimization
+using ITensorInfiniteMPS
+using ITensorInfiniteMPS.ContractionSequenceOptimization
 using ProfileView
 
 function main(N, d = 2; random_order = false, profile = false)

@@ -1,14 +1,14 @@
 using AbstractTrees
 using ITensors
 using ITensorsVisualization
-using ITensorsInfiniteMPS
+using ITensorInfiniteMPS
 using IterTools # For subsets
 using ProfileView
 using Random # For seed!
 using StatsBase # For sample
 
 # Testing for improved algorithms
-using ITensorsInfiniteMPS.ContractionSequenceOptimization
+using ITensorInfiniteMPS.ContractionSequenceOptimization
 
 function main(N)
   Random.seed!(1234)
@@ -27,7 +27,7 @@ function main(N)
   edges = StatsBase.sample(collect(subsets(1:N, 2)), nedges; replace = false)
   sites = StatsBase.sample(collect(1:N), nsites; replace = false)
 
-  indsnetwork = ITensorsInfiniteMPS.IndexSetNetwork(N)
+  indsnetwork = ITensorInfiniteMPS.IndexSetNetwork(N)
   for e in edges
     le = IndexSet(Index(space, "l=$(e[1])↔$(e[2])"))
     pair_e = Pair(e...)
@@ -41,7 +41,7 @@ function main(N)
 
   T = Vector{ITensor}(undef, N)
   for n in 1:N
-    T[n] = randomITensor(only.(ITensorsInfiniteMPS.eachlinkinds(indsnetwork, n))...)
+    T[n] = randomITensor(only.(ITensorInfiniteMPS.eachlinkinds(indsnetwork, n))...)
   end
 
   # Can just use indsnetwork, this recreates indsnetwork
@@ -49,11 +49,11 @@ function main(N)
 
   #@show N
 
-  #sequence, cost = @time ITensorsInfiniteMPS.optimal_contraction_sequence(TN)
+  #sequence, cost = @time ITensorInfiniteMPS.optimal_contraction_sequence(TN)
   #@show cost
   #@show sequence
   #@show Tree(sequence)
-  #@profview ITensorsInfiniteMPS.optimal_contraction_sequence(TN)
+  #@profview ITensorInfiniteMPS.optimal_contraction_sequence(TN)
 
   #@show depth_first_constructive(T; enable_caching = false)
   #@show depth_first_constructive(T; enable_caching = true)

@@ -1,4 +1,4 @@
-name = "ITensorsInfiniteMPS"
+name = "ITensorInfiniteMPS"
 uuid = "1dc1fb26-a137-4954-ae60-1bd4106e95ad"
 authors = ["Matthew Fishman <mfishman@flatironinstitute.org> and contributors"]
 version = "0.1.0"
@@ -7,6 +7,7 @@ version = "0.1.0"
 ITensors = "9136182c-28ba-11e9-034c-db9fb085ebd5"
 Infinities = "e1ba4f0e-776d-440f-acd9-e1d2e9742647"
 IterTools = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
+KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"

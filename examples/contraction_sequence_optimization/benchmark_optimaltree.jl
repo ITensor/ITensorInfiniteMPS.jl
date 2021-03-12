@@ -1,13 +1,13 @@
 using ITensors
-using ITensorsInfiniteMPS
-using ITensorsInfiniteMPS.ContractionSequenceOptimization
+using ITensorInfiniteMPS
+using ITensorInfiniteMPS.ContractionSequenceOptimization
 using TensorOperations
 using GraphPlot
 using LightGraphs
 using ProfileView
 using Statistics
 
-import ITensorsInfiniteMPS.ContractionSequenceOptimization:
+import ITensorInfiniteMPS.ContractionSequenceOptimization:
   depth_first_constructive
 
 hascommoninds(inds1::Vector{Int}, inds2::Vector{Int}) =

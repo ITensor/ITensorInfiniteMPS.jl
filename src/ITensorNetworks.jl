@@ -177,7 +177,7 @@ end
 # TODO: this isn't pruning repeats
 function each_contraction_sequence(n::Integer)
   Ts = Any[]
-  each_each_ab = Iterators.product((ITensorsInfiniteMPS.tensor_pairs(n) for n in reverse(2:n))...)
+  each_each_ab = Iterators.product((ITensorInfiniteMPS.tensor_pairs(n) for n in reverse(2:n))...)
   for each_ab in each_each_ab
     T = Any[1:n...]
     for ab in each_ab

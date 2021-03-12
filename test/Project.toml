@@ -1,0 +1,3 @@
+[deps]
+ITensors = "9136182c-28ba-11e9-034c-db9fb085ebd5"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

@@ -1,7 +1,7 @@
-using ITensorsInfiniteMPS
-using ITensorsInfiniteMPS.ContractionSequenceOptimization
+using ITensorInfiniteMPS
+using ITensorInfiniteMPS.ContractionSequenceOptimization
 
-import ITensorsInfiniteMPS.ContractionSequenceOptimization:
+import ITensorInfiniteMPS.ContractionSequenceOptimization:
   _set
 
 function get_first_nonzero_bit(i::Unsigned)
