@@ -39,7 +39,7 @@ export
 # cells
 #
 
-celltagprefix() = "cell="
+celltagprefix() = "c="
 celltags(n::Integer) = TagSet(celltagprefix() * string(n))
 celltags(n1::Integer, n2::Integer) = TagSet(celltagprefix() * n1 * "|" * n2)
 
@@ -48,12 +48,12 @@ celltags(n1::Integer, n2::Integer) = TagSet(celltagprefix() * n1 * "|" * n2)
 #
 
 # TODO: account for shifting by a tuple, for example:
-# translatecell(ts"Site,cell=1|2", (2, 3)) -> ts"Site,cell=3|5"
-# TODO: ts"cell=10|12" has too many characters
-# TODO: ts"cell=1|2|3" has too many characters
+# translatecell(ts"Site,c=1|2", (2, 3)) -> ts"Site,c=3|5"
+# TODO: ts"c=10|12" has too many characters
+# TODO: ts"c=1|2|3" has too many characters
 #
 
-# Determine the cell `n` from the tag `"cell=n"`
+# Determine the cell `n` from the tag `"c=n"`
 function getcell(ts::TagSet)
   celltag = tag_starting_with(ts, celltagprefix())
   return parse(Int, celltag[length(celltagprefix())+1:end])
@@ -90,16 +90,27 @@ mutable struct InfiniteMPS <: AbstractMPS
   data::Vector{ITensor}
   llim::Int #RealInfinity
   rlim::Int #RealInfinity
+  reverse::Bool
 end
+
+InfiniteMPS(data::Vector{<:ITensor}, llim, rlim) =
+  InfiniteMPS(data, llim, rlim, false)
 
 # TODO: use InfiniteMPS(data, -∞, ∞) when AbstractMPS
 # is written more generically
 InfiniteMPS(data::Vector{<:ITensor}) =
   InfiniteMPS(data, 0, length(data)+1)
 
-InfiniteMPS(ψ::MPS) = InfiniteMPS(ITensors.data(ψ))
+# TODO: better way to determine left and right limits
+InfiniteMPS(ψ::MPS; reverse::Bool = false) = InfiniteMPS(ITensors.data(ψ), ψ.llim, ψ.rlim, reverse)
 
-InfiniteMPS(N::Integer) = InfiniteMPS(MPS(N))
+# TODO: better way to determine left and right limits
+InfiniteMPS(ψ::MPS, llim::Integer, rlim::Integer; reverse::Bool = false) =
+  InfiniteMPS(ITensors.data(ψ), llim, rlim; reverse = reverse)
+
+InfiniteMPS(N::Integer; reverse::Bool = false) = InfiniteMPS(MPS(N); reverse = reverse)
+
+Base.reverse(ψ::InfiniteMPS) = InfiniteMPS(reverse(ψ.data), ψ.rlim, ψ.llim, !ψ.reverse)
 
 # Already defined for AbstractMPS so this
 # isn't needed
@@ -125,7 +136,13 @@ length(ψ::InfiniteMPS) = nsites(ψ)
 
 Which unit cell site `n` is in.
 """
-cell(ψ::InfiniteMPS, n::Integer) = fld1(n, nsites(ψ))
+function cell(ψ::InfiniteMPS, n::Integer)
+  _cell = fld1(n, nsites(ψ))
+  if ψ.reverse
+    _cell = -_cell + 2
+  end
+  return _cell
+end
 
 """
     cellsite(ψ::InfiniteMPS, n::Integer)
@@ -151,11 +168,18 @@ end
 function setindex!(ψ::InfiniteMPS, T::ITensor, n::Int)
   cellₙ = cell(ψ, n)
   siteₙ = cellsite(ψ, n)
+
+  @show cellₙ
+  @show siteₙ
+  @show inds(T)
+  @show -(cellₙ-1)
+  @show translatecell(T, -(cellₙ-1))
+
   _setindex_cell1!(ψ, translatecell(T, -(cellₙ-1)), siteₙ)
   return ψ 
 end
 
-celltags(cell) = TagSet("cell=$cell")
+celltags(cell) = TagSet("c=$cell")
 default_link_tags(left_or_right, n) = TagSet("Link,$left_or_right=$n")
 default_link_tags(left_or_right, n, cell) = addtags(default_link_tags(left_or_right, n), celltags(cell))
 
@@ -190,7 +214,12 @@ InfiniteMPS(s::Vector{<:Index}; kwargs...) = InfiniteMPS(Float64, s; kwargs...)
 # MPS from an InfiniteMPS
 function ITensors.prime(::typeof(linkinds), ψ::InfiniteMPS)
   ψextended′ = prime(linkinds, ψ[0:nsites(ψ)+1])
-  return InfiniteMPS(ψextended′[2:end-1])
+  return InfiniteMPS(ψextended′[2:end-1]; reverse = ψ.reverse)
+end
+
+function ITensors.dag(ψ::InfiniteMPS)
+  ψdag = dag(ψ[1:nsites(ψ)])
+  return InfiniteMPS(ψdag; reverse = ψ.reverse)
 end
 
 ITensors.linkinds(ψ::InfiniteMPS, n1n2::Tuple{<:Integer, <:Integer}) =

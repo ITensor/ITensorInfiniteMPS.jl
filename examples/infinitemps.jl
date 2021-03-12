@@ -8,7 +8,8 @@ using LinearAlgebra
 Random.seed!(1234)
 
 # TODO: call as `orthogonalize(ψ, -∞)`
-function right_orthogonalize(ψ::InfiniteMPS; tol::Real = 1e-12)
+# TODO: could use commontags(ψ) as a default for left_tags
+function right_orthogonalize(ψ::InfiniteMPS; left_tags = ts"Left", right_tags = ts"Right", tol::Real = 1e-12)
   # TODO: replace dag(ψ) with ψ'ᴴ?
   ψᴴ = prime(linkinds, dag(ψ))
 
@@ -32,39 +33,86 @@ function right_orthogonalize(ψ::InfiniteMPS; tol::Real = 1e-12)
   # TODO: make a function `right_environments(::InfiniteMPS)` that computes
   # all of the right environments using `eigsolve` and shifting unit cells
   λ⃗₁ᴿᴺ, v⃗₁ᴿᴺ, eigsolve_info = eigsolve(T₀₁, v₁ᴿᴺ, 1, :LM; tol = tol)
-  @show eigsolve_info.numops
   λ₁ᴿᴺ, v₁ᴿᴺ = λ⃗₁ᴿᴺ[1], v⃗₁ᴿᴺ[1]
 
-  @show λ₁ᴿᴺ
+  @assert imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) < 1e-15
 
   # Fix the phase of the diagonal to make Hermitian
   v₁ᴿᴺ .*= conj(sign(v₁ᴿᴺ[1, 1]))
-  @show ishermitian(v₁ᴿᴺ; rtol = tol)
+  @assert ishermitian(v₁ᴿᴺ; rtol = tol)
+
+  @show λ₁ᴿᴺ
+  @show v₁ᴿᴺ
 
   # Initial guess for bond matrix such that:
   # ψ₁ * C₁ᴿᴺ = C₁ᴿᴺ * ψ₁ᴿ
   C₁ᴿᴺ = sqrt(v₁ᴿᴺ)
-  @show norm(replaceprime(C₁ᴿᴺ' * C₁ᴿᴺ, 2 => 1) - v₁ᴿᴺ)
-  ψ₁ᴿ, C₁ᴿ = right_orthogonalize_polar(ψ, C₁ᴿᴺ)
 
-  #return ψᴿ, Cᴿ
+  @show inds(C₁ᴿᴺ)
+
+  @show ψ.reverse
+
+  @show left_tags
+  @show right_tags
+
+  C₁ᴿᴺ = replacetags(C₁ᴿᴺ, left_tags => right_tags; plev = 1)
+  
+  @show inds(C₁ᴿᴺ)
+
+  C₁ᴿᴺ = noprime(C₁ᴿᴺ, right_tags)
+
+  @show inds(C₁ᴿᴺ)
+
+  if ψ.reverse
+    #error("END")
+  end
+
+  normalize!(C₁ᴿᴺ)
+
+  Cᴿ, ψᴿ, λᴿ = right_orthogonalize_polar(ψ, C₁ᴿᴺ; left_tags = left_tags, right_tags = right_tags)
+  @assert λᴿ ≈ sqrt(real(λ₁ᴿᴺ))
+  return Cᴿ, ψᴿ, λᴿ
 end
 
-function right_orthogonalize_polar(ψ::InfiniteMPS, Cᴿᴺ::ITensor)
+function right_orthogonalize_polar(ψ::InfiniteMPS, Cᴿᴺ::ITensor; left_tags = ts"Left", right_tags = ts"Right")
   N = length(ψ)
-  ψᴿ = InfiniteMPS(N)
-  Cᴿ = InfiniteMPS(N)
+  ψᴿ = InfiniteMPS(N; reverse = ψ.reverse)
+  Cᴿ = InfiniteMPS(N; reverse = ψ.reverse)
   Cᴿ[N] = Cᴿᴺ
+  λ = 1.0
   for n in reverse(1:N)
     sⁿ = uniqueinds(ψ[n], ψ[n-1], Cᴿ[n])
     # TODO: use "Right" tag for ψᴿ, Cᴿ
     lᴿⁿ = uniqueinds(Cᴿ[n], ψ[n])
-    ψᴿ[n], Cᴿⁿ⁻¹ = polar(ψ[n] * Cᴿ[n], (sⁿ..., lᴿⁿ...))
+
+    @show inds(ψ[n] * Cᴿ[n])
+    @show sⁿ
+    @show lᴿⁿ
+
+    ψᴿⁿ, Cᴿⁿ⁻¹ = polar(ψ[n] * Cᴿ[n], (sⁿ..., lᴿⁿ...))
+    @show n
+    @show inds(ψᴿⁿ)
+    @show ITensorsInfiniteMPS.cell(ψᴿ, n)
+    ψᴿ[n] = ψᴿⁿ
+
     Cᴿ[n-1] = Cᴿⁿ⁻¹
-    @show norm(Cᴿ[n-1] - swapprime(dag(Cᴿ[n-1]), 0 => 1))
-    @show norm(ψ[n] * Cᴿ[n] - Cᴿ[n-1] * ψᴿ[n])
+    
+    ψᴿ[n] = replacetags(ψᴿ[n], "" => right_tags; plev = 1)
+    ψᴿ[n] = noprime(ψᴿ[n], right_tags)
+    Cᴿ[n-1] = replacetags(Cᴿ[n-1], "" => right_tags; plev = 1)
+    Cᴿ[n-1] = noprime(Cᴿ[n-1], right_tags)
+
+    λⁿ = norm(Cᴿ[n-1])
+    Cᴿ[n-1] /= λⁿ
+    λ *= λⁿ
+    @assert ψ[n] * Cᴿ[n] ≈ λⁿ * Cᴿ[n-1] * ψᴿ[n]
   end
-  return ψᴿ, Cᴿ
+  return Cᴿ, ψᴿ, λ
+end
+
+function left_orthogonalize(ψ::InfiniteMPS; left_tags = ts"Left", right_tags = ts"Right", tol::Real = 1e-12)
+  Cᴸ, ψᴸ, λᴸ = right_orthogonalize(reverse(ψ); left_tags = right_tags, right_tags = left_tags, tol = tol)
+  return reverse(ψᴸ), reverse(Cᴸ), λᴸ
 end
 
 #
@@ -79,7 +127,10 @@ space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
 ψ = InfiniteMPS(ComplexF64, s; space = space)
 randn!.(ψ)
 
-ψᴿ, Cᴿ = right_orthogonalize(ψ, "" => "Right")
-ψᴸ, Cᴸ = left_orthogonalize(ψᴿ, "Left" => "Right")
+Cᴿ, ψᴿ, λᴿ = right_orthogonalize(ψ; left_tags = ts"", right_tags = ts"Right")
+@show λᴿ
+@show norm(prod(ψ[1:N]) * Cᴿ[N] - λᴿ * Cᴿ[0] * prod(ψᴿ[1:N]))
+
+ψᴸ, Cᴸ, λᴸ = left_orthogonalize(ψᴿ; left_tags = ts"Left", right_tags = ts"Right")
 
 
