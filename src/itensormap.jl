@@ -91,12 +91,16 @@ end
 # neighbors(ψ, ϕ, (2, 1))
 # neighbors(ψ, ϕ, (1, N))
 # neighbors(ψ, ϕ, (2, N))
-function ITensorMap(ψ::MPS, ϕ::MPS)
+function ITensorMap(ψ::MPS, ϕ::MPS; input_inds = nothing, output_inds = nothing)
   N = length(ψ)
   @assert length(ϕ) == N
   tensors::Vector{ITensor} = reverse(collect(Iterators.flatten(Iterators.zip(ψ, ϕ))))
-  input_inds = unioninds(uniqueinds(ψ[N], ψ[N-1], ϕ[N]), uniqueinds(ϕ[N], ϕ[N-1], ψ[N]))
-  output_inds = unioninds(uniqueinds(ψ[1], ψ[2], ϕ[1]), uniqueinds(ϕ[1], ϕ[2], ψ[1]))
+  if isnothing(input_inds)
+    input_inds = unioninds(uniqueinds(ψ[N], ψ[N-1], ϕ[N]), uniqueinds(ϕ[N], ϕ[N-1], ψ[N]))
+  end
+  if isnothing(output_inds)
+    output_inds = unioninds(uniqueinds(ψ[1], ψ[2], ϕ[1]), uniqueinds(ϕ[1], ϕ[2], ψ[1]))
+  end
   return ITensorMap(tensors, input_inds, output_inds)
 end
 

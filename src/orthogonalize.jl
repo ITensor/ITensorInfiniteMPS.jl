@@ -5,9 +5,11 @@ function right_orthogonalize(ψ::InfiniteMPS; left_tags = ts"Left", right_tags =
   # TODO: replace dag(ψ) with ψ'ᴴ?
   ψᴴ = prime(linkinds, dag(ψ))
 
+  N = nsites(ψ)
+
   # The unit cell range
   # Turn into function `eachcellindex(ψ::InfiniteMPS, cell::Integer = 1)`
-  cell₁ = 1:nsites(ψ)
+  cell₁ = 1:N
   # A transfer matrix made from the 1st unit cell of
   # the infinite MPS
   # TODO: make a `Cell` Integer type and call as `ψ[Cell(1)]`
@@ -16,7 +18,9 @@ function right_orthogonalize(ψ::InfiniteMPS; left_tags = ts"Left", right_tags =
   # T = TransferMatrix(ψ[Cell(1)])
   ψ₁ = ψ[cell₁]
   ψ₁ᴴ = ψᴴ[cell₁]
-  T₀₁ = ITensorMap(ψ₁, ψ₁ᴴ)
+  T₀₁ = ITensorMap(ψ₁, ψ₁ᴴ;
+                   input_inds = unioninds(commoninds(ψ[N], ψ[N+1]), commoninds(ψᴴ[N], ψᴴ[N+1])),
+                   output_inds = unioninds(commoninds(ψ[1], ψ[0]), commoninds(ψᴴ[1], ψᴴ[0])))
 
   # TODO: make an optional initial state
   v₁ᴿᴺ = randomITensor(dag(input_inds(T₀₁)))

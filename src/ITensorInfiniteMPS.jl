@@ -10,7 +10,7 @@ using LinearAlgebra
 # For indexing starting from something other than 0.
 using OffsetArrays
 using IterTools
-using KrylovKit
+using KrylovKit: eigsolve
 
 import Base:
   getindex,
@@ -32,6 +32,7 @@ include("contraction_sequence_optimization/contraction_sequence_optimization.jl"
 
 export
   InfiniteMPS,
+  InfiniteMPO,
   ITensorMap,
   ITensorNetwork,
   input_inds,
