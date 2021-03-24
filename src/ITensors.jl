@@ -25,11 +25,15 @@ end
 # Used for findfirst
 Base.keys(ts::TagSet) = Base.OneTo(length(ts))
 
-import ITensors: Tag
+import ITensors: Tag, commontags
 
 macro tag_str(s)
   Tag(s)
 end
+
+commontags(ts::TagSet, i::Index) = commontags(ts, tags(i))
+
+commontags(t::Vector) = foldl(commontags, t)
 
 maxlength(tag::Tag) = length(tag.data)
 
@@ -105,6 +109,13 @@ ITensors.noncommoninds(is::IndexSet) = is
 # itensor.jl
 #
 
+import Base: real, imag
+
+using ITensors.NDTensors
+
+real(T::ITensor) = itensor(real(tensor(T)))
+imag(T::ITensor) = itensor(imag(tensor(T)))
+
 function LinearAlgebra.ishermitian(T::ITensor, pairs = 0 => 1; kwargs...)
   Tᴴ = swapprime(dag(T), pairs)
   return isapprox(Tᴴ, T; kwargs...)
@@ -112,7 +123,6 @@ end
 
 # Helpful for making sure the ITensor doesn't contract
 ITensors.sim(A::ITensor) = ITensors.setinds(A, sim(inds(A)))
-using ITensors.NDTensors
 
 LinearAlgebra.isdiag(T::ITensor) = isdiag(tensor(T))
 

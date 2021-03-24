@@ -26,3 +26,5 @@ struct InfiniteCanonicalMPS
   AR::InfiniteMPS
 end
 
+ITensors.siteind(ψ::InfiniteCanonicalMPS, n::Integer) = siteind(ψ.AL, n)
+

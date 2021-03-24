@@ -175,8 +175,18 @@ function ITensors.dag(ψ::AbstractInfiniteMPS)
   return typeof(ψ)(ψdag; reverse = ψ.reverse)
 end
 
-ITensors.linkinds(ψ::AbstractInfiniteMPS, n1n2::Tuple{<:Integer, <:Integer}) =
+ITensors.linkinds(ψ::AbstractInfiniteMPS, n1n2) =
+  linkinds(ψ, Pair(n1n2...))
+
+ITensors.linkinds(ψ::AbstractInfiniteMPS, n1n2::Pair{<:Integer, <:Integer}) =
   commoninds(ψ[n1n2[1]], ψ[n1n2[2]])
+
+ITensors.linkind(ψ::AbstractInfiniteMPS, n1n2::Pair{<:Integer, <:Integer}) =
+  commonind(ψ[n1n2[1]], ψ[n1n2[2]])
+
+function ITensors.siteind(ψ::AbstractInfiniteMPS, n::Integer)
+  return uniqueind(ψ[n], ψ[n-1], ψ[n+1])
+end
 
 Base.getindex(ψ::AbstractInfiniteMPS, r::UnitRange{Int}) =
   MPS([ψ[n] for n in r])

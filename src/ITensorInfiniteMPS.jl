@@ -10,7 +10,7 @@ using LinearAlgebra
 # For indexing starting from something other than 0.
 using OffsetArrays
 using IterTools
-using KrylovKit: eigsolve
+using KrylovKit: eigsolve, linsolve
 
 import Base:
   getindex,
@@ -27,6 +27,7 @@ include("abstractinfinitemps.jl")
 include("infinitemps.jl")
 include("infinitempo.jl")
 include("orthogonalize.jl")
+include("infinitemps_approx.jl")
 include("vumps.jl")
 include("contraction_sequence_optimization/contraction_sequence_optimization.jl")
 
@@ -36,6 +37,7 @@ export
   ITensorMap,
   ITensorNetwork,
   input_inds,
+  infinitemps_approx,
   nsites,
   output_inds,
   vumps,
