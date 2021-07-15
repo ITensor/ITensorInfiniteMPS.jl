@@ -13,6 +13,7 @@ OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 
 [compat]
+Requires = "1"
 OffsetArrays = "1"
 ITensors = "0.2"
 julia = "1"
