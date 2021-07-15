@@ -23,6 +23,7 @@ import ITensors:
 include("ITensors.jl")
 include("ITensorNetworks.jl")
 include("itensormap.jl")
+include("celledvectors.jl")
 include("abstractinfinitemps.jl")
 include("infinitemps.jl")
 include("infinitempo.jl")
@@ -32,14 +33,18 @@ include("vumps.jl")
 include("contraction_sequence_optimization/contraction_sequence_optimization.jl")
 
 export
+  Cell,
+  CelledVector,
   InfiniteMPS,
   InfiniteMPO,
+  InfiniteSumLocalOps,
   ITensorMap,
   ITensorNetwork,
   input_inds,
   infinitemps_approx,
   nsites,
   output_inds,
+  translatecell,
   vumps,
   ⊕,
   ⊗,
