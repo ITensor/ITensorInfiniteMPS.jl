@@ -47,6 +47,12 @@ end
 input_inds(T::ITensorMap) = T.input_inds
 output_inds(T::ITensorMap) = T.output_inds
 
+function ITensorMap(tensors::Vector{<: ITensor})
+  input_inds = filter(i -> plev(i) == 0, noncommoninds(tensors...))
+  output_inds = dag(input_inds')
+  return ITensorMap(tensors, input_inds, output_inds)
+end
+
 Base.iterate(T::ITensorMap, args...) = iterate(T.tensors, args...)
 
 function Base.transpose(T::ITensorMap)
@@ -91,6 +97,7 @@ end
 # neighbors(ψ, ϕ, (2, 1))
 # neighbors(ψ, ϕ, (1, N))
 # neighbors(ψ, ϕ, (2, N))
+# Transfer matrix made from two MPS: T|v⟩ -> |w⟩
 function ITensorMap(ψ::MPS, ϕ::MPS; input_inds = nothing, output_inds = nothing)
   N = length(ψ)
   @assert length(ϕ) == N
