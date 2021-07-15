@@ -91,6 +91,138 @@ for n1 in 1:3
 end
 
 #
+# VUMPS code
+#
+
+# Make an ITensorMap representing the transfer matrix T|v> = |Tv>
+function transfer_matrix(ψ::InfiniteMPS)
+  N = nsites(ψ)
+  ψᴴ = prime(linkinds, dag(ψ))
+
+  # The unit cell range
+  # Turn into function `eachcellindex(ψ::InfiniteMPS, cell::Integer = 1)`
+  cell₁ = 1:N
+  # A transfer matrix made from the 1st unit cell of
+  # the infinite MPS
+  # TODO: make a `Cell` Integer type and call as `ψ[Cell(1)]`
+  # TODO: make a TransferMatrix wrapper that automatically
+  # primes and daggers, so it can be called with:
+  # T = TransferMatrix(ψ[Cell(1)])
+  ψ₁ = ψ[cell₁]
+  ψ₁ᴴ = ψᴴ[cell₁]
+  T₀₁ = ITensorMap(ψ₁, ψ₁ᴴ;
+                   input_inds = unioninds(commoninds(ψ[N], ψ[N+1]), commoninds(ψᴴ[N], ψᴴ[N+1])),
+                   output_inds = unioninds(commoninds(ψ[1], ψ[0]), commoninds(ψᴴ[1], ψᴴ[0])))
+  return T₀₁
+end
+
+# A TransferMatrix with the dominant space projected out
+struct ProjectedTransferMatrix
+  T::ITensorMap
+  R::ITensor
+end
+function (T::ProjectedTransferMatrix)(v::ITensor)
+  return v - T.T(v) + (v * T.R) * δ(inds(v))
+end
+
+# Also input C bond matrices to help compute the right fixed points
+# of ψ (R ≈ C * dag(C))
+function left_environment(H::InfiniteITensorSum, ψ::InfiniteMPS, C::InfiniteMPS)
+  N = nsites(H)
+  @assert N == nsites(ψ)
+  # Solve using C25a
+  # Solve:
+  # (Lᵃ|[𝟏 - Tᴸ + |R)(𝟏|] = (YLᵃ| - (YLᵃ|R)(𝟏|
+  b = YLᵃ - (YLᵃ * R) * δ(inds(YLᵃ))
+  L⃗[a], _ = linsolve(ProjectedTransferMatrix(T, R), b)
+
+  # Get error
+  err_lhs = L⃗[a] - translatecell(L⃗[a] * ψ[1] * dag(prime(ψ[1], "Link")), -1) + L⃗[a] * R * δ(inds(L⃗[a]))
+  err_rhs = YLᵃ - YLᵃ * R * δ(inds(YLᵃ))
+  @show norm(err_lhs - err_rhs)
+  return InfiniteMPS([L])
+end
+
+function right_environment(H::InfiniteITensorSum, ψ::InfiniteMPS, C::InfiniteMPS)
+  N = nsites(H)
+  @assert N == nsites(ψ)
+  # Solve using C25b
+  # Solve:
+  # [𝟏 - Tᴿ + |𝟏)(L|]|Rᵃ) = |YRᵃ) - |𝟏)(L|YRᵃ)
+  b = YRᵃ - (L * YRᵃ) * δ(inds(YRᵃ))
+  R⃗[a], _ = linsolve(ProjectedTransferMatrix(T, L), b)
+
+  # Get error
+  err_lhs = R⃗[a] - translatecell(ψ[1] * dag(prime(ψ[1], "Link")) * R⃗[a], 1) + L * R⃗[a] * δ(inds(R⃗[a]))
+  err_rhs = YRᵃ - L * YRᵃ * δ(inds(YRᵃ))
+  @show norm(err_lhs - err_rhs)
+  return InfiniteMPS([R])
+end
+
+vumps(H::InfiniteITensorSum, ψ::InfiniteMPS; kwargs...) = vumps(H, orthogonalize(ψ, :); kwargs...)
+
+# Find the best orthogonal approximation given
+# the center tensors AC and C
+function ortho(AC::ITensor, C::ITensor)
+  E = AC * dag(C)
+  U, P = polar(E, uniqueinds(AC, C))
+  l = commoninds(U, P)
+  return noprime(U, l)
+end
+
+#function right_ortho(C::ITensor, AC::ITensor)
+#  E = dag(C) * AC
+#  U, P = polar(E, uniqueinds(C, AC))
+#  l = commoninds(U, P)
+#  return noprime(U, l)
+#end
+
+function vumps(H::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; nsweeps = 10)
+  for sweep in 1:nsweeps
+    L = left_environment(H, ψ.AL, ψ.C)
+    R = right_environment(H, ψ.AR, ψ.C)
+
+    n = 1
+
+    # 0-site effective Hamiltonian
+    H⁰ = ITensorMap([L[n], R[n]])
+    vals0, vecs0, info0 = eigsolve(H⁰, ψ.C[n])
+    E0 = vals0[1]
+    Cⁿ = vecs0[1]
+    C = InfiniteMPS([Cⁿ])
+
+    @show E0
+    @show inds(Cⁿ)
+
+    # 1-site effective Hamiltonian
+    H¹ = ITensorMap([L[n-1], H[n], R[n]])
+    vals1, vecs1, info1 = eigsolve(H¹, ψ.AL[n] * ψ.C[n]; ishermition = true)
+    E1 = vals1[1]
+    ACⁿ = vecs1[1]
+    AC = InfiniteMPS([ACⁿ])
+
+    @show E1
+    @show inds(ACⁿ)
+
+    ALⁿ = ortho(ACⁿ, Cⁿ)
+    ψL = InfiniteMPS([ALⁿ])
+
+    @show norm(ALⁿ * Cⁿ - ACⁿ)
+
+    @show inds(ALⁿ)
+    #ARⁿ = ortho(ACⁿ, translatecell(Cⁿ, -1))
+    ARⁿ = replacetags(ALⁿ, "Left" => "Right")
+
+    @show norm(translatecell(Cⁿ, -1) * ARⁿ - ACⁿ)
+    ψR = InfiniteMPS([ARⁿ])
+
+    ψ = InfiniteCanonicalMPS(ψL, C, ψR)
+  end
+
+  return ψ
+end
+
+#
 # Test computing the expectation value of an infinite sum
 # of local operators
 #
@@ -98,8 +230,51 @@ end
 s¹ = siteinds(ψ∞, Cell(1))
 
 Σ∞h = InfiniteITensorSum(model, s¹; J = J, h = h)
+ψ∞′ = ψ∞'
 ψ12 = ψ∞.AL[1] * ψ∞.AL[2]
 h12 = Σ∞h[1]
 s12 = commoninds(ψ12, h12)
 @show ψ12 * h12 * prime(dag(ψ12), s12)
+
+## #
+## # One VUMPS step
+## #
+## 
+## L = left_environment(H, ψ.AL, ψ.C)
+## R = right_environment(H, ψ.AR, ψ.C)
+## 
+## n = 1
+## 
+## # 0-site effective Hamiltonian
+## H⁰ = ITensorMap([L[n], R[n]])
+## vals0, vecs0, info0 = eigsolve(H⁰, ψ.C[n])
+## E0 = vals0[1]
+## Cⁿ = vecs0[1]
+## C = InfiniteMPS([Cⁿ])
+## 
+## @show E0
+## @show inds(Cⁿ)
+## 
+## # 1-site effective Hamiltonian
+## H¹ = ITensorMap([L[n-1], H[n], R[n]])
+## vals1, vecs1, info1 = eigsolve(H¹, ψ.AL[n] * ψ.C[n]; ishermition = true)
+## E1 = vals1[1]
+## ACⁿ = vecs1[1]
+## AC = InfiniteMPS([ACⁿ])
+## 
+## @show E1
+## @show inds(ACⁿ)
+## 
+## ALⁿ = ortho(ACⁿ, Cⁿ)
+## ψL = InfiniteMPS([ALⁿ])
+## 
+## @show norm(ALⁿ * Cⁿ - ACⁿ)
+## 
+## @show inds(ALⁿ)
+## #ARⁿ = ortho(ACⁿ, translatecell(Cⁿ, -1))
+## ARⁿ = replacetags(ALⁿ, "Left" => "Right")
+## 
+## @show norm(translatecell(Cⁿ, -1) * ARⁿ - ACⁿ)
+## ψR = InfiniteMPS([ARⁿ])
+
 
