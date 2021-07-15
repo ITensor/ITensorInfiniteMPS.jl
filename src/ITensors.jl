@@ -109,12 +109,7 @@ ITensors.noncommoninds(is::IndexSet) = is
 # itensor.jl
 #
 
-import Base: real, imag
-
 using ITensors.NDTensors
-
-real(T::ITensor) = itensor(real(tensor(T)))
-imag(T::ITensor) = itensor(imag(tensor(T)))
 
 function LinearAlgebra.ishermitian(T::ITensor, pairs = 0 => 1; kwargs...)
   Tᴴ = swapprime(dag(T), pairs)

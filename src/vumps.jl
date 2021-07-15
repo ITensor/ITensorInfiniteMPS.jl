@@ -21,7 +21,7 @@ function transfer_matrix(ψ::InfiniteMPS)
   return T₀₁
 end
 
-# Combine Left and Right, rename ProjectedTransferMatrix
+# A TransferMatrix with the dominant space projected out
 struct ProjectedTransferMatrix
   T::ITensorMap
   R::ITensor
