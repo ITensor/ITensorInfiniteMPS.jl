@@ -3,52 +3,12 @@
 # AbstractInfiniteMPS
 #
 
-#
-# cells
-#
-
-celltagprefix() = "c="
-celltags(n::Integer) = TagSet(celltagprefix() * string(n))
-celltags(n1::Integer, n2::Integer) = TagSet(celltagprefix() * n1 * "|" * n2)
-
-#
-# translatecell
-#
-
-# TODO: account for shifting by a tuple, for example:
-# translatecell(ts"Site,c=1|2", (2, 3)) -> ts"Site,c=3|5"
-# TODO: ts"c=10|12" has too many characters
-# TODO: ts"c=1|2|3" has too many characters
-#
-
-# Determine the cell `n` from the tag `"c=n"`
-function getcell(ts::TagSet)
-  celltag = tag_starting_with(ts, celltagprefix())
-  return parse(Int, celltag[length(celltagprefix())+1:end])
-end
-
-function translatecell(ts::TagSet, n::Integer)
-  ncell = getcell(ts)
-  return replacetags(ts, celltags(ncell) => celltags(ncell+n))
-end
-
-function translatecell(i::Index, n::Integer)
-  ts = tags(i)
-  translated_ts = translatecell(ts, n)
-  return replacetags(i, ts => translated_ts)
-end
-
-function translatecell(is::IndexSet, n::Integer)
-  return translatecell.(is, n)
-end
-
-translatecell(T::ITensor, n::Integer) =
-  ITensors.setinds(T, translatecell(inds(T), n))
-
 # TODO:
 # Make a CelledVector type that maps elements from one cell to another?
 
 abstract type AbstractInfiniteMPS <: AbstractMPS end
+
+ITensors.data(ψ::AbstractInfiniteMPS) = ψ.data
 
 (T::Type{MPST})(data::Vector{<:ITensor}, llim, rlim) where {MPST <: AbstractInfiniteMPS} =
   MPST(data, llim, rlim, false)
@@ -91,6 +51,8 @@ of generic code, this does not return `∞`).
 """
 length(ψ::AbstractInfiniteMPS) = nsites(ψ)
 
+isreversed(ψ::AbstractInfiniteMPS) = ψ.reverse
+
 """
     cell(ψ::AbstractInfiniteMPS, n::Integer)
 
@@ -98,7 +60,7 @@ Which unit cell site `n` is in.
 """
 function cell(ψ::AbstractInfiniteMPS, n::Integer)
   _cell = fld1(n, nsites(ψ))
-  if ψ.reverse
+  if isreversed(ψ)
     _cell = -_cell + 2
   end
   return _cell
@@ -113,13 +75,13 @@ cellsite(ψ::AbstractInfiniteMPS, n::Integer) = mod1(n, nsites(ψ))
 
 # Get the MPS tensor on site `n`, where `n` must
 # be within the first unit cell
-_getindex_cell1(ψ::AbstractInfiniteMPS, n::Int) = ITensors.data(ψ)[n]
+_getindex_cell1(ψ::AbstractInfiniteMPS, n::Integer) = ITensors.data(ψ)[n]
 
 # Set the MPS tensor on site `n`, where `n` must
 # be within the first unit cell
-_setindex_cell1!(ψ::AbstractInfiniteMPS, val, n::Int) = (ITensors.data(ψ)[n] = val)
+_setindex_cell1!(ψ::AbstractInfiniteMPS, val, n::Integer) = (ITensors.data(ψ)[n] = val)
 
-function getindex(ψ::AbstractInfiniteMPS, n::Int)
+function getindex(ψ::AbstractInfiniteMPS, n::Integer)
   cellₙ = cell(ψ, n)
   siteₙ = cellsite(ψ, n)
   return translatecell(_getindex_cell1(ψ, siteₙ), cellₙ-1)
@@ -132,7 +94,6 @@ function setindex!(ψ::AbstractInfiniteMPS, T::ITensor, n::Int)
   return ψ
 end
 
-celltags(cell) = TagSet("c=$cell")
 default_link_tags(left_or_right, n) = TagSet("Link,$left_or_right=$n")
 default_link_tags(left_or_right, n, cell) = addtags(default_link_tags(left_or_right, n), celltags(cell))
 
@@ -175,8 +136,31 @@ function ITensors.dag(ψ::AbstractInfiniteMPS)
   return typeof(ψ)(ψdag; reverse = ψ.reverse)
 end
 
-ITensors.linkinds(ψ::AbstractInfiniteMPS, n1n2::Tuple{<:Integer, <:Integer}) =
+ITensors.linkinds(ψ::AbstractInfiniteMPS, n1n2) =
+  linkinds(ψ, Pair(n1n2...))
+
+ITensors.linkinds(ψ::AbstractInfiniteMPS, n1n2::Pair{<:Integer, <:Integer}) =
   commoninds(ψ[n1n2[1]], ψ[n1n2[2]])
+
+ITensors.linkind(ψ::AbstractInfiniteMPS, n1n2::Pair{<:Integer, <:Integer}) =
+  commonind(ψ[n1n2[1]], ψ[n1n2[2]])
+
+function ITensors.siteind(ψ::AbstractInfiniteMPS, n::Integer)
+  return uniqueind(ψ[n], ψ[n-1], ψ[n+1])
+end
+
+function ITensors.siteinds(ψ::AbstractInfiniteMPS, n::Integer)
+  return uniqueinds(ψ[n], ψ[n-1], ψ[n+1])
+end
+
+# TODO: return a Dictionary or IndexSetNetwork?
+function ITensors.siteinds(ψ::AbstractInfiniteMPS, r::AbstractRange)
+  return [siteinds(ψ, n) for n in r]
+end
+
+siterange(ψ::AbstractInfiniteMPS, c::Cell) = 1:nsites(ψ) .+ (c.cell - 1)
+
+ITensors.siteinds(ψ::AbstractInfiniteMPS, c::Cell) = siteinds(ψ, siterange(ψ, c))
 
 Base.getindex(ψ::AbstractInfiniteMPS, r::UnitRange{Int}) =
   MPS([ψ[n] for n in r])

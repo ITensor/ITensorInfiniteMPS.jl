@@ -20,9 +20,15 @@ end
 # C are the center bond matrices (singular values of C
 # are the singular values of the MPS at the specified
 # cut)
-struct InfiniteCanonicalMPS
+struct InfiniteCanonicalMPS <: AbstractInfiniteMPS
   AL::InfiniteMPS
   C::InfiniteMPS
   AR::InfiniteMPS
 end
+
+# TODO: check if `isempty(ψ.AL)`, if so use `ψ.AR`
+nsites(ψ::InfiniteCanonicalMPS) = nsites(ψ.AL)
+isreversed(ψ::InfiniteCanonicalMPS) = isreversed(ψ.AL)
+#ITensors.data(ψ::InfiniteCanonicalMPS) = data(ψ.AL)
+ITensors.data(ψ::InfiniteCanonicalMPS) = ψ.AL.data
 
