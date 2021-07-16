@@ -98,7 +98,7 @@ function setindex!(cv::CelledVector, T::ITensor, n::Int)
   cellₙ = cell(cv, n)
   siteₙ = cellindex(cv, n)
   _setindex_cell1!(cv, translatecell(T, -(cellₙ-1)), siteₙ)
-  return ψ
+  return cv
 end
 
 celltags(cell) = TagSet("c=$cell")

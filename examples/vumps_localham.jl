@@ -1,6 +1,7 @@
 using ITensors
 using ITensorInfiniteMPS
 using ITensorsVisualization
+using KrylovKit: eigsolve
 using Random
 
 Random.seed!(1234)
@@ -22,6 +23,7 @@ function Base.getindex(l::InfiniteITensorSum, n1n2::Tuple{Int,Int})
   @assert n2 == n1 + 1
   return l.data[n1]
 end
+ITensorInfiniteMPS.nsites(h::InfiniteITensorSum) = length(l.data)
 
 # H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ
 function ITensors.MPO(::Model{:ising}, s; J, h)
@@ -144,50 +146,50 @@ function (T::ProjectedTransferMatrix)(v::ITensor)
   return v - T.T(v) + (v * T.R) * δ(inds(v))
 end
 
-# Also input C bond matrices to help compute the right fixed points
-# of ψ (R ≈ C * dag(C))
-function left_environment(H::InfiniteITensorSum, ψ::InfiniteMPS, C::InfiniteMPS)
-  N = nsites(H)
-  @assert N == nsites(ψ)
-  # Solve using C25a
-  # Solve:
-  # (Lᵃ|[𝟏 - Tᴸ + |R)(𝟏|] = (YLᵃ| - (YLᵃ|R)(𝟏|
-  b = YLᵃ - (YLᵃ * R) * δ(inds(YLᵃ))
-  L⃗[a], _ = linsolve(ProjectedTransferMatrix(T, R), b)
+## # Also input C bond matrices to help compute the right fixed points
+## # of ψ (R ≈ C * dag(C))
+## function left_environment(H::InfiniteITensorSum, ψ::InfiniteMPS, C::InfiniteMPS)
+##   N = nsites(H)
+##   @assert N == nsites(ψ)
+##   # Solve using C25a
+##   # Solve:
+##   # (Lᵃ|[𝟏 - Tᴸ + |R)(𝟏|] = (YLᵃ| - (YLᵃ|R)(𝟏|
+##   b = YLᵃ - (YLᵃ * R) * δ(inds(YLᵃ))
+##   L⃗[a], _ = linsolve(ProjectedTransferMatrix(T, R), b)
+## 
+##   # Get error
+##   err_lhs = L⃗[a] - translatecell(L⃗[a] * ψ[1] * dag(prime(ψ[1], "Link")), -1) + L⃗[a] * R * δ(inds(L⃗[a]))
+##   err_rhs = YLᵃ - YLᵃ * R * δ(inds(YLᵃ))
+##   @show norm(err_lhs - err_rhs)
+##   return InfiniteMPS([L])
+## end
+## 
+## function right_environment(H::InfiniteITensorSum, ψ::InfiniteMPS, C::InfiniteMPS)
+##   N = nsites(H)
+##   @assert N == nsites(ψ)
+##   # Solve using C25b
+##   # Solve:
+##   # [𝟏 - Tᴿ + |𝟏)(L|]|Rᵃ) = |YRᵃ) - |𝟏)(L|YRᵃ)
+##   b = YRᵃ - (L * YRᵃ) * δ(inds(YRᵃ))
+##   R⃗[a], _ = linsolve(ProjectedTransferMatrix(T, L), b)
+## 
+##   # Get error
+##   err_lhs = R⃗[a] - translatecell(ψ[1] * dag(prime(ψ[1], "Link")) * R⃗[a], 1) + L * R⃗[a] * δ(inds(R⃗[a]))
+##   err_rhs = YRᵃ - L * YRᵃ * δ(inds(YRᵃ))
+##   @show norm(err_lhs - err_rhs)
+##   return InfiniteMPS([R])
+## end
 
-  # Get error
-  err_lhs = L⃗[a] - translatecell(L⃗[a] * ψ[1] * dag(prime(ψ[1], "Link")), -1) + L⃗[a] * R * δ(inds(L⃗[a]))
-  err_rhs = YLᵃ - YLᵃ * R * δ(inds(YLᵃ))
-  @show norm(err_lhs - err_rhs)
-  return InfiniteMPS([L])
-end
+## vumps(H::InfiniteITensorSum, ψ::InfiniteMPS; kwargs...) = vumps(H, orthogonalize(ψ, :); kwargs...)
 
-function right_environment(H::InfiniteITensorSum, ψ::InfiniteMPS, C::InfiniteMPS)
-  N = nsites(H)
-  @assert N == nsites(ψ)
-  # Solve using C25b
-  # Solve:
-  # [𝟏 - Tᴿ + |𝟏)(L|]|Rᵃ) = |YRᵃ) - |𝟏)(L|YRᵃ)
-  b = YRᵃ - (L * YRᵃ) * δ(inds(YRᵃ))
-  R⃗[a], _ = linsolve(ProjectedTransferMatrix(T, L), b)
-
-  # Get error
-  err_lhs = R⃗[a] - translatecell(ψ[1] * dag(prime(ψ[1], "Link")) * R⃗[a], 1) + L * R⃗[a] * δ(inds(R⃗[a]))
-  err_rhs = YRᵃ - L * YRᵃ * δ(inds(YRᵃ))
-  @show norm(err_lhs - err_rhs)
-  return InfiniteMPS([R])
-end
-
-vumps(H::InfiniteITensorSum, ψ::InfiniteMPS; kwargs...) = vumps(H, orthogonalize(ψ, :); kwargs...)
-
-# Find the best orthogonal approximation given
-# the center tensors AC and C
-function ortho(AC::ITensor, C::ITensor)
-  E = AC * dag(C)
-  U, P = polar(E, uniqueinds(AC, C))
-  l = commoninds(U, P)
-  return noprime(U, l)
-end
+## # Find the best orthogonal approximation given
+## # the center tensors AC and C
+## function ortho(AC::ITensor, C::ITensor)
+##   E = AC * dag(C)
+##   U, P = polar(E, uniqueinds(AC, C))
+##   l = commoninds(U, P)
+##   return noprime(U, l)
+## end
 
 #function right_ortho(C::ITensor, AC::ITensor)
 #  E = dag(C) * AC
@@ -196,216 +198,95 @@ end
 #  return noprime(U, l)
 #end
 
-function vumps(H::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; nsweeps = 10)
-  for sweep in 1:nsweeps
-    L = left_environment(H, ψ.AL, ψ.C)
-    R = right_environment(H, ψ.AR, ψ.C)
-
-    n = 1
-
-    # 0-site effective Hamiltonian
-    H⁰ = ITensorMap([L[n], R[n]])
-    vals0, vecs0, info0 = eigsolve(H⁰, ψ.C[n])
-    E0 = vals0[1]
-    Cⁿ = vecs0[1]
-    C = InfiniteMPS([Cⁿ])
-
-    @show E0
-    @show inds(Cⁿ)
-
-    # 1-site effective Hamiltonian
-    H¹ = ITensorMap([L[n-1], H[n], R[n]])
-    vals1, vecs1, info1 = eigsolve(H¹, ψ.AL[n] * ψ.C[n]; ishermition = true)
-    E1 = vals1[1]
-    ACⁿ = vecs1[1]
-    AC = InfiniteMPS([ACⁿ])
-
-    @show E1
-    @show inds(ACⁿ)
-
-    ALⁿ = ortho(ACⁿ, Cⁿ)
-    ψL = InfiniteMPS([ALⁿ])
-
-    @show norm(ALⁿ * Cⁿ - ACⁿ)
-
-    @show inds(ALⁿ)
-    #ARⁿ = ortho(ACⁿ, translatecell(Cⁿ, -1))
-    ARⁿ = replacetags(ALⁿ, "Left" => "Right")
-
-    @show norm(translatecell(Cⁿ, -1) * ARⁿ - ACⁿ)
-    ψR = InfiniteMPS([ARⁿ])
-
-    ψ = InfiniteCanonicalMPS(ψL, C, ψR)
-  end
-
-  return ψ
-end
+## function vumps(H::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; nsweeps = 10)
+##   for sweep in 1:nsweeps
+##     L = left_environment(H, ψ.AL, ψ.C)
+##     R = right_environment(H, ψ.AR, ψ.C)
+## 
+##     n = 1
+## 
+##     # 0-site effective Hamiltonian
+##     H⁰ = ITensorMap([L[n], R[n]])
+##     vals0, vecs0, info0 = eigsolve(H⁰, ψ.C[n])
+##     E0 = vals0[1]
+##     Cⁿ = vecs0[1]
+##     C = InfiniteMPS([Cⁿ])
+## 
+##     @show E0
+##     @show inds(Cⁿ)
+## 
+##     # 1-site effective Hamiltonian
+##     H¹ = ITensorMap([L[n-1], H[n], R[n]])
+##     vals1, vecs1, info1 = eigsolve(H¹, ψ.AL[n] * ψ.C[n]; ishermition = true)
+##     E1 = vals1[1]
+##     ACⁿ = vecs1[1]
+##     AC = InfiniteMPS([ACⁿ])
+## 
+##     @show E1
+##     @show inds(ACⁿ)
+## 
+##     ALⁿ = ortho(ACⁿ, Cⁿ)
+##     ψL = InfiniteMPS([ALⁿ])
+## 
+##     @show norm(ALⁿ * Cⁿ - ACⁿ)
+## 
+##     @show inds(ALⁿ)
+##     #ARⁿ = ortho(ACⁿ, translatecell(Cⁿ, -1))
+##     ARⁿ = replacetags(ALⁿ, "Left" => "Right")
+## 
+##     @show norm(translatecell(Cⁿ, -1) * ARⁿ - ACⁿ)
+##     ψR = InfiniteMPS([ARⁿ])
+## 
+##     ψ = InfiniteCanonicalMPS(ψL, C, ψR)
+##   end
+## 
+##   return ψ
+## end
 
 #
 # Test computing the expectation value of an infinite sum
 # of local operators
 #
 
-s¹ = siteinds(ψ∞, Cell(1))
-
-Σ∞h = InfiniteITensorSum(model, s¹; J = J, h = h)
-ψᴴ∞ = dag(ψ∞)
-ψ′∞ = ψᴴ∞'
-# XXX: make this prime the center sites
-ψ̃∞ = prime(linkinds, ψᴴ∞)
-## ψ12 = ψ∞.AL[1] * ψ∞.AL[2]
-## h12 = Σ∞h[1]
-## s12 = commoninds(ψ12, h12)
-## @show ψ12 * h12 * prime(dag(ψ12), s12)
-
-l = CelledVector([commoninds(ψ∞.AL[n], ψ∞.AL[n + 1]) for n in 1:Nsites])
-l′ = CelledVector([commoninds(ψ′∞.AL[n], ψ′∞.AL[n + 1]) for n in 1:Nsites])
-r = CelledVector([commoninds(ψ∞.AR[n], ψ∞.AR[n + 1]) for n in 1:Nsites])
-r′ = CelledVector([commoninds(ψ′∞.AR[n], ψ′∞.AR[n + 1]) for n in 1:Nsites])
-
-## l⁻¹⁰ = commoninds(ψ∞.AL[-1], ψ∞.AL[0])
-## l⁰¹ = commoninds(ψ∞.AL[0], ψ∞.AL[1])
-## l′⁻¹⁰ = commoninds(ψ′∞.AL[-1], ψ′∞.AL[0])
-## l′⁰¹ = commoninds(ψ′∞.AL[0], ψ′∞.AL[1])
-## 
-## r⁻¹⁰ = commoninds(ψ∞.AR[-1], ψ∞.AR[0])
-## r⁰¹ = commoninds(ψ∞.AR[0], ψ∞.AR[1])
-## r¹² = commoninds(ψ∞.AR[1], ψ∞.AR[2])
-## r²³ = commoninds(ψ∞.AR[2], ψ∞.AR[3])
-## r′⁻¹⁰ = commoninds(ψ′∞.AR[-1], ψ′∞.AR[0])
-## r′⁰¹ = commoninds(ψ′∞.AR[0], ψ′∞.AR[1])
-## r′¹² = commoninds(ψ′∞.AR[1], ψ′∞.AR[2])
-## r′²³ = commoninds(ψ′∞.AR[2], ψ′∞.AR[3])
-
-hᴸ = InfiniteMPS([δ(only(l[n - 2]), only(l′[n - 2])) * ψ∞.AL[n - 1] * ψ∞.AL[n] * Σ∞h[(n - 1, n)] * dag(ψ′∞.AL[n - 1]) * dag(ψ′∞.AL[n]) for n in 1:Nsites])
-#hᴸ²³ = @visualize δ(only(l[0]), only(l′[0])) * ψ∞.AL[1] * ψ∞.AL[2] * Σ∞h[(1, 2)] * dag(ψ′∞.AL[1]) * dag(ψ′∞.AL[2])
-
-hᴿ = InfiniteMPS([δ(only(r[n + 2]), only(r′[n + 2])) * ψ∞.AR[n + 2] * ψ∞.AR[n + 1] * Σ∞h[(n + 1, n + 2)] * dag(ψ′∞.AR[n + 2]) * dag(ψ′∞.AR[n + 1]) for n in 1:Nsites])
-
-#hᴸ¹² = @visualize δ(only(r[3]), only(r′[3])) * ψ∞.AR[3] * ψ∞.AR[2] * Σ∞h[(2, 3)] * dag(ψ′∞.AR[3]) * dag(ψ′∞.AR[2])
-#hᴸ²³ = @visualize δ(only(r[4]), only(r′[4])) * ψ∞.AR[4] * ψ∞.AL[3] * Σ∞h[(3, 4)] * dag(ψ′∞.AL[4]) * dag(ψ′∞.AL[3])
-
-# Shift the energy
-## eᴸ¹² = @visualize hᴸ¹² * ψ∞.C[1] * δ(only(r¹²), only(r′¹²)) * ψ′∞.C[1]
-## @show eᴸ¹²
-## hᴸ¹² = hᴸ¹² - eᴸ¹² * δ(inds(hᴸ¹²))
-## eᴸ²³ = @visualize hᴸ²³ * ψ∞.C[2] * δ(only(r²³), only(r′²³)) * ψ′∞.C[2]
-## @show eᴸ²³
-## hᴸ²³ = hᴸ²³ - eᴸ²³ * δ(inds(hᴸ²³))
-## 
-## hᴸ = InfiniteMPS([hᴸ¹², hᴸ²³])
-
-eᴸ = [(hᴸ[n] * ψ∞.C[n] * δ(only(r[n]), only(r′[n])) * ψ′∞.C[n])[] for n in 1:Nsites]
-eᴿ = [(hᴿ[n] * ψ∞.C[n] * δ(only(l[n]), only(l′[n])) * ψ′∞.C[n])[] for n in 1:Nsites]
-
-@show eᴸ
-@show eᴿ
-
-for n in 1:Nsites
-  hᴸ[n] -= eᴸ[n] * δ(inds(hᴸ[n]))
-  hᴿ[n] -= eᴿ[n] * δ(inds(hᴿ[n]))
-end
-
-function left_environment_sum(hᴸ, ψ∞)
-  ψ̃∞ = prime(linkinds, dag(ψ∞))
-  Hᴸ²¹ = hᴸ[2]
-  Hᴸ²¹ += hᴸ[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
-  Hᴸ²¹ += hᴸ[0] * ψ∞.AL[1] * ψ̃∞.AL[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
-  Hᴸ²¹ += hᴸ[-1] * ψ∞.AL[0] * ψ̃∞.AL[0] * ψ∞.AL[1] * ψ̃∞.AL[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
-  Hᴸ²¹ += hᴸ[-2] * ψ∞.AL[-1] * ψ̃∞.AL[-1] * ψ∞.AL[0] * ψ̃∞.AL[0] * ψ∞.AL[1] * ψ̃∞.AL[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
-  Hᴸ²¹ += hᴸ[-3] * ψ∞.AL[-2] * ψ̃∞.AL[-2] * ψ∞.AL[-1] * ψ̃∞.AL[-1] * ψ∞.AL[0] * ψ̃∞.AL[0] * ψ∞.AL[1] * ψ̃∞.AL[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
-  Hᴸ²¹ += hᴸ[-4] * ψ∞.AL[-3] * ψ̃∞.AL[-3] * ψ∞.AL[-2] * ψ̃∞.AL[-2] * ψ∞.AL[-1] * ψ̃∞.AL[-1] * ψ∞.AL[0] * ψ̃∞.AL[0] * ψ∞.AL[1] * ψ̃∞.AL[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
-  Hᴸ²¹ *= inv(sign(Hᴸ²¹[1, 1]))
-  return Hᴸ²¹
-end
-
-function left_environment_recursive(hᴸ, ψ∞)
-  ψ̃∞ = prime(linkinds, dag(ψ∞))
-  # XXX: replace with `nsites`
-  #N = nsites(ψ∞)
-  N = length(ψ∞)
-  Hᴸᴺ¹ = hᴸ[N]
-  for _ in 1:10
-    Hᴸᴺ¹ = translatecell(Hᴸᴺ¹, -1)
-    for n in 1:N
-      Hᴸᴺ¹ = Hᴸᴺ¹ * ψ∞.AL[n] * ψ̃∞.AL[n]
-    end
-    # Loop over the Hamiltonian terms in the unit cell
-    for n in 1:N
-      hᴸⁿ = hᴸ[n]
-      for k in (n + 1):N
-        hᴸⁿ = hᴸⁿ * ψ∞.AL[k] * ψ̃∞.AL[k]
-      end
-      Hᴸᴺ¹ += hᴸⁿ
-    end
-  end
-  # Get the rest of the environments in the unit cell
-  Hᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
-  Hᴸ[N] = Hᴸᴺ¹
-  Hᴸᴺ¹ = translatecell(Hᴸᴺ¹, -1)
-  for n in 1:(N - 1)
-    Hᴸ[n] = Hᴸ[n - 1] * ψ∞.AL[n] * ψ̃∞.AL[n] + hᴸ[n]
-  end
-  return Hᴸ
-end
-
-function right_environment_recursive(hᴿ, ψ∞)
-  ψ̃∞ = prime(linkinds, dag(ψ∞))
-  # XXX: replace with `nsites`
-  #N = nsites(ψ∞)
-  N = length(ψ∞)
-  Hᴿᴺ¹ = hᴿ[0]
-  for _ in 1:10
-    Hᴿᴺ¹ = translatecell(Hᴿᴺ¹, 1)
-    for n in reverse(1:N)
-      Hᴿᴺ¹ = Hᴿᴺ¹ * ψ∞.AR[n] * ψ̃∞.AR[n]
-    end
-    # Loop over the Hamiltonian terms in the unit cell
-    for n in reverse(0:(N - 1))
-      hᴿⁿ = hᴿ[n]
-      for k in reverse(1:n)
-        hᴿⁿ = hᴿⁿ * ψ∞.AR[k] * ψ̃∞.AR[k]
-      end
-      Hᴿᴺ¹ += hᴿⁿ
-    end
-  end
-  Hᴿᴺ¹ = translatecell(Hᴿᴺ¹, 1)
-  # Get the rest of the environments in the unit cell
-  Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
-  Hᴿ[N] = Hᴿᴺ¹
-  for n in reverse(1:(N - 1))
-    Hᴿ[n] = Hᴿ[n + 1] * ψ∞.AR[n + 1] * ψ̃∞.AR[n + 1] + hᴿ[n]
-  end
-  return Hᴿ
-end
-
-Hᴸ = left_environment_recursive(hᴸ, ψ∞)
-Hᴿ = right_environment_recursive(hᴿ, ψ∞)
-for n in 1:Nsites
-  @show n
-  @show tr(Hᴸ[n] * ψ∞.C[n] * ψ′∞.C[n])
-  @show tr(Hᴿ[n] * ψ∞.C[n] * ψ′∞.C[n])
-end
-
-n = 1
 struct Hᶜ
   Σ∞h::InfiniteITensorSum
   Hᴸ::InfiniteMPS
   Hᴿ::InfiniteMPS
   ψ∞::InfiniteCanonicalMPS
+  n::Int
 end
 
-function (H::Hᶜ)(v)
+struct Hᴬᶜ
+  Σ∞h::InfiniteITensorSum
+  Hᴸ::InfiniteMPS
+  Hᴿ::InfiniteMPS
+  ψ∞::InfiniteCanonicalMPS
+  n::Int
+end
+
+function ITensors.linkinds(f::typeof(only), ψ::InfiniteMPS)
+  N = nsites(ψ)
+  return CelledVector([f(commoninds(ψ[n], ψ[n + 1])) for n in 1:N])
+end
+
+function ITensors.siteinds(f::typeof(only), ψ::InfiniteMPS)
+  N = nsites(ψ)
+  return CelledVector([f(uniqueinds(ψ[n], ψ[n - 1], ψ[n + 1])) for n in 1:N])
+end
+
+ITensors.siteinds(f::typeof(only), ψ::InfiniteCanonicalMPS) = siteinds(f, ψ.AL)
+
+function Base.:*(H::Hᶜ, v::ITensor)
   Σ∞h = H.Σ∞h
   Hᴸ = H.Hᴸ
   Hᴿ = H.Hᴿ
   ψ∞ = H.ψ∞
-  ψ′∞ = ψ∞'
-  N = length(ψ∞)
-  l = CelledVector([commonind(ψ∞.AL[n], ψ∞.AL[n + 1]) for n in 1:N])
-  l′ = CelledVector([commonind(ψ′∞.AL[n], ψ′∞.AL[n + 1]) for n in 1:N])
-  r = CelledVector([commonind(ψ∞.AR[n], ψ∞.AR[n + 1]) for n in 1:N])
-  r′ = CelledVector([commonind(ψ′∞.AR[n], ψ′∞.AR[n + 1]) for n in 1:N])
+  ψ′∞ = dag(ψ∞)'
+  n = H.n
+  l = linkinds(only, ψ∞.AL)
+  l′ = linkinds(only, ψ′∞.AL)
+  r = linkinds(only, ψ∞.AR)
+  r′ = linkinds(only, ψ′∞.AR)
   δˡ = δ(l[n], l′[n])
   δˡ⁻¹ = δ(l[n - 1], l′[n - 1])
   δʳ = δ(r[n], r′[n])
@@ -417,7 +298,253 @@ function (H::Hᶜ)(v)
   return Hᶜv * δˡ * δʳ
 end
 
-@show Hᶜ(Σ∞h, Hᴸ, Hᴿ, ψ∞)(ψ∞.C[Nsites])
+function Base.:*(H::Hᴬᶜ, v::ITensor)
+  Σ∞h = H.Σ∞h
+  Hᴸ = H.Hᴸ
+  Hᴿ = H.Hᴿ
+  ψ∞ = H.ψ∞
+  ψ′∞ = dag(ψ∞)'
+  n = H.n
+  l = linkinds(only, ψ∞.AL)
+  l′ = linkinds(only, ψ′∞.AL)
+  r = linkinds(only, ψ∞.AR)
+  r′ = linkinds(only, ψ′∞.AR)
+  s = siteinds(only, ψ∞)
+  s′ = siteinds(only, ψ′∞)
+
+  δˢ(n) = δ(s[n], s′[n])
+  δˡ(n) = δ(l[n], l′[n])
+  δʳ(n) = δ(r[n], r′[n])
+
+  Hᴬᶜᴸv = v * Hᴸ[n - 1] * δˢ(n) * δʳ(n)
+  Hᴬᶜᴿv = v * δˡ(n - 1) * δˢ(n) * Hᴿ[n]
+  Hᴬᶜʰ¹v = v * ψ∞.AL[n - 1] * δˡ(n - 2) * ψ′∞.AL[n - 1] * Σ∞h[(n - 1, n)] * δʳ(n)
+  Hᴬᶜʰ²v = v * δˡ(n - 1) * ψ∞.AR[n + 1] * δʳ(n + 1) * ψ′∞.AR[n + 1] * Σ∞h[(n, n + 1)]
+  Hᴬᶜv = Hᴬᶜᴸv + Hᴬᶜʰ¹v + Hᴬᶜʰ²v + Hᴬᶜᴿv
+  return Hᴬᶜv * δˡ(n - 1) * δˢ(n) * δʳ(n)
+end
+
+function (H::Hᶜ)(v)
+  Hᶜv = H * v
+  ## return Hᶜv * δˡ * δʳ
+  return noprime(Hᶜv)
+end
+
+function (H::Hᴬᶜ)(v)
+  Hᴬᶜv = H * v
+  ## return Hᶜv * δˡ⁻¹ * δˢ * δʳ
+  return noprime(Hᴬᶜv)
+end
+
+s¹ = siteinds(ψ∞, Cell(1))
+
+Σ∞h = InfiniteITensorSum(model, s¹; J = J, h = h)
+
+function vumps_iteration(Σ∞h::InfiniteITensorSum, ψ∞::InfiniteCanonicalMPS)
+  ψᴴ∞ = dag(ψ∞)
+  ψ′∞ = ψᴴ∞'
+  # XXX: make this prime the center sites
+  ψ̃∞ = prime(linkinds, ψᴴ∞)
+  ## ψ12 = ψ∞.AL[1] * ψ∞.AL[2]
+  ## h12 = Σ∞h[1]
+  ## s12 = commoninds(ψ12, h12)
+  ## @show ψ12 * h12 * prime(dag(ψ12), s12)
+
+  l = CelledVector([commoninds(ψ∞.AL[n], ψ∞.AL[n + 1]) for n in 1:Nsites])
+  l′ = CelledVector([commoninds(ψ′∞.AL[n], ψ′∞.AL[n + 1]) for n in 1:Nsites])
+  r = CelledVector([commoninds(ψ∞.AR[n], ψ∞.AR[n + 1]) for n in 1:Nsites])
+  r′ = CelledVector([commoninds(ψ′∞.AR[n], ψ′∞.AR[n + 1]) for n in 1:Nsites])
+
+  ## l⁻¹⁰ = commoninds(ψ∞.AL[-1], ψ∞.AL[0])
+  ## l⁰¹ = commoninds(ψ∞.AL[0], ψ∞.AL[1])
+  ## l′⁻¹⁰ = commoninds(ψ′∞.AL[-1], ψ′∞.AL[0])
+  ## l′⁰¹ = commoninds(ψ′∞.AL[0], ψ′∞.AL[1])
+  ## 
+  ## r⁻¹⁰ = commoninds(ψ∞.AR[-1], ψ∞.AR[0])
+  ## r⁰¹ = commoninds(ψ∞.AR[0], ψ∞.AR[1])
+  ## r¹² = commoninds(ψ∞.AR[1], ψ∞.AR[2])
+  ## r²³ = commoninds(ψ∞.AR[2], ψ∞.AR[3])
+  ## r′⁻¹⁰ = commoninds(ψ′∞.AR[-1], ψ′∞.AR[0])
+  ## r′⁰¹ = commoninds(ψ′∞.AR[0], ψ′∞.AR[1])
+  ## r′¹² = commoninds(ψ′∞.AR[1], ψ′∞.AR[2])
+  ## r′²³ = commoninds(ψ′∞.AR[2], ψ′∞.AR[3])
+
+  hᴸ = InfiniteMPS([δ(only(l[n - 2]), only(l′[n - 2])) * ψ∞.AL[n - 1] * ψ∞.AL[n] * Σ∞h[(n - 1, n)] * dag(ψ′∞.AL[n - 1]) * dag(ψ′∞.AL[n]) for n in 1:Nsites])
+  #hᴸ²³ = @visualize δ(only(l[0]), only(l′[0])) * ψ∞.AL[1] * ψ∞.AL[2] * Σ∞h[(1, 2)] * dag(ψ′∞.AL[1]) * dag(ψ′∞.AL[2])
+
+  hᴿ = InfiniteMPS([δ(only(r[n + 2]), only(r′[n + 2])) * ψ∞.AR[n + 2] * ψ∞.AR[n + 1] * Σ∞h[(n + 1, n + 2)] * dag(ψ′∞.AR[n + 2]) * dag(ψ′∞.AR[n + 1]) for n in 1:Nsites])
+
+  #hᴸ¹² = @visualize δ(only(r[3]), only(r′[3])) * ψ∞.AR[3] * ψ∞.AR[2] * Σ∞h[(2, 3)] * dag(ψ′∞.AR[3]) * dag(ψ′∞.AR[2])
+  #hᴸ²³ = @visualize δ(only(r[4]), only(r′[4])) * ψ∞.AR[4] * ψ∞.AL[3] * Σ∞h[(3, 4)] * dag(ψ′∞.AL[4]) * dag(ψ′∞.AL[3])
+
+  # Shift the energy
+  ## eᴸ¹² = @visualize hᴸ¹² * ψ∞.C[1] * δ(only(r¹²), only(r′¹²)) * ψ′∞.C[1]
+  ## @show eᴸ¹²
+  ## hᴸ¹² = hᴸ¹² - eᴸ¹² * δ(inds(hᴸ¹²))
+  ## eᴸ²³ = @visualize hᴸ²³ * ψ∞.C[2] * δ(only(r²³), only(r′²³)) * ψ′∞.C[2]
+  ## @show eᴸ²³
+  ## hᴸ²³ = hᴸ²³ - eᴸ²³ * δ(inds(hᴸ²³))
+  ## 
+  ## hᴸ = InfiniteMPS([hᴸ¹², hᴸ²³])
+
+  eᴸ = [(hᴸ[n] * ψ∞.C[n] * δ(only(r[n]), only(r′[n])) * ψ′∞.C[n])[] for n in 1:Nsites]
+  eᴿ = [(hᴿ[n] * ψ∞.C[n] * δ(only(l[n]), only(l′[n])) * ψ′∞.C[n])[] for n in 1:Nsites]
+
+  @show eᴸ
+  @show eᴿ
+
+  for n in 1:Nsites
+    hᴸ[n] -= eᴸ[n] * δ(inds(hᴸ[n]))
+    hᴿ[n] -= eᴿ[n] * δ(inds(hᴿ[n]))
+  end
+
+  ## function left_environment_sum(hᴸ, ψ∞)
+  ##   ψ̃∞ = prime(linkinds, dag(ψ∞))
+  ##   Hᴸ²¹ = hᴸ[2]
+  ##   Hᴸ²¹ += hᴸ[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
+  ##   Hᴸ²¹ += hᴸ[0] * ψ∞.AL[1] * ψ̃∞.AL[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
+  ##   Hᴸ²¹ += hᴸ[-1] * ψ∞.AL[0] * ψ̃∞.AL[0] * ψ∞.AL[1] * ψ̃∞.AL[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
+  ##   Hᴸ²¹ += hᴸ[-2] * ψ∞.AL[-1] * ψ̃∞.AL[-1] * ψ∞.AL[0] * ψ̃∞.AL[0] * ψ∞.AL[1] * ψ̃∞.AL[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
+  ##   Hᴸ²¹ += hᴸ[-3] * ψ∞.AL[-2] * ψ̃∞.AL[-2] * ψ∞.AL[-1] * ψ̃∞.AL[-1] * ψ∞.AL[0] * ψ̃∞.AL[0] * ψ∞.AL[1] * ψ̃∞.AL[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
+  ##   Hᴸ²¹ += hᴸ[-4] * ψ∞.AL[-3] * ψ̃∞.AL[-3] * ψ∞.AL[-2] * ψ̃∞.AL[-2] * ψ∞.AL[-1] * ψ̃∞.AL[-1] * ψ∞.AL[0] * ψ̃∞.AL[0] * ψ∞.AL[1] * ψ̃∞.AL[1] * ψ∞.AL[2] * ψ̃∞.AL[2]
+  ##   Hᴸ²¹ *= inv(sign(Hᴸ²¹[1, 1]))
+  ##   return Hᴸ²¹
+  ## end
+
+  function left_environment_recursive(hᴸ, ψ∞)
+    ψ̃∞ = prime(linkinds, dag(ψ∞))
+    # XXX: replace with `nsites`
+    #N = nsites(ψ∞)
+    N = length(ψ∞)
+    Hᴸᴺ¹ = hᴸ[N]
+    for _ in 1:10
+      Hᴸᴺ¹ = translatecell(Hᴸᴺ¹, -1)
+      for n in 1:N
+        Hᴸᴺ¹ = Hᴸᴺ¹ * ψ∞.AL[n] * ψ̃∞.AL[n]
+      end
+      # Loop over the Hamiltonian terms in the unit cell
+      for n in 1:N
+        hᴸⁿ = hᴸ[n]
+        for k in (n + 1):N
+          hᴸⁿ = hᴸⁿ * ψ∞.AL[k] * ψ̃∞.AL[k]
+        end
+        Hᴸᴺ¹ += hᴸⁿ
+      end
+    end
+    # Get the rest of the environments in the unit cell
+    Hᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
+    Hᴸ[N] = Hᴸᴺ¹
+    Hᴸᴺ¹ = translatecell(Hᴸᴺ¹, -1)
+    for n in 1:(N - 1)
+      Hᴸ[n] = Hᴸ[n - 1] * ψ∞.AL[n] * ψ̃∞.AL[n] + hᴸ[n]
+    end
+    return Hᴸ
+  end
+
+  function right_environment_recursive(hᴿ, ψ∞)
+    ψ̃∞ = prime(linkinds, dag(ψ∞))
+    # XXX: replace with `nsites`
+    #N = nsites(ψ∞)
+    N = length(ψ∞)
+    Hᴿᴺ¹ = hᴿ[0]
+    for _ in 1:10
+      Hᴿᴺ¹ = translatecell(Hᴿᴺ¹, 1)
+      for n in reverse(1:N)
+        Hᴿᴺ¹ = Hᴿᴺ¹ * ψ∞.AR[n] * ψ̃∞.AR[n]
+      end
+      # Loop over the Hamiltonian terms in the unit cell
+      for n in reverse(0:(N - 1))
+        hᴿⁿ = hᴿ[n]
+        for k in reverse(1:n)
+          hᴿⁿ = hᴿⁿ * ψ∞.AR[k] * ψ̃∞.AR[k]
+        end
+        Hᴿᴺ¹ += hᴿⁿ
+      end
+    end
+    Hᴿᴺ¹ = translatecell(Hᴿᴺ¹, 1)
+    # Get the rest of the environments in the unit cell
+    Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
+    Hᴿ[N] = Hᴿᴺ¹
+    for n in reverse(1:(N - 1))
+      Hᴿ[n] = Hᴿ[n + 1] * ψ∞.AR[n + 1] * ψ̃∞.AR[n + 1] + hᴿ[n]
+    end
+    return Hᴿ
+  end
+
+  Hᴸ = left_environment_recursive(hᴸ, ψ∞)
+  Hᴿ = right_environment_recursive(hᴿ, ψ∞)
+  for n in 1:Nsites
+    @show n
+    @show tr(Hᴸ[n] * ψ∞.C[n] * ψ′∞.C[n])
+    @show tr(Hᴿ[n] * ψ∞.C[n] * ψ′∞.C[n])
+  end
+
+  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  for n in 1:Nsites
+    valsₙ, vecsₙ, infoₙ = eigsolve(Hᶜ(Σ∞h, Hᴸ, Hᴿ, ψ∞, n), ψ∞.C[n], 1, :SR)
+    @show valsₙ[1]
+    C̃[n] = vecsₙ[1]
+  end
+
+  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  for n in 1:Nsites
+    valsₙ, vecsₙ, infoₙ = eigsolve(Hᴬᶜ(Σ∞h, Hᴸ, Hᴿ, ψ∞, n), ψ∞.AL[n] * ψ∞.C[n], 1, :SR)
+    @show valsₙ[1]
+    Ãᶜ[n] = vecsₙ[1]
+  end
+
+  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  for n in 1:Nsites
+    Ãᴸⁿ, _ = polar(Ãᶜ[n] * dag(C̃[n]), uniqueinds(Ãᶜ[n], C̃[n]))
+    Ãᴿⁿ, _ = polar(Ãᶜ[n] * dag(C̃[n - 1]), uniqueinds(Ãᶜ[n], C̃[n - 1]))
+    Ãᴸⁿ = noprime(Ãᴸⁿ)
+    Ãᴿⁿ = noprime(Ãᴿⁿ)
+    @show tr(dag(Ãᴸⁿ) * Ãᶜ[n] * dag(C̃[n]));
+    @show tr(dag(Ãᴿⁿ) * Ãᶜ[n] * dag(C̃[n - 1]));
+    Ãᴸ[n] = Ãᴸⁿ
+    Ãᴿ[n] = Ãᴿⁿ
+  end
+  return InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ)
+end
+
+function vumps(Σ∞h, ψ∞; niter=10)
+  for iter in 1:niter
+    ψ∞ = vumps_iteration(Σ∞h, ψ∞)
+  end
+  return ψ∞
+end
+
+vumps(Σ∞h, ψ∞)
+
+#N = 10
+#s = siteinds("S=1/2", N; conserve_szparity = true)
+χ = 6
+#@assert iseven(χ)
+#space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
+ψ∞ = InfiniteMPS(only.(s¹); space=χ)
+randn!.(ψ∞)
+
+ψ∞ = orthogonalize(ψ∞, :)
+@show norm(prod(ψ∞.AL[1:Nsites]) * ψ∞.C[Nsites] - ψ∞.C[0] * prod(ψ∞.AR[1:Nsites]))
+
+vumps(Σ∞h, ψ∞; niter=10)
+
+## for n′ in eachindex(nrange)
+##   n = nrange[n′]
+##   C1 = L[n-1] * R[n-1]
+##   C2 = L[n] * R[n]
+##   C12 = L[n-1] * dag(ψ[n]) * R[n]
+##   U, P = polar(C12 * dag(C2), uniqueinds(C12, C2))
+##   u = commoninds(U, P)
+##   U = noprime(U, u)
+##   AL[n′] = U
+##   # XXX: compute AR from a right polar decomposition of C2
+##   AR[n′] = replacetags(U, "Left" => "Right")
+##   C[n′] = C2 / norm(C2)
+## end
+
+#@show Hᶜ(Σ∞h, Hᴸ, Hᴿ, ψ∞)(ψ∞.C[Nsites])
 
 #D, _ = eigen(Hᶜ; ishermitian=true)
 #@show minimum(D)

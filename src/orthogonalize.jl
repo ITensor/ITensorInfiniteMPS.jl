@@ -36,8 +36,12 @@ function right_orthogonalize(ψ::InfiniteMPS; left_tags = ts"Left", right_tags =
   # Fix the phase of the diagonal to make Hermitian
   v₁ᴿᴺ .*= conj(sign(v₁ᴿᴺ[1, 1]))
   @assert ishermitian(v₁ᴿᴺ; rtol = tol)
-  @assert norm(imag(v₁ᴿᴺ)) < 1e-15
-  v₁ᴿᴺ = real(v₁ᴿᴺ)
+  if norm(imag(v₁ᴿᴺ)) > 1e-15
+    println("Norm of the imaginary part $(norm(imag(v₁ᴿᴺ))) is larger than the tolerance value 1e-15. Keeping as complex.")
+    @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
+  else
+    v₁ᴿᴺ = real(v₁ᴿᴺ)
+  end
 
   # Initial guess for bond matrix such that:
   # ψ₁ * C₁ᴿᴺ = C₁ᴿᴺ * ψ₁ᴿ
