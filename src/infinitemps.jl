@@ -48,3 +48,20 @@ function ITensors.dag(ψ::InfiniteCanonicalMPS, args...; kwargs...)
   return fmap(x -> dag(x, args...; kwargs...), ψ)
 end
 
+ITensors.siteinds(f::typeof(only), ψ::InfiniteCanonicalMPS) = siteinds(f, ψ.AL)
+
+
+# For now, only represents nearest neighbor interactions
+# on a linear chain
+struct InfiniteITensorSum
+  data::CelledVector{ITensor}
+end
+InfiniteITensorSum(N::Int) = InfiniteITensorSum(Vector{ITensor}(undef, N))
+InfiniteITensorSum(data::Vector{ITensor}) = InfiniteITensorSum(CelledVector(data))
+function Base.getindex(l::InfiniteITensorSum, n1n2::Tuple{Int,Int})
+  n1, n2 = n1n2
+  @assert n2 == n1 + 1
+  return l.data[n1]
+end
+nsites(h::InfiniteITensorSum) = length(l.data)
+

@@ -29,13 +29,14 @@ include("infinitemps.jl")
 include("infinitempo.jl")
 include("orthogonalize.jl")
 include("infinitemps_approx.jl")
-include("vumps.jl")
-include("contraction_sequence_optimization/contraction_sequence_optimization.jl")
+include("vumps_localham.jl")
 
 export
   Cell,
   CelledVector,
   InfiniteMPS,
+  InfiniteCanonicalMPS,
+  InfiniteITensorSum,
   InfiniteMPO,
   InfiniteSumLocalOps,
   ITensorMap,

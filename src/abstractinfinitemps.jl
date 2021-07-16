@@ -177,3 +177,13 @@ Base.getindex(ψ::AbstractInfiniteMPS, r::UnitRangeToFunction) =
 
 (::Colon)(n::Int, f::typeof(nsites)) = UnitRangeToFunction(n, f)
 
+function ITensors.linkinds(f::typeof(only), ψ::AbstractInfiniteMPS)
+  N = nsites(ψ)
+  return CelledVector([f(commoninds(ψ[n], ψ[n + 1])) for n in 1:N])
+end
+
+function ITensors.siteinds(f::typeof(only), ψ::AbstractInfiniteMPS)
+  N = nsites(ψ)
+  return CelledVector([f(uniqueinds(ψ[n], ψ[n - 1], ψ[n + 1])) for n in 1:N])
+end
+
