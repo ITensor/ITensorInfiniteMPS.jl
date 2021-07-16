@@ -31,11 +31,17 @@ function right_orthogonalize(ψ::InfiniteMPS; left_tags = ts"Left", right_tags =
   λ⃗₁ᴿᴺ, v⃗₁ᴿᴺ, eigsolve_info = eigsolve(T₀₁, v₁ᴿᴺ, 1, :LM; tol = tol)
   λ₁ᴿᴺ, v₁ᴿᴺ = λ⃗₁ᴿᴺ[1], v⃗₁ᴿᴺ[1]
 
-  @assert imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) < 1e-15
+  if imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) > 1e-15
+    @show λ₁ᴿᴺ
+    error("Imaginary part of eigenvalue is large: imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) = $(imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ))")
+  end
 
   # Fix the phase of the diagonal to make Hermitian
   v₁ᴿᴺ .*= conj(sign(v₁ᴿᴺ[1, 1]))
-  @assert ishermitian(v₁ᴿᴺ; rtol = tol)
+  if !ishermitian(v₁ᴿᴺ; rtol = tol)
+    @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
+    error("v₁ᴿᴺ not hermitian")
+  end
   if norm(imag(v₁ᴿᴺ)) > 1e-15
     println("Norm of the imaginary part $(norm(imag(v₁ᴿᴺ))) is larger than the tolerance value 1e-15. Keeping as complex.")
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))

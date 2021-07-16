@@ -15,8 +15,8 @@ end
 
 # Number of sites in the unit cell
 N = 4
-space = [QN() => 2]
-#space = 2
+space = 2
+#space = [QN() => 2]
 s = _siteinds("S=1/2", N; space=space)
 J = 1.0
 h = 1.5
@@ -25,8 +25,8 @@ model = Model(:ising)
 # Form the Hamiltonian
 Σ∞h = InfiniteITensorSum(model, s; J=J, h=h)
 
-#χ = 6
-χ = [QN() => 6]
+χ = 6
+#χ = [QN() => 6]
 ψ = InfiniteMPS(s; space=χ)
 randn!.(ψ)
 ψ = orthogonalize(ψ, :)
