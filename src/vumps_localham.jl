@@ -34,11 +34,11 @@ function Base.:*(H::Hᶜ, v::ITensor)
   δˡ⁻¹ = δ(l[n - 1], l′[n - 1])
   δʳ = δ(r[n], r′[n])
   δʳ⁺¹ = δ(r[n + 1], r′[n + 1])
-  Hᶜᴸv = v * Hᴸ[n] * δʳ
+  Hᶜᴸv = v * Hᴸ[n] * dag(δʳ)
   Hᶜᴿv = v * δˡ * Hᴿ[n]
-  Hᶜʰv = v * ψ∞.AL[n] * δˡ⁻¹ * ψ′∞.AL[n] * Σ∞h[(n, n + 1)] * ψ∞.AR[n + 1] * δʳ⁺¹ * ψ′∞.AR[n + 1]
+  Hᶜʰv = v * ψ∞.AL[n] * δˡ⁻¹ * ψ′∞.AL[n] * Σ∞h[(n, n + 1)] * ψ∞.AR[n + 1] * dag(δʳ⁺¹) * ψ′∞.AR[n + 1]
   Hᶜv = Hᶜᴸv + Hᶜʰv + Hᶜᴿv
-  return Hᶜv * δˡ * δʳ
+  return Hᶜv * dag(δˡ) * δʳ
 end
 
 function Base.:*(H::Hᴬᶜ, v::ITensor)
@@ -59,12 +59,12 @@ function Base.:*(H::Hᴬᶜ, v::ITensor)
   δˡ(n) = δ(l[n], l′[n])
   δʳ(n) = δ(r[n], r′[n])
 
-  Hᴬᶜᴸv = v * Hᴸ[n - 1] * δˢ(n) * δʳ(n)
-  Hᴬᶜᴿv = v * δˡ(n - 1) * δˢ(n) * Hᴿ[n]
-  Hᴬᶜʰ¹v = v * ψ∞.AL[n - 1] * δˡ(n - 2) * ψ′∞.AL[n - 1] * Σ∞h[(n - 1, n)] * δʳ(n)
-  Hᴬᶜʰ²v = v * δˡ(n - 1) * ψ∞.AR[n + 1] * δʳ(n + 1) * ψ′∞.AR[n + 1] * Σ∞h[(n, n + 1)]
+  Hᴬᶜᴸv = v * Hᴸ[n - 1] * dag(δˢ(n)) * dag(δʳ(n))
+  Hᴬᶜᴿv = v * δˡ(n - 1) * dag(δˢ(n)) * Hᴿ[n]
+  Hᴬᶜʰ¹v = v * ψ∞.AL[n - 1] * δˡ(n - 2) * ψ′∞.AL[n - 1] * Σ∞h[(n - 1, n)] * dag(δʳ(n))
+  Hᴬᶜʰ²v = v * δˡ(n - 1) * ψ∞.AR[n + 1] * dag(δʳ(n + 1)) * ψ′∞.AR[n + 1] * Σ∞h[(n, n + 1)]
   Hᴬᶜv = Hᴬᶜᴸv + Hᴬᶜʰ¹v + Hᴬᶜʰ²v + Hᴬᶜᴿv
-  return Hᴬᶜv * δˡ(n - 1) * δˢ(n) * δʳ(n)
+  return Hᴬᶜv * dag(δˡ(n - 1)) * δˢ(n) * δʳ(n)
 end
 
 function (H::Hᶜ)(v)
@@ -151,19 +151,23 @@ function vumps_iteration(Σ∞h::InfiniteITensorSum, ψ∞::InfiniteCanonicalMPS
   r = CelledVector([commoninds(ψ∞.AR[n], ψ∞.AR[n + 1]) for n in 1:Nsites])
   r′ = CelledVector([commoninds(ψ′∞.AR[n], ψ′∞.AR[n + 1]) for n in 1:Nsites])
 
-  hᴸ = InfiniteMPS([δ(only(l[n - 2]), only(l′[n - 2])) * ψ∞.AL[n - 1] * ψ∞.AL[n] * Σ∞h[(n - 1, n)] * dag(ψ′∞.AL[n - 1]) * dag(ψ′∞.AL[n]) for n in 1:Nsites])
+  hᴸ = InfiniteMPS([δ(only(l[n - 2]), only(l′[n - 2])) * ψ∞.AL[n - 1] * ψ∞.AL[n] * Σ∞h[(n - 1, n)] * ψ′∞.AL[n - 1] * ψ′∞.AL[n] for n in 1:Nsites])
 
-  hᴿ = InfiniteMPS([δ(only(r[n + 2]), only(r′[n + 2])) * ψ∞.AR[n + 2] * ψ∞.AR[n + 1] * Σ∞h[(n + 1, n + 2)] * dag(ψ′∞.AR[n + 2]) * dag(ψ′∞.AR[n + 1]) for n in 1:Nsites])
+  hᴿ = InfiniteMPS([δ(only(dag(r[n + 2])), only(dag(r′[n + 2]))) * ψ∞.AR[n + 2] * ψ∞.AR[n + 1] * Σ∞h[(n + 1, n + 2)] * ψ′∞.AR[n + 2] * ψ′∞.AR[n + 1] for n in 1:Nsites])
 
-  eᴸ = [(hᴸ[n] * ψ∞.C[n] * δ(only(r[n]), only(r′[n])) * ψ′∞.C[n])[] for n in 1:Nsites]
+  eᴸ = [(hᴸ[n] * ψ∞.C[n] * δ(only(dag(r[n])), only(dag(r′[n]))) * ψ′∞.C[n])[] for n in 1:Nsites]
   eᴿ = [(hᴿ[n] * ψ∞.C[n] * δ(only(l[n]), only(l′[n])) * ψ′∞.C[n])[] for n in 1:Nsites]
 
   @show eᴸ
   @show eᴿ
 
   for n in 1:Nsites
-    hᴸ[n] -= eᴸ[n] * δ(inds(hᴸ[n]))
-    hᴿ[n] -= eᴿ[n] * δ(inds(hᴿ[n]))
+    # TODO: use these instead, for now can't subtract
+    # BlockSparse and DiagBlockSparse tensors
+    #hᴸ[n] -= eᴸ[n] * δ(inds(hᴸ[n]))
+    #hᴿ[n] -= eᴿ[n] * δ(inds(hᴿ[n]))
+    hᴸ[n] -= eᴸ[n] * denseblocks(δ(inds(hᴸ[n])))
+    hᴿ[n] -= eᴿ[n] * denseblocks(δ(inds(hᴿ[n])))
   end
 
   Hᴸ = left_environment_recursive(hᴸ, ψ∞)

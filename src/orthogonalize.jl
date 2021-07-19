@@ -39,6 +39,8 @@ function right_orthogonalize(ψ::InfiniteMPS; left_tags = ts"Left", right_tags =
   # Fix the phase of the diagonal to make Hermitian
   v₁ᴿᴺ .*= conj(sign(v₁ᴿᴺ[1, 1]))
   if !ishermitian(v₁ᴿᴺ; rtol = tol)
+    @show λ₁ᴿᴺ
+    @show v₁ᴿᴺ
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
     error("v₁ᴿᴺ not hermitian")
   end
