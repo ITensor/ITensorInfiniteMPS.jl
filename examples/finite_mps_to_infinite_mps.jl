@@ -1,8 +1,6 @@
 using ITensors
 using ITensorInfiniteMPS
 
-#InfiniteSumLocalOps <: AbstractMPS
-
 # H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ
 function ising_mpo(s; J, h)
   N = length(s)
@@ -17,9 +15,7 @@ function ising_mpo(s; J, h)
 end
 
 function ising_infinitempo_tensor(s⃗, l, r; J, h)
-  @show s⃗
   s = only(s⃗)
-  #h = emptyITensor(s', dag(s), l, r)
   dₗ = 3 # The link dimension of the TFI
   Hmat = fill(ITensor(s', dag(s)), dₗ, dₗ)
   Hmat[1, 1] = op("Id", s)
@@ -62,11 +58,7 @@ ising_localop(s1, s2; kwargs...) = ising_localop(Index(s1), Index(s2); kwargs...
 function ising_infinitesumlocalops(s; J, h)
   N = length(s)
   H = InfiniteSumLocalOps(N)
-  @show s[1]
   s∞ = CelledVector(s)
-  @show s∞[1]
-  @show s∞[2]
-  @show s∞[3]
   return InfiniteSumLocalOps([ising_localop(s∞[n], s∞[n+1]; J = J, h = h) for n in 1:N])
 end
 
@@ -117,31 +109,6 @@ let
     ϕ12ᴴ = prime(dag(ϕ12), commoninds(ϕ12, ham12))
     @show (ϕ12 * ham12 * ϕ12ᴴ)[] / norm(ϕ12)
   end
-
-#  s¹ = siteinds(ψ∞, Cell(1))
-#
-#  # Test computing the energy from an InfiniteMPO
-#  H∞ = ising_infinitempo(s¹; J = J, h = h)
-#  L = ITensorInfiniteMPS.left_environment(H∞, ψ∞.AL, ψ∞.C)
-#  R = ITensorInfiniteMPS.right_environment(H∞, ψ∞.AR, ψ∞.C)
-#  ϕ0 = ψ∞.C[1]
-#  Hϕ0 = noprime(L[1] * ϕ0 * R[1])
-#  @show (dag(ϕ0) * Hϕ0)[]
-#
-#  ϕ1 = ψ∞.AL[1] * ψ∞.C[1]
-#  Hϕ1 = noprime(L[0] * ϕ1 * H∞[1] * R[1])
-#  @show (dag(ϕ1) * Hϕ1)[]
-#  @show norm(ϕ1)
-#  @show norm(ϕ0)
-#
-#  # Test computing the expectation value of an infinite sum
-#  # of local operators
-#  # InfiniteSumLocalOps
-#  Σ∞h = ising_infinitesumlocalops(s¹; J = J, h = h)
-#  ψ12 = ψ∞.AL[1] * ψ∞.AL[2]
-#  h12 = Σ∞h[1]
-#  s12 = commoninds(ψ12, h12)
-#  @show ψ12 * h12 * prime(dag(ψ12), s12)
 
 end
 

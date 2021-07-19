@@ -14,9 +14,8 @@ function _siteinds(site_tag, N::Int; space)
 end
 
 # Number of sites in the unit cell
-N = 3
-#space = 2
-space = [QN() => 2]
+N = 2
+space = [QN("SzParity", 1, 2) => 1, QN("SzParity", 0, 2) => 1]
 s = _siteinds("S=1/2", N; space=space)
 J = 1.0
 h = 1.5
@@ -25,13 +24,14 @@ model = Model(:ising)
 # Form the Hamiltonian
 Σ∞h = InfiniteITensorSum(model, s; J=J, h=h)
 
-#χ = 6
-χ = [QN() => 2]
+χ = [QN("SzParity", 1, 2) => 2, QN("SzParity", 0, 2) => 2]
 ψ = InfiniteMPS(s; space=χ)
 for n in 1:N
-  # Need to overwrite the tensor, since modifying
-  # it in-place doesn' work when not modifying the storage directly.
-  ψ[n] = insertblock!(ψ[n], Block(1, 1, 1))
+  for b in nzblocks(QN(), inds(ψ[n]))
+    # Need to overwrite the tensor, since modifying
+    # it in-place doesn' work when not modifying the storage directly.
+    ψ[n] = insertblock!(ψ[n], b)
+  end
 end
 randn!.(ψ)
 ψ = orthogonalize(ψ, :)
