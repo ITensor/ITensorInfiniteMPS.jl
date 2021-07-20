@@ -85,7 +85,10 @@ function right_orthogonalize_polar(ψ::InfiniteMPS, Cᴿᴺ::ITensor; left_tags 
     λⁿ = norm(Cᴿ[n-1])
     Cᴿ[n-1] /= λⁿ
     λ *= λⁿ
-    @assert ψ[n] * Cᴿ[n] ≈ λⁿ * Cᴿ[n-1] * ψᴿ[n]
+    if !isapprox(ψ[n] * Cᴿ[n], λⁿ * Cᴿ[n-1] * ψᴿ[n]; atol=1e-15)
+      @show norm(ψ[n] * Cᴿ[n] - λⁿ * Cᴿ[n-1] * ψᴿ[n])
+      error("ψ[n] * Cᴿ[n] ≠ λⁿ * Cᴿ[n-1] * ψᴿ[n]")
+    end
   end
   return Cᴿ, ψᴿ, λ
 end
@@ -106,7 +109,9 @@ end
 function mixed_canonical(ψ::InfiniteMPS; left_tags = ts"Left", right_tags = ts"Right", tol::Real = 1e-12)
   _, ψᴿ, _ = right_orthogonalize(ψ; left_tags = ts"", right_tags = ts"Right")
   ψᴸ, C, λ = left_orthogonalize(ψᴿ; left_tags = ts"Left", right_tags = ts"Right")
-  @assert λ ≈ one(λ)
+  if λ ≉ one(λ)
+    error("λ should be approximately 1 after orthogonalization, instead it is $λ")
+  end
   return InfiniteCanonicalMPS(ψᴸ, C, ψᴿ)
 end
 

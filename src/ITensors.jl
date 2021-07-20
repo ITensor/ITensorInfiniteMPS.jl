@@ -13,9 +13,18 @@ import Base: *
 # TODO: make a AbstractDiagTensor supertype?
 # TODO: make this work for non-diagonal tensors.
 # TODO: define SecondOrderTensor?
-function Base.sqrt(T::NDTensors.Tensor{<: Number, 2})
+function Base.sqrt(T::NDTensors.Tensor{<: Number, 2}; atol=1e-15)
   @assert isdiag(T)
-  return sqrt.(T)
+  sqrtT = copy(T)
+  for n in 1:mindim(T)
+    Tnn = T[n, n]
+    if Tnn < 0 && abs(Tnn) < atol
+      sqrtT[n, n] = 0
+    else
+      sqrtT[n, n] = sqrt(Tnn)
+    end
+  end
+  return sqrtT
 end
 
 ############################################################################
@@ -137,18 +146,27 @@ ITensors.noncommoninds(A::ITensor) = inds(A)
 
 # Take the square root of T assuming it is Hermitian
 # TODO: add more general index structures
-function Base.sqrt(T::ITensor; ishermitian = true)
+function Base.sqrt(T::ITensor; ishermitian = true, atol=1e-15)
   @assert ishermitian
   if isdiag(T) && order(T) == 2
+    @show T
     return itensor(sqrt(tensor(T)))
   end
   U′, D, Uᴴ = eigendecomp(T; ishermitian = ishermitian)
   # XXX: if T is order 2 and diagonal, D may just be a view
   # of T so this would also modify T
-  D .= sqrt.(D)
-  return U′ * D * Uᴴ
+  #D .= sqrt.(D)
+  sqrtD = D
+  for n in 1:mindim(D)
+    Dnn = D[n, n]
+    if Dnn < 0 && abs(Dnn) < atol
+      sqrtD[n, n] = 0
+    else
+      sqrtD[n, n] = sqrt(Dnn)
+    end
+  end
+  return U′ * sqrtD * Uᴴ
 end
-
 
 ############################################################################
 # mps.jl
