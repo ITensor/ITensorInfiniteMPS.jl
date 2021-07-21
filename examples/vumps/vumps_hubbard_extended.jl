@@ -49,9 +49,54 @@ randn!.(ψ)
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
-ψ = vumps(Σ∞h, ψ; niter=15)
+ψ = vumps(Σ∞h, ψ; niter=5)
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
+
+#
+# Bond dimension increase
+#
+
+ψ.AL[1] * ψ.C[1] * ψ.AR[2] * Σ∞h[(1, 2)]
+
+using LinearAlgebra
+using ITensors.NDTensors
+
+# Reshape into an order-2 ITensor
+combine(::Order{2}, T::ITensor, inds::Index...) = combine(Order(2), T, inds)
+
+function combine(::Order{2}, T::ITensor, inds)
+  left_inds = commoninds(T, inds)
+  right_inds = uniqueinds(T, inds)
+  return combine(T, left_inds, right_inds)
+end
+
+function combine(T::ITensor, left_inds, right_inds)
+  CL = combiner(left_inds)
+  CR = combiner(right_inds)
+  M = (T * CL) * CR
+  return M, CL, CR
+end
+
+function LinearAlgebra.nullspace(::Order{2}, M::ITensor, left_inds, right_inds; kwargs...)
+  @assert order(M) == 2
+  M = permute(M, left_inds..., right_inds...)
+  Mᵀ = tensor(M)
+  Nᵀ = nullspace(Mᵀ; kwargs...)
+  return itensor(Nᵀ)
+end
+
+function LinearAlgebra.nullspace(T::ITensor, inds...; kwargs...)
+  M, CL, CR = combine(Order(2), T, inds...)
+  @assert order(M) == 2
+  cL = commoninds(M, CL)
+  cR = commoninds(M, CR)
+  N₂ = nullspace(Order(2), M, cL, cR; kwargs...)
+  return N₂ * dag(CL) * dag(CR)
+end
+
+nullspace(ψ.AL[1], noncommoninds(ψ.AL[1], ψ.C[1]))
+
 
 
