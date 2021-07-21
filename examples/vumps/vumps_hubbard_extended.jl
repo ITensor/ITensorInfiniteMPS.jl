@@ -61,42 +61,9 @@ randn!.(ψ)
 ψ.AL[1] * ψ.C[1] * ψ.AR[2] * Σ∞h[(1, 2)]
 
 using LinearAlgebra
-using ITensors.NDTensors
 
-# Reshape into an order-2 ITensor
-combine(::Order{2}, T::ITensor, inds::Index...) = combine(Order(2), T, inds)
+N = nullspace(ψ.AL[1], commoninds(ψ.AL[1], ψ.C[1]); atol=1e-15)
 
-function combine(::Order{2}, T::ITensor, inds)
-  left_inds = commoninds(T, inds)
-  right_inds = uniqueinds(T, inds)
-  return combine(T, left_inds, right_inds)
-end
-
-function combine(T::ITensor, left_inds, right_inds)
-  CL = combiner(left_inds)
-  CR = combiner(right_inds)
-  M = (T * CL) * CR
-  return M, CL, CR
-end
-
-function LinearAlgebra.nullspace(::Order{2}, M::ITensor, left_inds, right_inds; kwargs...)
-  @assert order(M) == 2
-  M = permute(M, left_inds..., right_inds...)
-  Mᵀ = tensor(M)
-  Nᵀ = nullspace(Mᵀ; kwargs...)
-  return itensor(Nᵀ)
-end
-
-function LinearAlgebra.nullspace(T::ITensor, inds...; kwargs...)
-  M, CL, CR = combine(Order(2), T, inds...)
-  @assert order(M) == 2
-  cL = commoninds(M, CL)
-  cR = commoninds(M, CR)
-  N₂ = nullspace(Order(2), M, cL, cR; kwargs...)
-  return N₂ * dag(CL) * dag(CR)
-end
-
-nullspace(ψ.AL[1], noncommoninds(ψ.AL[1], ψ.C[1]))
-
-
+@show prime(N, uniqueinds(N, ψ.AL[1])) * dag(N)
+@show ψ.AL[1] * dag(N)
 

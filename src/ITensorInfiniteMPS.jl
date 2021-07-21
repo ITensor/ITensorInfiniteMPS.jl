@@ -10,6 +10,8 @@ using LinearAlgebra
 # For indexing starting from something other than 0.
 using OffsetArrays
 using IterTools
+
+using ITensors.NDTensors: eachdiagblock
 using KrylovKit: eigsolve, linsolve
 
 import Base:
@@ -29,6 +31,7 @@ include("infinitemps.jl")
 include("infinitempo.jl")
 include("orthogonalize.jl")
 include("infinitemps_approx.jl")
+include("nullspace.jl")
 include("vumps_localham.jl")
 
 export
