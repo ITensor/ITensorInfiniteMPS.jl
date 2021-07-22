@@ -31,6 +31,8 @@ function right_orthogonalize(ψ::InfiniteMPS; left_tags = ts"Left", right_tags =
   λ⃗₁ᴿᴺ, v⃗₁ᴿᴺ, eigsolve_info = eigsolve(T₀₁, v₁ᴿᴺ, 1, :LM; tol = tol)
   λ₁ᴿᴺ, v₁ᴿᴺ = λ⃗₁ᴿᴺ[1], v⃗₁ᴿᴺ[1]
 
+  @show inds(v₁ᴿᴺ)
+
   if imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) > 1e-15
     @show λ₁ᴿᴺ
     error("Imaginary part of eigenvalue is large: imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) = $(imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ))")
@@ -85,7 +87,7 @@ function right_orthogonalize_polar(ψ::InfiniteMPS, Cᴿᴺ::ITensor; left_tags 
     λⁿ = norm(Cᴿ[n-1])
     Cᴿ[n-1] /= λⁿ
     λ *= λⁿ
-    if !isapprox(ψ[n] * Cᴿ[n], λⁿ * Cᴿ[n-1] * ψᴿ[n]; atol=1e-15)
+    if !isapprox(ψ[n] * Cᴿ[n], λⁿ * Cᴿ[n-1] * ψᴿ[n]; atol=1e-14)
       @show norm(ψ[n] * Cᴿ[n] - λⁿ * Cᴿ[n-1] * ψᴿ[n])
       error("ψ[n] * Cᴿ[n] ≠ λⁿ * Cᴿ[n-1] * ψᴿ[n]")
     end

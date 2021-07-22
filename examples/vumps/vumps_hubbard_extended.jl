@@ -58,12 +58,31 @@ randn!.(ψ)
 # Bond dimension increase
 #
 
-ψ.AL[1] * ψ.C[1] * ψ.AR[2] * Σ∞h[(1, 2)]
-
 using LinearAlgebra
 
-N = nullspace(ψ.AL[1], commoninds(ψ.AL[1], ψ.C[1]); atol=1e-15)
+n1, n2 = 1, 2
+NL = nullspace(ψ.AL[n1], commoninds(ψ.AL[n1], ψ.C[n1]); atol=1e-15)
+NR = nullspace(ψ.AR[n2], commoninds(ψ.AR[n2], ψ.C[n1]); atol=1e-15)
+nL = uniqueinds(NL, ψ.AL[n1])
+nR = uniqueinds(NR, ψ.AR[n2])
 
-@show prime(N, uniqueinds(N, ψ.AL[1])) * dag(N)
-@show ψ.AL[1] * dag(N)
+@show prime(NL, uniqueinds(NL, ψ.AL[n1])) * dag(NL)
+@show ψ.AL[n1] * dag(NL)
+
+ψH2 = noprime(ψ.AL[n1] * Σ∞h[(n1, n2)] * ψ.C[n1] * ψ.AR[n2])
+ψHN2 = ψH2 * dag(NL) * dag(NR)
+
+@show inds(ψHN2)
+U, S, V = svd(ψHN2, nL)
+#NL = NL * U
+#NR = NR * V
+
+AL, l = ITensors.directsum(ψ.AL[n1], NL, uniqueinds(ψ.AL[n1], NL), uniqueinds(NL, ψ.AL[n1]); tags=("Left",))
+#CL = combiner(l)
+#AL *= CL
+AR, r = ITensors.directsum(ψ.AR[n2], NR, uniqueinds(ψ.AR[n2], NR), uniqueinds(NR, ψ.AR[n2]); tags=("Right",))
+#CR = combiner(r)
+#AR *= CR
+
+
 

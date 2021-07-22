@@ -114,7 +114,7 @@ function (::Type{MPST})(ElT::Type, s::Vector{<:Index};
   l₀ = [Index(space; kwargs(n)...) for n in 1:N]
   l₋₁ᴺ = replacetags(l₀[N], celltags(cell) => celltags(cell-1))
   l = OffsetVector(append!([l₋₁ᴺ], l₀), -1)
-  A = [ITensor(ElT, dag(l[n-1]), s[n], l[n]) for n in 1:N]
+  A = [ITensor(ElT, l[n-1], s[n], dag(l[n])) for n in 1:N]
   return MPST(A)
 end
 
