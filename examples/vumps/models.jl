@@ -20,12 +20,17 @@ end
 struct Model{model} end
 Model(model::Symbol) = Model{model}()
 
+using ITensorInfiniteMPS: celltags
+
 # Create an infinite sum of Hamiltonian terms
-function ITensorInfiniteMPS.InfiniteITensorSum(model::Model, s; kwargs...)
+function ITensorInfiniteMPS.InfiniteITensorSum(model::Model, s::Vector; kwargs...)
+  return InfiniteITensorSum(model, CelledVector(addtags(s, celltags(1))); kwargs...)
+end
+
+function ITensorInfiniteMPS.InfiniteITensorSum(model::Model, s::CelledVector; kwargs...)
   N = length(s)
   H = InfiniteITensorSum(N)
-  s∞ = CelledVector(addtags(s, "c=1"))
-  tensors = [ITensor(model, s∞[n], s∞[n+1]; kwargs...) for n in 1:N]
+  tensors = [ITensor(model, s[n], s[n+1]; kwargs...) for n in 1:N]
   return InfiniteITensorSum(tensors)
 end
 

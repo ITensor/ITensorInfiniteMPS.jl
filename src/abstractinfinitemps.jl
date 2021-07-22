@@ -100,7 +100,7 @@ default_link_tags(left_or_right, n, cell) = addtags(default_link_tags(left_or_ri
 # Make an AbstractInfiniteMPS from a set of site indices
 function (::Type{MPST})(ElT::Type, s::Vector{<:Index};
                         linksdir = ITensors.Out,
-                        space = any(hasqns, s) ? [QN() => 1] : 1,
+                        space = any(hasqns, s) ? [zero(qn(first(s), Block(1))) => 1] : 1,
                         cell = 1) where {MPST <: AbstractInfiniteMPS}
   s = addtags.(s, (celltags(cell),))
   N = length(s)

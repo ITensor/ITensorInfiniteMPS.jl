@@ -23,8 +23,8 @@ function combine(::Order{2}, T::ITensor, inds)
 end
 
 function combine(T::ITensor, left_inds, right_inds)
-  CL = combiner(left_inds)
-  CR = combiner(right_inds)
+  CL = combiner(left_inds; dir=ITensors.Out, tags="CL")
+  CR = combiner(right_inds; dir=ITensors.In, tags="CR")
   M = (T * CL) * CR
   return M, CL, CR
 end
@@ -72,7 +72,9 @@ function blocksparsetensor(blocks::Dict{B,TB}) where {B,TB}
   end
   T = BlockSparseTensor(indsT)
   for (b, Tb) in pairs(blocks)
-    T[b] = Tb
+    if !isempty(Tb)
+      T[b] = Tb
+    end
   end
   return T
 end
@@ -81,15 +83,19 @@ function _nullspace_hermitian(M::Tensor; atol::Real=0.0)
   tol = atol
   # Insert any missing diagonal blocks
   insert_diag_blocks!(M)
-  D, U = eigen(Hermitian(M))
+  #D, U = eigen(Hermitian(M))
+  Dᵢₜ, Uᵢₜ = eigen(itensor(M); ishermitian=true)
+  D = tensor(Dᵢₜ)
+  U = tensor(Uᵢₜ)
   nullspace_blocks = Dict()
   for bU in nzblocks(U)
     bM = Block(bU[1], bU[1])
     bD = Block(bU[2], bU[2])
-    indstart = sum(d -> abs(d) .> tol, storage(D[bD])) + 1
     # Assume sorted from largest to smallest
+    indstart = sum(d -> abs(d) .> tol, storage(D[bD])) + 1
     Ub = getblock_preserve_qns(U, bU)
-    Nb = _getindex(Ub, :, indstart:lastindex(Ub, 2))
+    indstop = lastindex(Ub, 2)
+    Nb = _getindex(Ub, :, indstart:indstop)
     nullspace_blocks[bU] = Nb
   end
   return blocksparsetensor(nullspace_blocks)
@@ -105,7 +111,7 @@ function LinearAlgebra.nullspace(::Order{2}, M::ITensor, left_inds, right_inds; 
   M² = permute(M², right_inds'..., right_inds...)
   M²ₜ = tensor(M²)
   Nₜ = nullspace(Hermitian(M²ₜ); kwargs...)
-  N = itensor(ITensors.setinds(Nₜ, Index.(inds(Nₜ))))
+  N = dag(itensor(ITensors.setinds(Nₜ, Index.(inds(Nₜ)))))
   # Make the index match the input index
   return replaceinds(N, (ind(N, 1),) => right_inds)
 end
