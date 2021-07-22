@@ -31,8 +31,6 @@ function right_orthogonalize(ψ::InfiniteMPS; left_tags = ts"Left", right_tags =
   λ⃗₁ᴿᴺ, v⃗₁ᴿᴺ, eigsolve_info = eigsolve(T₀₁, v₁ᴿᴺ, 1, :LM; tol = tol)
   λ₁ᴿᴺ, v₁ᴿᴺ = λ⃗₁ᴿᴺ[1], v⃗₁ᴿᴺ[1]
 
-  @show inds(v₁ᴿᴺ)
-
   if imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) > 1e-15
     @show λ₁ᴿᴺ
     error("Imaginary part of eigenvalue is large: imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) = $(imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ))")
@@ -58,6 +56,16 @@ function right_orthogonalize(ψ::InfiniteMPS; left_tags = ts"Left", right_tags =
   C₁ᴿᴺ = sqrt(v₁ᴿᴺ)
   C₁ᴿᴺ = replacetags(C₁ᴿᴺ, left_tags => right_tags; plev = 1)
   C₁ᴿᴺ = noprime(C₁ᴿᴺ, right_tags)
+
+  ## Flip the sign:
+  ## @show inds(ψ[N])
+  ## @show inds(C₁ᴿᴺ)
+  ## @show C₁ᴿᴺ
+  ## @show rᴺ = dag(uniqueind(C₁ᴿᴺ, ψ[N]))
+  ## rᴺ⁻ = Index(-space(rᴺ); tags=tags(rᴺ), plev=plev(rᴺ), dir=dir(rᴺ))
+  ## C₁ᴿᴺ = C₁ᴿᴺ * δ(rᴺ, rᴺ⁻)
+  ## @show C₁ᴿᴺ
+  ## @show inds(C₁ᴿᴺ)
 
   # Normalize the center matrix
   normalize!(C₁ᴿᴺ)
