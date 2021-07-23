@@ -4,56 +4,56 @@
 #
 
 struct Hᶜ
-  Σ∞h::InfiniteITensorSum
+  ∑h::InfiniteITensorSum
   Hᴸ::InfiniteMPS
   Hᴿ::InfiniteMPS
-  ψ∞::InfiniteCanonicalMPS
+  ψ::InfiniteCanonicalMPS
   n::Int
 end
 
 struct Hᴬᶜ
-  Σ∞h::InfiniteITensorSum
+  ∑h::InfiniteITensorSum
   Hᴸ::InfiniteMPS
   Hᴿ::InfiniteMPS
-  ψ∞::InfiniteCanonicalMPS
+  ψ::InfiniteCanonicalMPS
   n::Int
 end
 
 function Base.:*(H::Hᶜ, v::ITensor)
-  Σ∞h = H.Σ∞h
+  ∑h = H.∑h
   Hᴸ = H.Hᴸ
   Hᴿ = H.Hᴿ
-  ψ∞ = H.ψ∞
-  ψ′∞ = dag(ψ∞)'
+  ψ = H.ψ
+  ψ′ = dag(ψ)'
   n = H.n
-  l = linkinds(only, ψ∞.AL)
-  l′ = linkinds(only, ψ′∞.AL)
-  r = linkinds(only, ψ∞.AR)
-  r′ = linkinds(only, ψ′∞.AR)
+  l = linkinds(only, ψ.AL)
+  l′ = linkinds(only, ψ′.AL)
+  r = linkinds(only, ψ.AR)
+  r′ = linkinds(only, ψ′.AR)
   δˡ = δ(l[n], l′[n])
   δˡ⁻¹ = δ(l[n - 1], l′[n - 1])
   δʳ = δ(r[n], r′[n])
   δʳ⁺¹ = δ(r[n + 1], r′[n + 1])
   Hᶜᴸv = v * Hᴸ[n] * dag(δʳ)
   Hᶜᴿv = v * δˡ * Hᴿ[n]
-  Hᶜʰv = v * ψ∞.AL[n] * δˡ⁻¹ * ψ′∞.AL[n] * Σ∞h[(n, n + 1)] * ψ∞.AR[n + 1] * dag(δʳ⁺¹) * ψ′∞.AR[n + 1]
+  Hᶜʰv = v * ψ.AL[n] * δˡ⁻¹ * ψ′.AL[n] * ∑h[(n, n + 1)] * ψ.AR[n + 1] * dag(δʳ⁺¹) * ψ′.AR[n + 1]
   Hᶜv = Hᶜᴸv + Hᶜʰv + Hᶜᴿv
   return Hᶜv * dag(δˡ) * δʳ
 end
 
 function Base.:*(H::Hᴬᶜ, v::ITensor)
-  Σ∞h = H.Σ∞h
+  ∑h = H.∑h
   Hᴸ = H.Hᴸ
   Hᴿ = H.Hᴿ
-  ψ∞ = H.ψ∞
-  ψ′∞ = dag(ψ∞)'
+  ψ = H.ψ
+  ψ′ = dag(ψ)'
   n = H.n
-  l = linkinds(only, ψ∞.AL)
-  l′ = linkinds(only, ψ′∞.AL)
-  r = linkinds(only, ψ∞.AR)
-  r′ = linkinds(only, ψ′∞.AR)
-  s = siteinds(only, ψ∞)
-  s′ = siteinds(only, ψ′∞)
+  l = linkinds(only, ψ.AL)
+  l′ = linkinds(only, ψ′.AL)
+  r = linkinds(only, ψ.AR)
+  r′ = linkinds(only, ψ′.AR)
+  s = siteinds(only, ψ)
+  s′ = siteinds(only, ψ′)
 
   δˢ(n) = δ(s[n], s′[n])
   δˡ(n) = δ(l[n], l′[n])
@@ -61,8 +61,8 @@ function Base.:*(H::Hᴬᶜ, v::ITensor)
 
   Hᴬᶜᴸv = v * Hᴸ[n - 1] * dag(δˢ(n)) * dag(δʳ(n))
   Hᴬᶜᴿv = v * δˡ(n - 1) * dag(δˢ(n)) * Hᴿ[n]
-  Hᴬᶜʰ¹v = v * ψ∞.AL[n - 1] * δˡ(n - 2) * ψ′∞.AL[n - 1] * Σ∞h[(n - 1, n)] * dag(δʳ(n))
-  Hᴬᶜʰ²v = v * δˡ(n - 1) * ψ∞.AR[n + 1] * dag(δʳ(n + 1)) * ψ′∞.AR[n + 1] * Σ∞h[(n, n + 1)]
+  Hᴬᶜʰ¹v = v * ψ.AL[n - 1] * δˡ(n - 2) * ψ′.AL[n - 1] * ∑h[(n - 1, n)] * dag(δʳ(n))
+  Hᴬᶜʰ²v = v * δˡ(n - 1) * ψ.AR[n + 1] * dag(δʳ(n + 1)) * ψ′.AR[n + 1] * ∑h[(n, n + 1)]
   Hᴬᶜv = Hᴬᶜᴸv + Hᴬᶜʰ¹v + Hᴬᶜʰ²v + Hᴬᶜᴿv
   return Hᴬᶜv * dag(δˡ(n - 1)) * δˢ(n) * δʳ(n)
 end
@@ -79,22 +79,22 @@ function (H::Hᴬᶜ)(v)
   return noprime(Hᴬᶜv)
 end
 
-function left_environment_recursive(hᴸ, ψ∞; niter=10)
-  ψ̃∞ = prime(linkinds, dag(ψ∞))
+function left_environment_recursive(hᴸ, ψ; niter=10)
+  ψ̃ = prime(linkinds, dag(ψ))
   # XXX: replace with `nsites`
-  #N = nsites(ψ∞)
-  N = length(ψ∞)
+  #N = nsites(ψ)
+  N = length(ψ)
   Hᴸᴺ¹ = hᴸ[N]
   for _ in 1:niter
     Hᴸᴺ¹ = translatecell(Hᴸᴺ¹, -1)
     for n in 1:N
-      Hᴸᴺ¹ = Hᴸᴺ¹ * ψ∞.AL[n] * ψ̃∞.AL[n]
+      Hᴸᴺ¹ = Hᴸᴺ¹ * ψ.AL[n] * ψ̃.AL[n]
     end
     # Loop over the Hamiltonian terms in the unit cell
     for n in 1:N
       hᴸⁿ = hᴸ[n]
       for k in (n + 1):N
-        hᴸⁿ = hᴸⁿ * ψ∞.AL[k] * ψ̃∞.AL[k]
+        hᴸⁿ = hᴸⁿ * ψ.AL[k] * ψ̃.AL[k]
       end
       Hᴸᴺ¹ += hᴸⁿ
     end
@@ -104,27 +104,27 @@ function left_environment_recursive(hᴸ, ψ∞; niter=10)
   Hᴸ[N] = Hᴸᴺ¹
   Hᴸᴺ¹ = translatecell(Hᴸᴺ¹, -1)
   for n in 1:(N - 1)
-    Hᴸ[n] = Hᴸ[n - 1] * ψ∞.AL[n] * ψ̃∞.AL[n] + hᴸ[n]
+    Hᴸ[n] = Hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
   end
   return Hᴸ
 end
 
-function right_environment_recursive(hᴿ, ψ∞; niter=10)
-  ψ̃∞ = prime(linkinds, dag(ψ∞))
+function right_environment_recursive(hᴿ, ψ; niter=10)
+  ψ̃ = prime(linkinds, dag(ψ))
   # XXX: replace with `nsites`
-  #N = nsites(ψ∞)
-  N = length(ψ∞)
+  #N = nsites(ψ)
+  N = length(ψ)
   Hᴿᴺ¹ = hᴿ[0]
   for _ in 1:niter
     Hᴿᴺ¹ = translatecell(Hᴿᴺ¹, 1)
     for n in reverse(1:N)
-      Hᴿᴺ¹ = Hᴿᴺ¹ * ψ∞.AR[n] * ψ̃∞.AR[n]
+      Hᴿᴺ¹ = Hᴿᴺ¹ * ψ.AR[n] * ψ̃.AR[n]
     end
     # Loop over the Hamiltonian terms in the unit cell
     for n in reverse(0:(N - 1))
       hᴿⁿ = hᴿ[n]
       for k in reverse(1:n)
-        hᴿⁿ = hᴿⁿ * ψ∞.AR[k] * ψ̃∞.AR[k]
+        hᴿⁿ = hᴿⁿ * ψ.AR[k] * ψ̃.AR[k]
       end
       Hᴿᴺ¹ += hᴿⁿ
     end
@@ -134,29 +134,29 @@ function right_environment_recursive(hᴿ, ψ∞; niter=10)
   Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
   Hᴿ[N] = Hᴿᴺ¹
   for n in reverse(1:(N - 1))
-    Hᴿ[n] = Hᴿ[n + 1] * ψ∞.AR[n + 1] * ψ̃∞.AR[n + 1] + hᴿ[n]
+    Hᴿ[n] = Hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
   end
   return Hᴿ
 end
 
-function vumps_iteration(Σ∞h::InfiniteITensorSum, ψ∞::InfiniteCanonicalMPS)
-  Nsites = nsites(ψ∞)
-  ψᴴ∞ = dag(ψ∞)
-  ψ′∞ = ψᴴ∞'
+function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS)
+  Nsites = nsites(ψ)
+  ψᴴ = dag(ψ)
+  ψ′ = ψᴴ'
   # XXX: make this prime the center sites
-  ψ̃∞ = prime(linkinds, ψᴴ∞)
+  ψ̃ = prime(linkinds, ψᴴ)
 
-  l = CelledVector([commoninds(ψ∞.AL[n], ψ∞.AL[n + 1]) for n in 1:Nsites])
-  l′ = CelledVector([commoninds(ψ′∞.AL[n], ψ′∞.AL[n + 1]) for n in 1:Nsites])
-  r = CelledVector([commoninds(ψ∞.AR[n], ψ∞.AR[n + 1]) for n in 1:Nsites])
-  r′ = CelledVector([commoninds(ψ′∞.AR[n], ψ′∞.AR[n + 1]) for n in 1:Nsites])
+  l = CelledVector([commoninds(ψ.AL[n], ψ.AL[n + 1]) for n in 1:Nsites])
+  l′ = CelledVector([commoninds(ψ′.AL[n], ψ′.AL[n + 1]) for n in 1:Nsites])
+  r = CelledVector([commoninds(ψ.AR[n], ψ.AR[n + 1]) for n in 1:Nsites])
+  r′ = CelledVector([commoninds(ψ′.AR[n], ψ′.AR[n + 1]) for n in 1:Nsites])
 
-  hᴸ = InfiniteMPS([δ(only(l[n - 2]), only(l′[n - 2])) * ψ∞.AL[n - 1] * ψ∞.AL[n] * Σ∞h[(n - 1, n)] * ψ′∞.AL[n - 1] * ψ′∞.AL[n] for n in 1:Nsites])
+  hᴸ = InfiniteMPS([δ(only(l[n - 2]), only(l′[n - 2])) * ψ.AL[n - 1] * ψ.AL[n] * ∑h[(n - 1, n)] * ψ′.AL[n - 1] * ψ′.AL[n] for n in 1:Nsites])
 
-  hᴿ = InfiniteMPS([δ(only(dag(r[n + 2])), only(dag(r′[n + 2]))) * ψ∞.AR[n + 2] * ψ∞.AR[n + 1] * Σ∞h[(n + 1, n + 2)] * ψ′∞.AR[n + 2] * ψ′∞.AR[n + 1] for n in 1:Nsites])
+  hᴿ = InfiniteMPS([δ(only(dag(r[n + 2])), only(dag(r′[n + 2]))) * ψ.AR[n + 2] * ψ.AR[n + 1] * ∑h[(n + 1, n + 2)] * ψ′.AR[n + 2] * ψ′.AR[n + 1] for n in 1:Nsites])
 
-  eᴸ = [(hᴸ[n] * ψ∞.C[n] * δ(only(dag(r[n])), only(dag(r′[n]))) * ψ′∞.C[n])[] for n in 1:Nsites]
-  eᴿ = [(hᴿ[n] * ψ∞.C[n] * δ(only(l[n]), only(l′[n])) * ψ′∞.C[n])[] for n in 1:Nsites]
+  eᴸ = [(hᴸ[n] * ψ.C[n] * δ(only(dag(r[n])), only(dag(r′[n]))) * ψ′.C[n])[] for n in 1:Nsites]
+  eᴿ = [(hᴿ[n] * ψ.C[n] * δ(only(l[n]), only(l′[n])) * ψ′.C[n])[] for n in 1:Nsites]
 
   @show eᴸ
   @show eᴿ
@@ -170,32 +170,40 @@ function vumps_iteration(Σ∞h::InfiniteITensorSum, ψ∞::InfiniteCanonicalMPS
     hᴿ[n] -= eᴿ[n] * denseblocks(δ(inds(hᴿ[n])))
   end
 
-  Hᴸ = left_environment_recursive(hᴸ, ψ∞)
-  Hᴿ = right_environment_recursive(hᴿ, ψ∞)
+  Hᴸ = left_environment_recursive(hᴸ, ψ)
+  Hᴿ = right_environment_recursive(hᴿ, ψ)
   for n in 1:Nsites
-    @show n
-    @show tr(Hᴸ[n] * ψ∞.C[n] * ψ′∞.C[n])
-    @show tr(Hᴿ[n] * ψ∞.C[n] * ψ′∞.C[n])
+    @show tr(Hᴸ[n] * ψ.C[n] * ψ′.C[n])
+    @show tr(Hᴿ[n] * ψ.C[n] * ψ′.C[n])
   end
 
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  println("C")
   for n in 1:Nsites
-    valsₙ, vecsₙ, infoₙ = eigsolve(Hᶜ(Σ∞h, Hᴸ, Hᴿ, ψ∞, n), ψ∞.C[n], 1, :SR; ishermitian=true)
-    @show valsₙ[1]
+    valsₙ, vecsₙ, infoₙ = eigsolve(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.C[n], 1, :SR; ishermitian=true)
+    @show n, valsₙ[1]
     C̃[n] = vecsₙ[1]
   end
 
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  println("Aᶜ")
   for n in 1:Nsites
-    valsₙ, vecsₙ, infoₙ = eigsolve(Hᴬᶜ(Σ∞h, Hᴸ, Hᴿ, ψ∞, n), ψ∞.AL[n] * ψ∞.C[n], 1, :SR; ishermitian=true)
-    @show valsₙ[1]
+    valsₙ, vecsₙ, infoₙ = eigsolve(Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.AL[n] * ψ.C[n], 1, :SR; ishermitian=true)
+    @show n, valsₙ[1]
     Ãᶜ[n] = vecsₙ[1]
   end
 
   Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   for n in 1:Nsites
-    Ãᴸⁿ, _ = polar(Ãᶜ[n] * dag(C̃[n]), uniqueinds(Ãᶜ[n], C̃[n]))
+    Ãᴸⁿ, X = polar(Ãᶜ[n] * dag(C̃[n]), uniqueinds(Ãᶜ[n], C̃[n]))
+
+    @show Ãᶜ[n]
+    @show C̃[n]
+    @show Ãᶜ[n] * dag(C̃[n])
+    @show Ãᴸⁿ
+    @show X
+
     Ãᴿⁿ, _ = polar(Ãᶜ[n] * dag(C̃[n - 1]), uniqueinds(Ãᶜ[n], C̃[n - 1]))
     Ãᴸⁿ = noprime(Ãᴸⁿ)
     Ãᴿⁿ = noprime(Ãᴿⁿ)
@@ -207,11 +215,11 @@ function vumps_iteration(Σ∞h::InfiniteITensorSum, ψ∞::InfiniteCanonicalMPS
   return InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ)
 end
 
-function vumps(Σ∞h, ψ∞; niter=10)
+function vumps(∑h, ψ; niter=10)
   for iter in 1:niter
     println("\nIteration $iter of $niter")
-    ψ∞ = vumps_iteration(Σ∞h, ψ∞)
+    ψ = vumps_iteration(∑h, ψ)
   end
-  return ψ∞
+  return ψ
 end
 

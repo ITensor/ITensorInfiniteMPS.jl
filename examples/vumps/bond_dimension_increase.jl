@@ -5,7 +5,6 @@ using Random
 Random.seed!(1234)
 
 include("models.jl")
-include("subspace_expansion.jl")
 
 # Number of sites in the unit cell
 N = 2
@@ -55,35 +54,10 @@ C2 = randomITensor(dag(l[b])..., r[b]...)
 
 ψ = vumps(H, ψ; niter=10)
 
-function subspace_expansion(ψ)
-  N = nsites(ψ)
-  AL = ψ.AL
-  C = ψ.C
-  AR = ψ.AR
-  for n in 1:N
-    n1, n2 = n, n + 1
-    ALⁿ¹², Cⁿ¹, ARⁿ¹² = subspace_expansion(ψ, (n1, n2))
-    ALⁿ¹, ALⁿ² = ALⁿ¹²
-    ARⁿ¹, ARⁿ² = ARⁿ¹²
-    AL[n1] = ALⁿ¹
-    AL[n2] = ALⁿ²
-    C[n1] = Cⁿ¹
-    AR[n1] = ARⁿ¹
-    AR[n2] = ARⁿ²
-    ψ = InfiniteCanonicalMPS(AL, C, AR)
-  end
-  return ψ
+cutoff = 1e-8
+maxdim = 100
+for n in 1:5
+  global ψ = subspace_expansion(ψ, H; cutoff=cutoff, maxdim=maxdim)
+  global ψ = vumps(H, ψ; niter=10)
 end
-
-ψ̃ = subspace_expansion(ψ)
-
-ψ̃ = vumps(H, ψ̃; niter=10)
-
-ψ̃ = subspace_expansion(ψ̃)
-
-ψ̃ = vumps(H, ψ̃; niter=10)
-
-ψ̃ = subspace_expansion(ψ̃)
-
-ψ̃ = vumps(H, ψ̃; niter=10)
 

@@ -32,6 +32,8 @@ isreversed(ψ::InfiniteCanonicalMPS) = isreversed(ψ.AL)
 #ITensors.data(ψ::InfiniteCanonicalMPS) = data(ψ.AL)
 ITensors.data(ψ::InfiniteCanonicalMPS) = ψ.AL.data
 
+Base.copy(ψ::InfiniteCanonicalMPS) = InfiniteCanonicalMPS(copy(ψ.AL), copy(ψ.C), copy(ψ.AR))
+
 function fmap(f, ψ::InfiniteCanonicalMPS)
   return InfiniteCanonicalMPS(f(ψ.AL), f(ψ.C), f(ψ.AR))
 end

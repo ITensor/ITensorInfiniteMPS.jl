@@ -1,11 +1,9 @@
-using LinearAlgebra
-
 function replaceind_indval(IV::Tuple, iĩ::Pair)
   i, ĩ = iĩ
   return ntuple(n -> first(IV[n]) == i ? ĩ => last(IV[n]) : IV[n], length(IV))
 end
 
-function subspace_expansion(ψ::InfiniteCanonicalMPS, b::Tuple{Int,Int})
+function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; kwargs...)
   n1, n2 = b
   lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
   rⁿ¹ = commoninds(ψ.AR[n2], ψ.C[n1])
@@ -21,12 +19,12 @@ function subspace_expansion(ψ::InfiniteCanonicalMPS, b::Tuple{Int,Int})
   ψHN2 = ψH2 * dag(NL) * dag(NR)
 
   @show inds(ψHN2)
-  U, S, V = svd(ψHN2, nL)
+  U, S, V = svd(ψHN2, nL; kwargs...)
   NL *= U
   NR *= V
 
-  AL, l = ITensors.directsum(ψ.AL[n1], NL, uniqueinds(ψ.AL[n1], NL), uniqueinds(NL, ψ.AL[n1]); tags=("Left",))
-  AR, r = ITensors.directsum(ψ.AR[n2], NR, uniqueinds(ψ.AR[n2], NR), uniqueinds(NR, ψ.AR[n2]); tags=("Right",))
+  ALⁿ¹, l = ITensors.directsum(ψ.AL[n1], NL, uniqueinds(ψ.AL[n1], NL), uniqueinds(NL, ψ.AL[n1]); tags=("Left",))
+  ARⁿ², r = ITensors.directsum(ψ.AR[n2], NR, uniqueinds(ψ.AR[n2], NR), uniqueinds(NR, ψ.AR[n2]); tags=("Right",))
 
   C = ITensor(dag(l)..., dag(r)...)
   for I in eachindex(ψ.C[n1])
@@ -63,17 +61,38 @@ function subspace_expansion(ψ::InfiniteCanonicalMPS, b::Tuple{Int,Int})
 
   CL = combiner(l; tags=tags(only(lⁿ¹)))
   CR = combiner(r; tags=tags(only(rⁿ¹)))
-  AL *= CL
+  ALⁿ¹ *= CL
   ALⁿ² *= dag(CL)
-  AR *= CR
+  ARⁿ² *= CR
   ARⁿ¹ *= dag(CR)
   C = (C * dag(CL)) * dag(CR)
 
   ψ₂ = ψ.AL[n1] * ψ.C[n1] * ψ.AR[n2]
-  ψ̃₂ = AL * C * AR
+  ψ̃₂ = ALⁿ¹ * C * ARⁿ²
   local_energy(ψ, H) = (noprime(ψ * H) * dag(ψ))[]
   @show local_energy(ψ₂, H[(n1, n2)])
   @show local_energy(ψ̃₂, H[(n1, n2)])
-  return (AL, ALⁿ²), C, (ARⁿ¹, AR)
+  return (ALⁿ¹, ALⁿ²), C, (ARⁿ¹, ARⁿ²)
+end
+
+function subspace_expansion(ψ, H; kwargs...)
+  ψ = copy(ψ)
+  N = nsites(ψ)
+  AL = ψ.AL
+  C = ψ.C
+  AR = ψ.AR
+  for n in 1:N
+    n1, n2 = n, n + 1
+    ALⁿ¹², Cⁿ¹, ARⁿ¹² = subspace_expansion(ψ, H, (n1, n2); kwargs...)
+    ALⁿ¹, ALⁿ² = ALⁿ¹²
+    ARⁿ¹, ARⁿ² = ARⁿ¹²
+    AL[n1] = ALⁿ¹
+    AL[n2] = ALⁿ²
+    C[n1] = Cⁿ¹
+    AR[n1] = ARⁿ¹
+    AR[n2] = ARⁿ²
+    ψ = InfiniteCanonicalMPS(AL, C, AR)
+  end
+  return ψ
 end
 

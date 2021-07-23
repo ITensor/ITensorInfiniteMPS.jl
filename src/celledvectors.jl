@@ -94,6 +94,23 @@ function getindex(cv::CelledVector, n::Int)
   return translatecell(_getindex_cell1(cv, siteₙ), cellₙ-1)
 end
 
+# Do we need this definition? Maybe uses generic Julia fallback
+#getindex(cv::CelledVector, r::AbstractRange) = [cv[n] for n in r]
+
+function Base.firstindex(cv::CelledVector, c::Cell)
+  return (c.cell - 1) * celllength(cv) + 1
+end
+
+function Base.lastindex(cv::CelledVector, c::Cell)
+  return c.cell * celllength(cv)
+end
+
+function Base.eachindex(cv::CelledVector, c::Cell)
+  return firstindex(cv, c):lastindex(cv, c)
+end
+
+getindex(cv::CelledVector, c::Cell) = cv[eachindex(cv, c)]
+
 function setindex!(cv::CelledVector, T::ITensor, n::Int)
   cellₙ = cell(cv, n)
   siteₙ = cellindex(cv, n)

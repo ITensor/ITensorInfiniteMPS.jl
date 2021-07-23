@@ -32,6 +32,7 @@ include("infinitempo.jl")
 include("orthogonalize.jl")
 include("infinitemps_approx.jl")
 include("nullspace.jl")
+include("subspace_expansion.jl")
 include("vumps_localham.jl")
 
 export
@@ -48,6 +49,7 @@ export
   infinitemps_approx,
   nsites,
   output_inds,
+  subspace_expansion,
   translatecell,
   vumps,
   ⊕,
