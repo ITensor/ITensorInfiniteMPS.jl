@@ -2,39 +2,12 @@ using ITensors
 using ITensorInfiniteMPS
 using ITensorInfiniteMPS: celltags
 
-# More general siteind that allows specifying
-# the space
-function _siteind(site_tag, n::Int; space)
-  return addtags(Index(space, "Site,n=$n"), site_tag)
-end
-
-_siteinds(site_tag, N::Int; space) = __siteinds(site_tag, N, space)
-
-function __siteinds(site_tag, N::Int, space::Vector)
-  return [_siteind(site_tag, n; space=space[n]) for n in 1:N]
-end
-
-function __siteinds(site_tag, N::Int, space)
-  return [_siteind(site_tag, n; space=space) for n in 1:N]
-end
-
-infsiteinds(s::Vector{<:Index}) = CelledVector(addtags(s, celltags(1)))
-function infsiteinds(site_tag, N::Int; space=nothing, kwargs...)
-  if !isnothing(space)
-    s = _siteinds(site_tag, N; space=space)
-  else
-    # TODO: add a shift option
-    s = siteinds(site_tag, N; kwargs...)
-  end
-  return infsiteinds(s)
-end
-
 struct Model{model} end
 Model(model::Symbol) = Model{model}()
 
 # Create an infinite sum of Hamiltonian terms
 function ITensorInfiniteMPS.InfiniteITensorSum(model::Model, s::Vector; kwargs...)
-  return InfiniteITensorSum(model, CelledVector(addtags(s, celltags(1))); kwargs...)
+  return InfiniteITensorSum(model, infsiteinds(s); kwargs...)
 end
 
 function ITensorInfiniteMPS.InfiniteITensorSum(model::Model, s::CelledVector; kwargs...)

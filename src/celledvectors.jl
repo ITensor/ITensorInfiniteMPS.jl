@@ -50,6 +50,10 @@ struct CelledVector{T} <: AbstractVector{T}
 end
 ITensors.data(cv::CelledVector) = cv.data
 
+function CelledVector{T}(::UndefInitializer, n::Integer) where {T}
+  return CelledVector(Vector{T}(undef, n))
+end
+
 """
     celllength(cv::CelledVector)
 
@@ -111,7 +115,7 @@ end
 
 getindex(cv::CelledVector, c::Cell) = cv[eachindex(cv, c)]
 
-function setindex!(cv::CelledVector, T::ITensor, n::Int)
+function setindex!(cv::CelledVector, T, n::Int)
   cellₙ = cell(cv, n)
   siteₙ = cellindex(cv, n)
   _setindex_cell1!(cv, translatecell(T, -(cellₙ-1)), siteₙ)

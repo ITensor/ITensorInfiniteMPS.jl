@@ -1,4 +1,44 @@
 
+# Get the promoted type of the Index objects in a collection
+# of Index (Tuple, Vector, ITensor, etc.)
+indtype(i::Index) = typeof(i)
+indtype(T::Type{<:Index}) = T
+indtype(is::Tuple{Vararg{<:Index}}) = eltype(is)
+indtype(is::Vector{<:Index}) = eltype(is)
+indtype(A::ITensor...) = indtype(inds.(A))
+
+indtype(tn1, tn2) = promote_type(indtype(tn1), indtype(tn2))
+indtype(tn) = mapreduce(indtype, promote_type, tn)
+
+using ITensorInfiniteMPS: celltags
+
+# More general siteind that allows specifying
+# the space
+function _siteind(site_tag, n::Int; space)
+  return addtags(Index(space, "Site,n=$n"), site_tag)
+end
+
+_siteinds(site_tag, N::Int; space) = __siteinds(site_tag, N, space)
+
+function __siteinds(site_tag, N::Int, space::Vector)
+  return [_siteind(site_tag, n; space=space[n]) for n in 1:N]
+end
+
+function __siteinds(site_tag, N::Int, space)
+  return [_siteind(site_tag, n; space=space) for n in 1:N]
+end
+
+infsiteinds(s::Vector{<:Index}) = CelledVector(addtags(s, celltags(1)))
+function infsiteinds(site_tag, N::Int; space=nothing, kwargs...)
+  if !isnothing(space)
+    s = _siteinds(site_tag, N; space=space)
+  else
+    # TODO: add a shift option
+    s = siteinds(site_tag, N; kwargs...)
+  end
+  return infsiteinds(s)
+end
+
 function ITensors.linkinds(ψ::InfiniteMPS)
   N = nsites(ψ)
   return CelledVector([linkinds(ψ, (n, n + 1)) for n in 1:N])
@@ -33,12 +73,28 @@ end
 ##   return MPST(A)
 ## end
 
+function zero_qn(i::Index)
+  return zero(qn(first(space(i))))
+end
+
+onlyqn(i::Index) = qn(only(space(i)))
+
 function insert_linkinds!(A)
   # TODO: use `celllength` here
   N = length(A)
-  s = siteind(A, 1)
   l = CelledVector{indtype(A)}(undef, N)
-  lᴺ = Index(zero(qn(s)), "Link,l=$n,"; dir=ITensors.In)
+
+  n = N
+  qn_ln = zero_qn(siteind(A, 1))
+  l[N] = Index([qn_lN => 1], default_link_tags("l", n, 1))
+
+  @show l[N]
+  @show l[0]
+
+  qn_l1 = flux(A[1]) + onlyqn(l[0])
+  l1 = Index([qn_l1 => 1], default_link_tags("l", n, 1))
+
+  @show qn_l1
 end
 
 function UniformMPS(s::CelledVector, f::Function)

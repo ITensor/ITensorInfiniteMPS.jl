@@ -8,7 +8,6 @@ op(::OpName"Zero", ::SiteType"S=1/2", s::Index) =
   ITensor(s', dag(s))
 
 function tfi_mpo(s, l, r; J = 1.0, h)
-  #h = emptyITensor(s', dag(s), l, r)
   dₗ = 3 # The link dimension of the TFI
   Hmat = fill(op("Zero", s), dₗ, dₗ)
   Hmat[1, 1] = op("Id", s)
@@ -17,7 +16,7 @@ function tfi_mpo(s, l, r; J = 1.0, h)
   Hmat[2, 1] = -J * op("X", s)
   Hmat[3, 2] = -J * op("X", s)
   Hmat[3, 1] = -h * op("Z", s)
-  H = emptyITensor()
+  H = ITensor()
   for i in 1:dₗ, j in 1:dₗ
     H += Hmat[i,j] * setelt(l => i) * setelt(r => j)
   end
