@@ -1,3 +1,4 @@
+using ITensorInfiniteMPS: celltags, default_link_tags
 
 # Get the promoted type of the Index objects in a collection
 # of Index (Tuple, Vector, ITensor, etc.)
@@ -9,8 +10,6 @@ indtype(A::ITensor...) = indtype(inds.(A))
 
 indtype(tn1, tn2) = promote_type(indtype(tn1), indtype(tn2))
 indtype(tn) = mapreduce(indtype, promote_type, tn)
-
-using ITensorInfiniteMPS: celltags
 
 # More general siteind that allows specifying
 # the space
@@ -77,24 +76,23 @@ function zero_qn(i::Index)
   return zero(qn(first(space(i))))
 end
 
-onlyqn(i::Index) = qn(only(space(i)))
+#onlyqn(i::Index) = qn(only(space(i)))
 
-function insert_linkinds!(A)
+function insert_linkinds!(A; left_dir=ITensors.Out)
   # TODO: use `celllength` here
   N = length(A)
   l = CelledVector{indtype(A)}(undef, N)
-
   n = N
   qn_ln = zero_qn(siteind(A, 1))
-  l[N] = Index([qn_lN => 1], default_link_tags("l", n, 1))
-
-  @show l[N]
-  @show l[0]
-
-  qn_l1 = flux(A[1]) + onlyqn(l[0])
-  l1 = Index([qn_l1 => 1], default_link_tags("l", n, 1))
-
-  @show qn_l1
+  l[N] = Index([qn_ln => 1], default_link_tags("l", n, 1); dir=left_dir)
+  for n in 1:(N - 1)
+    qn_ln = flux(A[n]) + qn_ln * left_dir
+    l[n] = Index([qn_ln => 1], default_link_tags("l", n, 1); dir=left_dir)
+  end
+  for n in 1:N
+    A[n] = A[n] * onehot(l[n - 1] => 1) * onehot(dag(l[n]) => 1)
+  end
+  return A
 end
 
 function UniformMPS(s::CelledVector, f::Function)
