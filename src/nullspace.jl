@@ -46,10 +46,12 @@ end
 # Make `Pair{QN,Int}` act like a regular `dim`
 NDTensors.dim(qnv::Pair{QN,Int}) = last(qnv)
 
+Base.:*(qnv::Pair{QN,Int}, d::ITensors.Arrow) = qn(qnv) * d => dim(qnv)
+
 function getblock_preserve_qns(T::Tensor, b::Block)
   # TODO: make `T[b]` preserve QNs
   Tb = T[b]
-  indsTb = getblock.(inds(T), Tuple(b))
+  indsTb = getblock.(inds(T), Tuple(b)) .* dir.(inds(T))
   return ITensors.setinds(Tb, indsTb)
 end
 
@@ -111,17 +113,19 @@ function LinearAlgebra.nullspace(::Order{2}, M::ITensor, left_inds, right_inds; 
   M² = permute(M², right_inds'..., right_inds...)
   M²ₜ = tensor(M²)
   Nₜ = nullspace(Hermitian(M²ₜ); kwargs...)
-  N = dag(itensor(ITensors.setinds(Nₜ, Index.(inds(Nₜ)))))
+  indsN = (Index(ind(Nₜ, 1); dir=ITensors.In), Index(ind(Nₜ, 2); dir=ITensors.In))
+  N = dag(itensor(ITensors.setinds(Nₜ, indsN)))
   # Make the index match the input index
-  return replaceinds(N, (ind(N, 1),) => right_inds)
+  Ñ = replaceinds(N, (ind(N, 1),) => right_inds)
+  return Ñ
 end
 
-function LinearAlgebra.nullspace(T::ITensor, inds...; kwargs...)
-  M, CL, CR = combine(Order(2), T, inds...)
+function LinearAlgebra.nullspace(T::ITensor, is...; kwargs...)
+  M, CL, CR = combine(Order(2), T, is...)
   @assert order(M) == 2
   cL = commoninds(M, CL)
   cR = commoninds(M, CR)
   N₂ = nullspace(Order(2), M, cL, cR; kwargs...)
-  return N₂ * dag(CR)
+  return N₂ * CR
 end
 

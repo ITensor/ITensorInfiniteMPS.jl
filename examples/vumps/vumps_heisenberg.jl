@@ -6,26 +6,21 @@ include("infinitecanonicalmps.jl")
 
 N = 2
 
-#s = infsiteinds("Electron", N; conserve_qns=true)
-
-electron_space_shift(q̃nf, q̃sz) = [
-  QN(("Nf", 0 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1,
-  QN(("Nf", 1 - q̃nf, -1), ("Sz", 1 - q̃sz)) => 1,
-  QN(("Nf", 1 - q̃nf, -1), ("Sz", -1 - q̃sz)) => 1,
-  QN(("Nf", 2 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1]
+heisenberg_space_shift(q̃nf, q̃sz) =
+  [
+    QN("Sz", 1 - q̃sz) => 1,
+    QN("Sz", -1 - q̃sz) => 1
+  ]
 
 electron_space = fill(electron_space_shift(1, 0), N)
 s = infsiteinds("Electron", N; space=electron_space)
 initstate(n) = isodd(n) ? "↑" : "↓"
 ψ = InfMPS(s, initstate)
 
-t = 1.0
-U = 8.0
-V = 0.0
-model = Model(:hubbard)
+model = Model(:heisenberg)
 
 # Form the Hamiltonian
-H = InfiniteITensorSum(model, s; t=t, U=U, V=V)
+H = InfiniteITensorSum(model, s)
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))

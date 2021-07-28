@@ -51,32 +51,9 @@ function indval(iv::Pair)
   return ind(iv) => val(iv)
 end
 
-## # Make an AbstractInfiniteMPS from a set of site indices
-## function (::Type{MPST})(ElT::Type, s::Vector{<:Index};
-##                         linksdir = ITensors.Out,
-##                         space = any(hasqns, s) ? [zero(qn(first(s), Block(1))) => 1] : 1,
-##                         cell = 1) where {MPST <: AbstractInfiniteMPS}
-##   s = addtags.(s, (celltags(cell),))
-##   N = length(s)
-##   s_hasqns = any(hasqns, s)
-##   kwargs(n) = if s_hasqns
-##     (tags = default_link_tags("l", n, cell), dir = linksdir)
-##   else
-##     # TODO: support non-QN constructor that accepts `dir`
-##     (tags = default_link_tags("l", n, cell),)
-##   end
-##   l₀ = [Index(space; kwargs(n)...) for n in 1:N]
-##   l₋₁ᴺ = replacetags(l₀[N], celltags(cell) => celltags(cell-1))
-##   l = OffsetVector(append!([l₋₁ᴺ], l₀), -1)
-##   A = [ITensor(ElT, l[n-1], s[n], dag(l[n])) for n in 1:N]
-##   return MPST(A)
-## end
-
 function zero_qn(i::Index)
   return zero(qn(first(space(i))))
 end
-
-#onlyqn(i::Index) = qn(only(space(i)))
 
 function insert_linkinds!(A; left_dir=ITensors.Out)
   # TODO: use `celllength` here
@@ -86,7 +63,8 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   qn_ln = zero_qn(siteind(A, 1))
   l[N] = Index([qn_ln => 1], default_link_tags("l", n, 1); dir=left_dir)
   for n in 1:(N - 1)
-    qn_ln = flux(A[n]) + qn_ln * left_dir
+    # TODO: is this correct?
+    qn_ln = (flux(A[n]) + qn_ln) * left_dir
     l[n] = Index([qn_ln => 1], default_link_tags("l", n, 1); dir=left_dir)
   end
   for n in 1:N
@@ -95,7 +73,7 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   return A
 end
 
-function UniformMPS(s::CelledVector, f::Function)
+function UniformMPS(s::CelledVector, f::Function; left_dir=ITensors.Out)
   sᶜ¹ = s[Cell(1)]
   A = InfiniteMPS([ITensor(sⁿ) for sⁿ in sᶜ¹])
   N = length(sᶜ¹)
@@ -104,25 +82,19 @@ function UniformMPS(s::CelledVector, f::Function)
     Aⁿ[indval(s[n] => f(n))] = 1.0
     A[n] = Aⁿ
   end
-  insert_linkinds!(A)
+  insert_linkinds!(A; left_dir=left_dir)
   return A
 end
 
 function InfMPS(s::CelledVector, f::Function)
   # TODO: rename cell_length
   N = length(s)
-  ψL = InfiniteMPS(s.data; linksdir=ITensors.Out)
-  ψR = InfiniteMPS(s.data; linksdir=ITensors.In)
+  ψL = UniformMPS(s, f; left_dir=ITensors.Out)
+  ψR = UniformMPS(s, f; left_dir=ITensors.In)
   ψC = InfiniteMPS(N)
   l = linkinds(ψL)
   r = linkinds(ψR)
   for n in 1:N
-    ψLₙ = ψL[n]
-    ψLₙ[l[n - 1]... => 1, indval(s[n] => f(n)), l[n]... => 1] = 1.0
-    ψL[n] = ψLₙ
-    ψRₙ = ψR[n]
-    ψRₙ[r[n - 1]... => 1, indval(s[n] => f(n)), r[n]... => 1] = 1.0
-    ψR[n] = ψRₙ
     ψCₙ = ITensor(dag(l[n])..., r[n]...)
     ψCₙ[l[n]... => 1, r[n]... => 1] = 1.0
     ψC[n] = ψCₙ

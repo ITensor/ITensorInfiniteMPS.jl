@@ -7,30 +7,29 @@ function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; kwar
   n1, n2 = b
   lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
   rⁿ¹ = commoninds(ψ.AR[n2], ψ.C[n1])
+  # Returns `NL` such that `norm(ψ.AL[n1] * NL) ≈ 0`
   NL = nullspace(ψ.AL[n1], lⁿ¹; atol=1e-15)
   NR = nullspace(ψ.AR[n2], rⁿ¹; atol=1e-15)
+
   nL = uniqueinds(NL, ψ.AL[n1])
   nR = uniqueinds(NR, ψ.AR[n2])
 
-  @show prime(NL, uniqueinds(NL, ψ.AL[n1])) * dag(NL)
-  @show norm(ψ.AL[n1] * dag(NL))
-
   ψH2 = noprime(ψ.AL[n1] * H[(n1, n2)] * ψ.C[n1] * ψ.AR[n2])
-  ψHN2 = ψH2 * dag(NL) * dag(NR)
+  ψHN2 = ψH2 * NL * NR
 
-  @show inds(ψHN2)
   U, S, V = svd(ψHN2, nL; kwargs...)
-  NL *= U
-  NR *= V
+  NL *= dag(U)
+  NR *= dag(V)
 
-  ALⁿ¹, l = ITensors.directsum(ψ.AL[n1], NL, uniqueinds(ψ.AL[n1], NL), uniqueinds(NL, ψ.AL[n1]); tags=("Left",))
-  ARⁿ², r = ITensors.directsum(ψ.AR[n2], NR, uniqueinds(ψ.AR[n2], NR), uniqueinds(NR, ψ.AR[n2]); tags=("Right",))
+  ALⁿ¹, l = ITensors.directsum(ψ.AL[n1], dag(NL), uniqueinds(ψ.AL[n1], NL), uniqueinds(NL, ψ.AL[n1]); tags=("Left",))
+  ARⁿ², r = ITensors.directsum(ψ.AR[n2], dag(NR), uniqueinds(ψ.AR[n2], NR), uniqueinds(NR, ψ.AR[n2]); tags=("Right",))
 
   C = ITensor(dag(l)..., dag(r)...)
+  ψCⁿ¹ = permute(ψ.C[n1], lⁿ¹..., rⁿ¹...)
   for I in eachindex(ψ.C[n1])
-    v = ψ.C[n1][I]
+    v = ψCⁿ¹[I]
     if !iszero(v)
-      C[I] = ψ.C[n1][I]
+      C[I] = ψCⁿ¹[I]
     end
   end
 
@@ -67,11 +66,13 @@ function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; kwar
   ARⁿ¹ *= dag(CR)
   C = (C * dag(CL)) * dag(CR)
 
+  # TODO: delete or only print when verbose
   ψ₂ = ψ.AL[n1] * ψ.C[n1] * ψ.AR[n2]
   ψ̃₂ = ALⁿ¹ * C * ARⁿ²
   local_energy(ψ, H) = (noprime(ψ * H) * dag(ψ))[]
   @show local_energy(ψ₂, H[(n1, n2)])
   @show local_energy(ψ̃₂, H[(n1, n2)])
+
   return (ALⁿ¹, ALⁿ²), C, (ARⁿ¹, ARⁿ²)
 end
 

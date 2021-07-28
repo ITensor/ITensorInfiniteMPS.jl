@@ -139,7 +139,7 @@ function right_environment_recursive(hᴿ, ψ; niter=10)
   return Hᴿ
 end
 
-function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS)
+function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; environment_iterations=10)
   Nsites = nsites(ψ)
   ψᴴ = dag(ψ)
   ψ′ = ψᴴ'
@@ -170,8 +170,8 @@ function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS)
     hᴿ[n] -= eᴿ[n] * denseblocks(δ(inds(hᴿ[n])))
   end
 
-  Hᴸ = left_environment_recursive(hᴸ, ψ)
-  Hᴿ = right_environment_recursive(hᴿ, ψ)
+  Hᴸ = left_environment_recursive(hᴸ, ψ; niter=environment_iterations)
+  Hᴿ = right_environment_recursive(hᴿ, ψ; niter=environment_iterations)
   for n in 1:Nsites
     @show tr(Hᴸ[n] * ψ.C[n] * ψ′.C[n])
     @show tr(Hᴿ[n] * ψ.C[n] * ψ′.C[n])
@@ -197,13 +197,6 @@ function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS)
   Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   for n in 1:Nsites
     Ãᴸⁿ, X = polar(Ãᶜ[n] * dag(C̃[n]), uniqueinds(Ãᶜ[n], C̃[n]))
-
-    @show Ãᶜ[n]
-    @show C̃[n]
-    @show Ãᶜ[n] * dag(C̃[n])
-    @show Ãᴸⁿ
-    @show X
-
     Ãᴿⁿ, _ = polar(Ãᶜ[n] * dag(C̃[n - 1]), uniqueinds(Ãᶜ[n], C̃[n - 1]))
     Ãᴸⁿ = noprime(Ãᴸⁿ)
     Ãᴿⁿ = noprime(Ãᴿⁿ)
@@ -215,10 +208,10 @@ function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS)
   return InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ)
 end
 
-function vumps(∑h, ψ; niter=10)
+function vumps(∑h, ψ; niter=10, environment_iterations=10)
   for iter in 1:niter
     println("\nIteration $iter of $niter")
-    ψ = vumps_iteration(∑h, ψ)
+    ψ = vumps_iteration(∑h, ψ; environment_iterations=environment_iterations)
   end
   return ψ
 end

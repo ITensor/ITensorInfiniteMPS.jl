@@ -70,3 +70,10 @@ function ITensors.OpSum(::Model{:hubbard}, n1, n2; t, U, V)
   return opsum
 end
 
+function ITensors.OpSum(::Model{:heisenberg}, n1, n2)
+  opsum = OpSum()
+  opsum += 0.5, "S+", n1, "S-", n2
+  opsum += 0.5, "S-", n1, "S+", n2
+  opsum += "Sz", n1, "Sz", n2
+  return opsum
+end
