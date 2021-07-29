@@ -1,5 +1,3 @@
-using ITensorInfiniteMPS: celltags, default_link_tags
-
 # Get the promoted type of the Index objects in a collection
 # of Index (Tuple, Vector, ITensor, etc.)
 indtype(i::Index) = typeof(i)

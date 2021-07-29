@@ -29,6 +29,8 @@ include("celledvectors.jl")
 include("abstractinfinitemps.jl")
 include("infinitemps.jl")
 include("infinitempo.jl")
+include("infinitecanonicalmps.jl")
+include("models.jl")
 include("orthogonalize.jl")
 include("infinitemps_approx.jl")
 include("nullspace.jl")
@@ -40,13 +42,17 @@ export
   CelledVector,
   InfiniteMPS,
   InfiniteCanonicalMPS,
+  InfMPS,
   InfiniteITensorSum,
   InfiniteMPO,
   InfiniteSumLocalOps,
   ITensorMap,
   ITensorNetwork,
+  Model,
+  @Model_str,
   input_inds,
   infinitemps_approx,
+  infsiteinds,
   nsites,
   output_inds,
   subspace_expansion,

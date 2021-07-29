@@ -1,9 +1,10 @@
-using ITensors
-using ITensorInfiniteMPS
-using ITensorInfiniteMPS: celltags
-
 struct Model{model} end
 Model(model::Symbol) = Model{model}()
+Model(model::String) = Model{Symbol(model)}()
+
+macro Model_str(s)
+  :(Model{$(Expr(:quote, Symbol(s)))})
+end
 
 # Create an infinite sum of Hamiltonian terms
 function ITensorInfiniteMPS.InfiniteITensorSum(model::Model, s::Vector; kwargs...)
@@ -68,6 +69,30 @@ function ITensors.OpSum(::Model{:hubbard}, n1, n2; t, U, V)
     opsum += V, "Ntot", n1, "Ntot", n2
   end
   return opsum
+end
+
+# t = 1.0
+# U = 1.0
+# V = 0.5
+function ITensors.MPO(::Model{:hubbard}, s; t, U, V)
+  N = length(s)
+  opsum = OpSum()
+  for n in 1:(N - 1)
+    n1, n2 = n, n + 1
+    opsum .+= -t, "Cdagup", n1, "Cup", n2
+    opsum .+= -t, "Cdagup", n2, "Cup", n1
+    opsum .+= -t, "Cdagdn", n1, "Cdn", n2
+    opsum .+= -t, "Cdagdn", n2, "Cdn", n1
+    if V ≠ 0
+      opsum .+= V, "Ntot", n1, "Ntot", n2
+    end
+  end
+  if U ≠ 0
+    for n in 1:N
+      opsum .+= U, "Nupdn", n
+    end
+  end
+  return MPO(opsum, s)
 end
 
 function ITensors.OpSum(::Model{:heisenberg}, n1, n2)
