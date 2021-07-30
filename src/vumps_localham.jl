@@ -216,12 +216,14 @@ function vumps_iteration(
   return InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ), (eᴸ, eᴿ)
 end
 
-function vumps(∑h, ψ; niter=10, environment_iterations=10)
+function vumps(∑h, ψ; niter=10, environment_iterations=10, outputlevel=1)
   N = nsites(ψ)
   for iter in 1:niter
     ψ, (eᴸ, eᴿ) = vumps_iteration(∑h, ψ; environment_iterations=environment_iterations)
     maxdimψ = maxlinkdim(ψ[0:(N + 1)])
-    println("VUMPS iteration $iter of $niter. Bond dimension = $maxdimψ, energy = ", eᴸ)
+    if outputlevel > 0
+      println("VUMPS iteration $iter of $niter. Bond dimension = $maxdimψ, energy = ", eᴸ)
+    end
   end
   return ψ
 end
