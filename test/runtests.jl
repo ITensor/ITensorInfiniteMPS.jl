@@ -107,4 +107,3 @@ end
 ##     @test prod(ψ.AL[1:N]) * ψ.C[N] ≈ ψ.C[0] * prod(ψ.AR[1:N])
 ##   end
 ## end
-
