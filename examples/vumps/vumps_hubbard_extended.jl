@@ -4,11 +4,14 @@ using ITensorInfiniteMPS
 # Unit cell size
 N = 2
 
-electron_space_shift(q̃nf, q̃sz) = [
-  QN(("Nf", 0 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1,
-  QN(("Nf", 1 - q̃nf, -1), ("Sz", 1 - q̃sz)) => 1,
-  QN(("Nf", 1 - q̃nf, -1), ("Sz", -1 - q̃sz)) => 1,
-  QN(("Nf", 2 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1]
+function electron_space_shift(q̃nf, q̃sz)
+  return [
+    QN(("Nf", 0 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1,
+    QN(("Nf", 1 - q̃nf, -1), ("Sz", 1 - q̃sz)) => 1,
+    QN(("Nf", 1 - q̃nf, -1), ("Sz", -1 - q̃sz)) => 1,
+    QN(("Nf", 2 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1,
+  ]
+end
 
 electron_space = fill(electron_space_shift(1, 0), N)
 s = infsiteinds("Electron", N; space=electron_space)
@@ -53,7 +56,9 @@ end
 println("\nCheck translational invariance of optimized infinite MPS")
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
-ITensors.expect(ψ::InfiniteCanonicalMPS, o, n) = (noprime(ψ.AL[n] * ψ.C[n] * op(o, s[n])) * dag(ψ.AL[n] * ψ.C[n]))[]
+function ITensors.expect(ψ::InfiniteCanonicalMPS, o, n)
+  return (noprime(ψ.AL[n] * ψ.C[n] * op(o, s[n])) * dag(ψ.AL[n] * ψ.C[n]))[]
+end
 
 function expect_two_site(ψ::InfiniteCanonicalMPS, h::ITensor, n1n2)
   n1, n2 = n1n2

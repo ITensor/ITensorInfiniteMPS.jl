@@ -6,11 +6,9 @@ N = 2
 model = Model"ising"()
 model_kwargs = (J=1.0, h=1.1)
 
-space_shifted(::Model"ising", q̃sz) =
-  [
-    QN("SzParity", 1 - q̃sz, 2) => 1,
-    QN("SzParity", 0 - q̃sz, 2) => 1
-  ]
+function space_shifted(::Model"ising", q̃sz)
+  return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
+end
 
 space_ = fill(space_shifted(model, 0), N)
 s = infsiteinds("S=1/2", N; space=space_)
@@ -81,4 +79,3 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 
 @show Sz1_finite, Sz2_finite
 @show Sz1_infinite, Sz2_infinite
-

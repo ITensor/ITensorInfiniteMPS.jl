@@ -13,7 +13,7 @@ import Base: *
 # TODO: make a AbstractDiagTensor supertype?
 # TODO: make this work for non-diagonal tensors.
 # TODO: define SecondOrderTensor?
-function Base.sqrt(T::NDTensors.Tensor{<: Number, 2}; atol=1e-15)
+function Base.sqrt(T::NDTensors.Tensor{<:Number,2}; atol=1e-15)
   @assert isdiag(T)
   sqrtT = copy(T)
   for n in 1:mindim(T)
@@ -37,7 +37,7 @@ Base.keys(ts::TagSet) = Base.OneTo(length(ts))
 import ITensors: Tag, commontags
 
 macro tag_str(s)
-  Tag(s)
+  return Tag(s)
 end
 
 commontags(ts::TagSet, i::Index) = commontags(ts, tags(i))
@@ -51,7 +51,7 @@ function Base.length(tag::Tag)
   while n <= maxlength(tag) && tag[n] != zero(eltype(tag))
     n += 1
   end
-  return n-1
+  return n - 1
 end
 
 Base.lastindex(tag::Tag) = length(tag)
@@ -60,7 +60,7 @@ Base.getindex(tag::Tag, r::UnitRange) = Tag([tag[n] for n in r])
 
 # TODO: make this work directly on a Tag, without converting
 # to String
-function Base.parse(::Type{T}, tag::Tag) where {T <: Integer}
+function Base.parse(::Type{T}, tag::Tag) where {T<:Integer}
   return parse(T, string(tag))
 end
 
@@ -88,19 +88,29 @@ ITensors.replacetags(ts::TagSet, p::Pair) = replacetags(ts, first(p), last(p))
 #       (("Sz", 1) × ("SzParity", 1, 2) => 2))
 #
 
-LinearAlgebra.cross(qn1::Tuple{String, Int, Vararg{Int}},
-                    qn2::Tuple{String, Int, Vararg{Int}}) = QN(qn1, qn2)
-LinearAlgebra.cross(qn1::QN, qn2::Tuple{String, Int, Vararg{Int}}) =
-  ITensors.addqnval(qn1, ITensors.QNVal(qn2...))
+function LinearAlgebra.cross(
+  qn1::Tuple{String,Int,Vararg{Int}}, qn2::Tuple{String,Int,Vararg{Int}}
+)
+  return QN(qn1, qn2)
+end
+function LinearAlgebra.cross(qn1::QN, qn2::Tuple{String,Int,Vararg{Int}})
+  return ITensors.addqnval(qn1, ITensors.QNVal(qn2...))
+end
 
-⊕(qn1::Pair{QN, Int}, qn2::Pair{QN, Int}) = [qn1, qn2]
-⊕(qn1::Pair{QN, Int64}, qn2::Pair{<:Tuple{String, Int, Vararg{Int}}, Int}) =
-  [qn1, QN(first(qn2)) => last(qn2)]
-⊕(qn1::Pair{<:Tuple{String, Int, Vararg{Int}}, Int}, qn2::Pair{QN, Int}) =
-  [QN(first(qn1)) => last(qn1), qn2]
-⊕(qn1::Pair{<:Tuple{String, Int, Vararg{Int}}, Int}, qn2::Pair{<:Tuple{String, Int, Vararg{Int}}, Int}) =
-  [QN(first(qn1)) => last(qn1), QN(first(qn2)) => last(qn2)]
-⊕(qns::Vector{Pair{QN, Int}}, qn::Pair{QN, Int}) = push!(copy(qns), qn)
+⊕(qn1::Pair{QN,Int}, qn2::Pair{QN,Int}) = [qn1, qn2]
+function ⊕(qn1::Pair{QN,Int64}, qn2::Pair{<:Tuple{String,Int,Vararg{Int}},Int})
+  return [qn1, QN(first(qn2)) => last(qn2)]
+end
+function ⊕(qn1::Pair{<:Tuple{String,Int,Vararg{Int}},Int}, qn2::Pair{QN,Int})
+  return [QN(first(qn1)) => last(qn1), qn2]
+end
+function ⊕(
+  qn1::Pair{<:Tuple{String,Int,Vararg{Int}},Int},
+  qn2::Pair{<:Tuple{String,Int,Vararg{Int}},Int},
+)
+  return [QN(first(qn1)) => last(qn1), QN(first(qn2)) => last(qn2)]
+end
+⊕(qns::Vector{Pair{QN,Int}}, qn::Pair{QN,Int}) = push!(copy(qns), qn)
 
 ############################################################################
 # indexset.jl
@@ -113,14 +123,13 @@ Base.copy(is::IndexSet) = IndexSet(copy.(ITensors.data(is)))
 
 ITensors.noncommoninds(is::IndexSet) = is
 
-
 ############################################################################
 # itensor.jl
 #
 
 using ITensors.NDTensors
 
-function LinearAlgebra.ishermitian(T::ITensor, pairs = 0 => 1; kwargs...)
+function LinearAlgebra.ishermitian(T::ITensor, pairs=0 => 1; kwargs...)
   Tᴴ = swapprime(dag(T), pairs)
   return isapprox(Tᴴ, T; kwargs...)
 end
@@ -130,9 +139,9 @@ ITensors.sim(A::ITensor) = ITensors.setinds(A, sim(inds(A)))
 
 LinearAlgebra.isdiag(T::ITensor) = isdiag(tensor(T))
 
-function eigendecomp(T::ITensor; ishermitian = true, kwargs...)
+function eigendecomp(T::ITensor; ishermitian=true, kwargs...)
   @assert ishermitian
-  D, U = eigen(T; ishermitian = ishermitian, kwargs...)
+  D, U = eigen(T; ishermitian=ishermitian, kwargs...)
   return U', D, dag(U)
 end
 
@@ -146,12 +155,12 @@ ITensors.noncommoninds(A::ITensor) = inds(A)
 
 # Take the square root of T assuming it is Hermitian
 # TODO: add more general index structures
-function Base.sqrt(T::ITensor; ishermitian = true, atol=1e-15)
+function Base.sqrt(T::ITensor; ishermitian=true, atol=1e-15)
   @assert ishermitian
   if isdiag(T) && order(T) == 2
     return itensor(sqrt(tensor(T)))
   end
-  U′, D, Uᴴ = eigendecomp(T; ishermitian = ishermitian)
+  U′, D, Uᴴ = eigendecomp(T; ishermitian=ishermitian)
   # XXX: if T is order 2 and diagonal, D may just be a view
   # of T so this would also modify T
   #D .= sqrt.(D)
@@ -173,7 +182,4 @@ end
 
 # TODO: make this definition AbstractMPS
 # Handle orthogonality center correctly
-Base.getindex(ψ::MPS, r::UnitRange{Int}) =
-  MPS([ψ[n] for n in r])
-
-
+Base.getindex(ψ::MPS, r::UnitRange{Int}) = MPS([ψ[n] for n in r])

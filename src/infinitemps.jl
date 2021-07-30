@@ -52,7 +52,6 @@ end
 
 ITensors.siteinds(f::typeof(only), ψ::InfiniteCanonicalMPS) = siteinds(f, ψ.AL)
 
-
 # For now, only represents nearest neighbor interactions
 # on a linear chain
 struct InfiniteITensorSum
@@ -66,4 +65,3 @@ function Base.getindex(l::InfiniteITensorSum, n1n2::Tuple{Int,Int})
   return l.data[n1]
 end
 nsites(h::InfiniteITensorSum) = length(l.data)
-

@@ -1,19 +1,24 @@
 
 function siteind(ψ::InfiniteMPS, n::Integer)
-  return uniqueind(ψ[n], ψ[n-1], ψ[n+1])
+  return uniqueind(ψ[n], ψ[n - 1], ψ[n + 1])
 end
 
 siteind(ψ::InfiniteCanonicalMPS, n::Integer) = siteind(ψ.AL, n)
 
-default_middle_range(N::Integer, ncenter::Integer) =
-  round(Int, N/2 - ncenter/2 + 1, RoundDown):round(Int, N/2 + ncenter/2, RoundDown)
+function default_middle_range(N::Integer, ncenter::Integer)
+  return round(Int, N / 2 - ncenter / 2 + 1, RoundDown):round(
+    Int, N / 2 + ncenter / 2, RoundDown
+  )
+end
 
 # Get the closest infinite MPS approximation to the finite MPS
-function infinitemps_approx(ψ::MPS;
-                            nsites = 1,
-                            nrange = default_middle_range(length(ψ), nsites),
-                            nsweeps = 10,
-                            outputlevel = 0)
+function infinitemps_approx(
+  ψ::MPS;
+  nsites=1,
+  nrange=default_middle_range(length(ψ), nsites),
+  nsweeps=10,
+  outputlevel=0,
+)
   N = length(ψ)
 
   # nsites are the number of site in the unit cell
@@ -29,13 +34,15 @@ function infinitemps_approx(ψ::MPS;
   site_tags = ITensors.commontags(siteinds(ψ))
 
   # The sites of the infinite MPS
-  A = InfiniteMPS([settags(s[nrange[n]], addtags(site_tags, "n=$n")) for n in 1:length(nrange)]; space = χ)
+  A = InfiniteMPS(
+    [settags(s[nrange[n]], addtags(site_tags, "n=$n")) for n in 1:length(nrange)]; space=χ
+  )
   randn!.(A)
   ψ∞ = orthogonalize(A, :)
 
   # Site indices of the infinite MPS
   # corresponding to those of the finite MPS
-  inf_range = -first(nrange) + 2:-first(nrange) + N + 1
+  inf_range = (-first(nrange) + 2):(-first(nrange) + N + 1)
 
   s∞ = [siteind(ψ∞, n) for n in inf_range]
 
@@ -67,16 +74,16 @@ function infinitemps_approx(ψ::MPS;
     TRR = TR * RN
     TRR = replaceinds(TRR, inds(TRR) => inds(RN))
 
-    L = OffsetVector(Vector{ITensor}(undef, N+1), -1)
-    R = OffsetVector(Vector{ITensor}(undef, N+1), -1)
+    L = OffsetVector(Vector{ITensor}(undef, N + 1), -1)
+    R = OffsetVector(Vector{ITensor}(undef, N + 1), -1)
     L[0] = L0
     R[N] = RN
 
     for n in 1:N
-      L[n] = L[n-1] * ψ∞.AL[inf_range[n]] * dag(ψ[n])
+      L[n] = L[n - 1] * ψ∞.AL[inf_range[n]] * dag(ψ[n])
     end
-    for n in reverse(0:N-1)
-      R[n] = R[n+1] * ψ∞.AR[inf_range[n+1]] * dag(ψ[n+1])
+    for n in reverse(0:(N - 1))
+      R[n] = R[n + 1] * ψ∞.AR[inf_range[n + 1]] * dag(ψ[n + 1])
     end
 
     AL = Vector{ITensor}(undef, nsites)
@@ -84,9 +91,9 @@ function infinitemps_approx(ψ::MPS;
     C = Vector{ITensor}(undef, nsites)
     for n′ in eachindex(nrange)
       n = nrange[n′]
-      C1 = L[n-1] * R[n-1]
+      C1 = L[n - 1] * R[n - 1]
       C2 = L[n] * R[n]
-      C12 = L[n-1] * dag(ψ[n]) * R[n]
+      C12 = L[n - 1] * dag(ψ[n]) * R[n]
       U, P = polar(C12 * dag(C2), uniqueinds(C12, C2))
       u = commoninds(U, P)
       U = noprime(U, u)
@@ -101,9 +108,8 @@ function infinitemps_approx(ψ::MPS;
     ψ∞ = InfiniteCanonicalMPS(ψL, ψC, ψR)
     # This is a measure of the overlap
     if outputlevel > 0
-      @show abs(λL0)^(1/N), abs(λRN)^(1/N)
+      @show abs(λL0)^(1 / N), abs(λRN)^(1 / N)
     end
   end
   return ψ∞
 end
-

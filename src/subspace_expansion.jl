@@ -21,8 +21,12 @@ function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; kwar
   NL *= dag(U)
   NR *= dag(V)
 
-  ALⁿ¹, l = ITensors.directsum(ψ.AL[n1], dag(NL), uniqueinds(ψ.AL[n1], NL), uniqueinds(NL, ψ.AL[n1]); tags=("Left",))
-  ARⁿ², r = ITensors.directsum(ψ.AR[n2], dag(NR), uniqueinds(ψ.AR[n2], NR), uniqueinds(NR, ψ.AR[n2]); tags=("Right",))
+  ALⁿ¹, l = ITensors.directsum(
+    ψ.AL[n1], dag(NL), uniqueinds(ψ.AL[n1], NL), uniqueinds(NL, ψ.AL[n1]); tags=("Left",)
+  )
+  ARⁿ², r = ITensors.directsum(
+    ψ.AR[n2], dag(NR), uniqueinds(ψ.AR[n2], NR), uniqueinds(NR, ψ.AR[n2]); tags=("Right",)
+  )
 
   C = ITensor(dag(l)..., dag(r)...)
   ψCⁿ¹ = permute(ψ.C[n1], lⁿ¹..., rⁿ¹...)
@@ -94,4 +98,3 @@ function subspace_expansion(ψ, H; kwargs...)
   end
   return ψ
 end
-

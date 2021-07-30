@@ -16,4 +16,3 @@ end
 ## InfiniteSumLocalOps(N::Int) = InfiniteSumLocalOps(Vector{ITensor}(undef, N))
 ## InfiniteSumLocalOps(data::Vector{ITensor}) = InfiniteSumLocalOps(CelledVector(data))
 ## getindex(l::InfiniteSumLocalOps, n::Integer) = ITensors.data(l)[n]
-

@@ -97,6 +97,5 @@ function InfMPS(s::CelledVector, f::Function)
     ψCₙ[l[n]... => 1, r[n]... => 1] = 1.0
     ψC[n] = ψCₙ
   end
-  ψ = InfiniteCanonicalMPS(ψL, ψC, ψR)
+  return ψ = InfiniteCanonicalMPS(ψL, ψC, ψR)
 end
-

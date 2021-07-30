@@ -14,13 +14,9 @@ using IterTools
 using ITensors.NDTensors: eachdiagblock
 using KrylovKit: eigsolve, linsolve
 
-import Base:
-  getindex,
-  length,
-  setindex!
+import Base: getindex, length, setindex!
 
-import ITensors:
-  AbstractMPS
+import ITensors: AbstractMPS
 
 include("ITensors.jl")
 include("ITensorNetworks.jl")
@@ -37,8 +33,7 @@ include("nullspace.jl")
 include("subspace_expansion.jl")
 include("vumps_localham.jl")
 
-export
-  Cell,
+export Cell,
   CelledVector,
   InfiniteMPS,
   InfiniteCanonicalMPS,
@@ -64,7 +59,7 @@ export
 
 function __init__()
   # This is used for debugging using visualizations
-  @require ITensorsVisualization="f2aed53d-2f32-47c3-a7b9-1ee253853786" @eval using ITensorsVisualization
+  @require ITensorsVisualization = "f2aed53d-2f32-47c3-a7b9-1ee253853786" @eval using ITensorsVisualization
 end
 
 end

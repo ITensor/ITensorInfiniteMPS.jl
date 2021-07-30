@@ -3,7 +3,7 @@ Model(model::Symbol) = Model{model}()
 Model(model::String) = Model{Symbol(model)}()
 
 macro Model_str(s)
-  :(Model{$(Expr(:quote, Symbol(s)))})
+  return :(Model{$(Expr(:quote, Symbol(s)))})
 end
 
 # Create an infinite sum of Hamiltonian terms
@@ -14,7 +14,7 @@ end
 function ITensorInfiniteMPS.InfiniteITensorSum(model::Model, s::CelledVector; kwargs...)
   N = length(s)
   H = InfiniteITensorSum(N)
-  tensors = [ITensor(model, s[n], s[n+1]; kwargs...) for n in 1:N]
+  tensors = [ITensor(model, s[n], s[n + 1]; kwargs...) for n in 1:N]
   return InfiniteITensorSum(tensors)
 end
 
@@ -33,8 +33,8 @@ end
 function ITensors.MPO(::Model{:ising}, s; J, h)
   N = length(s)
   a = OpSum()
-  for n in 1:N-1
-    a .+= -J, "X", n, "X", n+1
+  for n in 1:(N - 1)
+    a .+= -J, "X", n, "X", n + 1
   end
   for n in 1:N
     a .+= -h, "Z", n

@@ -28,7 +28,7 @@ sweeps = Sweeps(20)
 setmaxdim!(sweeps, 1)
 setcutoff!(sweeps, 1E-10)
 energy_finite, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
-@show energy_finite/Nfinite
+@show energy_finite / Nfinite
 
 # Form the Hamiltonian
 Σ∞h = InfiniteITensorSum(model, s; model_kwargs...)
@@ -75,6 +75,3 @@ energy_infinite = energy(ψ.AL[1], ψ.AL[2] * ψ.C[2], Σ∞h[(1, 2)])
 @show expect(ψfinite[nfinite + 1], "Sz")
 @show expect(ψ[1], "Sz")
 @show expect(ψ[2], "Sz")
-
-
-

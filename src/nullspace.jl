@@ -128,4 +128,3 @@ function LinearAlgebra.nullspace(T::ITensor, is...; kwargs...)
   N₂ = nullspace(Order(2), M, cL, cR; kwargs...)
   return N₂ * CR
 end
-

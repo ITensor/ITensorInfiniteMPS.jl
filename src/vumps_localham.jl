@@ -36,7 +36,8 @@ function Base.:*(H::Hᶜ, v::ITensor)
   δʳ⁺¹ = δ(r[n + 1], r′[n + 1])
   Hᶜᴸv = v * Hᴸ[n] * dag(δʳ)
   Hᶜᴿv = v * δˡ * Hᴿ[n]
-  Hᶜʰv = v * ψ.AL[n] * δˡ⁻¹ * ψ′.AL[n] * ∑h[(n, n + 1)] * ψ.AR[n + 1] * dag(δʳ⁺¹) * ψ′.AR[n + 1]
+  Hᶜʰv =
+    v * ψ.AL[n] * δˡ⁻¹ * ψ′.AL[n] * ∑h[(n, n + 1)] * ψ.AR[n + 1] * dag(δʳ⁺¹) * ψ′.AR[n + 1]
   Hᶜv = Hᶜᴸv + Hᶜʰv + Hᶜᴿv
   return Hᶜv * dag(δˡ) * δʳ
 end
@@ -139,7 +140,9 @@ function right_environment_recursive(hᴿ, ψ; niter=10)
   return Hᴿ
 end
 
-function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; environment_iterations=10)
+function vumps_iteration(
+  ∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; environment_iterations=10
+)
   Nsites = nsites(ψ)
   ψᴴ = dag(ψ)
   ψ′ = ψᴴ'
@@ -151,11 +154,27 @@ function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; env
   r = CelledVector([commoninds(ψ.AR[n], ψ.AR[n + 1]) for n in 1:Nsites])
   r′ = CelledVector([commoninds(ψ′.AR[n], ψ′.AR[n + 1]) for n in 1:Nsites])
 
-  hᴸ = InfiniteMPS([δ(only(l[n - 2]), only(l′[n - 2])) * ψ.AL[n - 1] * ψ.AL[n] * ∑h[(n - 1, n)] * ψ′.AL[n - 1] * ψ′.AL[n] for n in 1:Nsites])
+  hᴸ = InfiniteMPS([
+    δ(only(l[n - 2]), only(l′[n - 2])) *
+    ψ.AL[n - 1] *
+    ψ.AL[n] *
+    ∑h[(n - 1, n)] *
+    ψ′.AL[n - 1] *
+    ψ′.AL[n] for n in 1:Nsites
+  ])
 
-  hᴿ = InfiniteMPS([δ(only(dag(r[n + 2])), only(dag(r′[n + 2]))) * ψ.AR[n + 2] * ψ.AR[n + 1] * ∑h[(n + 1, n + 2)] * ψ′.AR[n + 2] * ψ′.AR[n + 1] for n in 1:Nsites])
+  hᴿ = InfiniteMPS([
+    δ(only(dag(r[n + 2])), only(dag(r′[n + 2]))) *
+    ψ.AR[n + 2] *
+    ψ.AR[n + 1] *
+    ∑h[(n + 1, n + 2)] *
+    ψ′.AR[n + 2] *
+    ψ′.AR[n + 1] for n in 1:Nsites
+  ])
 
-  eᴸ = [(hᴸ[n] * ψ.C[n] * δ(only(dag(r[n])), only(dag(r′[n]))) * ψ′.C[n])[] for n in 1:Nsites]
+  eᴸ = [
+    (hᴸ[n] * ψ.C[n] * δ(only(dag(r[n])), only(dag(r′[n]))) * ψ′.C[n])[] for n in 1:Nsites
+  ]
   eᴿ = [(hᴿ[n] * ψ.C[n] * δ(only(l[n]), only(l′[n])) * ψ′.C[n])[] for n in 1:Nsites]
 
   for n in 1:Nsites
@@ -178,7 +197,9 @@ function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; env
 
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   for n in 1:Nsites
-    valsₙ, vecsₙ, infoₙ = eigsolve(Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.AL[n] * ψ.C[n], 1, :SR; ishermitian=true)
+    valsₙ, vecsₙ, infoₙ = eigsolve(
+      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.AL[n] * ψ.C[n], 1, :SR; ishermitian=true
+    )
     Ãᶜ[n] = vecsₙ[1]
   end
 
@@ -204,4 +225,3 @@ function vumps(∑h, ψ; niter=10, environment_iterations=10)
   end
   return ψ
 end
-
