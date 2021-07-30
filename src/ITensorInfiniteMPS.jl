@@ -1,5 +1,7 @@
 module ITensorInfiniteMPS
 
+# For `only`, which was introduced in Julia v1.4
+using Compat
 using ITensors
 # For optional ITensorsVisualization dependency.
 using Requires
