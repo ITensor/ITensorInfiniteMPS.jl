@@ -1,6 +1,7 @@
 using ITensors
 using ITensorInfiniteMPS
 using Test
+using Random
 
 # XXX: orthogonalize is broken right now
 ## @testset "ITensorInfiniteMPS.jl" begin
@@ -19,6 +20,8 @@ using Test
 ## end
 
 @testset "vumps" begin
+  Random.seed!(1234)
+
   N = 2
   model = Model"ising"()
   model_kwargs = (J=1.0, h=1.1)
@@ -100,7 +103,7 @@ using Test
   Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 
   @test energy1_finite ≈ energy1_infinite rtol = 1e-6
-  @test energy2_finite ≈ energy2_infinite rtol = 1e-7
+  @test energy2_finite ≈ energy2_infinite rtol = 1e-6
   @test Sz1_finite ≈ Sz2_finite rtol = 1e-8
   @test Sz1_infinite ≈ Sz2_infinite rtol = 1e-6
 end
