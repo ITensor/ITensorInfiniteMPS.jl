@@ -3,22 +3,6 @@ using ITensorInfiniteMPS
 using Test
 using Random
 
-# XXX: orthogonalize is broken right now
-## @testset "ITensorInfiniteMPS.jl" begin
-##   @testset "Mixed canonical gauge" begin
-##     N = 10
-##     s = siteinds("S=1/2", N; conserve_szparity=true)
-##     χ = 6
-##     @test iseven(χ)
-##     space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
-##     ψ = InfiniteMPS(ComplexF64, s; space=space)
-##     randn!.(ψ)
-## 
-##     ψ = orthogonalize(ψ, :)
-##     @test prod(ψ.AL[1:N]) * ψ.C[N] ≈ ψ.C[0] * prod(ψ.AR[1:N])
-##   end
-## end
-
 @testset "vumps" begin
   Random.seed!(1234)
 
@@ -102,8 +86,25 @@ using Random
   Sz1_infinite = expect(ψ.AL[1] * ψ.C[1], "Sz")
   Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 
-  @test energy1_finite ≈ energy1_infinite rtol = 1e-6
-  @test energy2_finite ≈ energy2_infinite rtol = 1e-6
-  @test Sz1_finite ≈ Sz2_finite rtol = 1e-8
-  @test Sz1_infinite ≈ Sz2_infinite rtol = 1e-6
+  @test energy1_finite ≈ energy1_infinite rtol = 1e-4
+  @test energy2_finite ≈ energy2_infinite rtol = 1e-4
+  @test Sz1_finite ≈ Sz2_finite rtol = 1e-5
+  @test Sz1_infinite ≈ Sz2_infinite rtol = 1e-5
 end
+
+# XXX: orthogonalize is broken right now
+## @testset "ITensorInfiniteMPS.jl" begin
+##   @testset "Mixed canonical gauge" begin
+##     N = 10
+##     s = siteinds("S=1/2", N; conserve_szparity=true)
+##     χ = 6
+##     @test iseven(χ)
+##     space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
+##     ψ = InfiniteMPS(ComplexF64, s; space=space)
+##     randn!.(ψ)
+## 
+##     ψ = orthogonalize(ψ, :)
+##     @test prod(ψ.AL[1:N]) * ψ.C[N] ≈ ψ.C[0] * prod(ψ.AR[1:N])
+##   end
+## end
+
