@@ -35,7 +35,9 @@ outputlevel = 1
 environment_iterations = 30 # Number of iterations used to sum up the Hamiltonian terms (summing a geometric series with a recursive formula, one term at a time)
 vumps_iters = 30 # Number of VUMPS iterations at a given bond dimension
 outer_iters = 3 # Number of times to increase the bond dimension then run vumps_iters VUMPS iterations
-vumps_kwargs = (environment_iterations=environment_iterations, niter=vumps_iters, outputlevel=outputlevel)
+vumps_kwargs = (
+  environment_iterations=environment_iterations, niter=vumps_iters, outputlevel=outputlevel
+)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
 # For now, to increase the bond dimension you must alternate

@@ -53,7 +53,7 @@ using Test
   end
 
   # Check translational invariance
-  @test contract(ψ.AL[1:N]..., ψ.C[N]) ≈ contract(ψ.C[0], ψ.AR[1:N]...) rtol=1e-7
+  @test contract(ψ.AL[1:N]..., ψ.C[N]) ≈ contract(ψ.C[0], ψ.AR[1:N]...) rtol = 1e-7
 
   #
   # Compare to DMRG
@@ -99,9 +99,8 @@ using Test
   Sz1_infinite = expect(ψ.AL[1] * ψ.C[1], "Sz")
   Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 
-  @test energy1_finite ≈ energy1_infinite rtol=1e-6
-  @test energy2_finite ≈ energy2_infinite rtol=1e-7
-  @test Sz1_finite ≈ Sz2_finite rtol=1e-8
-  @test Sz1_infinite ≈ Sz2_infinite rtol=1e-6
+  @test energy1_finite ≈ energy1_infinite rtol = 1e-6
+  @test energy2_finite ≈ energy2_infinite rtol = 1e-7
+  @test Sz1_finite ≈ Sz2_finite rtol = 1e-8
+  @test Sz1_infinite ≈ Sz2_infinite rtol = 1e-6
 end
-
