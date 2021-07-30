@@ -158,9 +158,6 @@ function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; env
   eᴸ = [(hᴸ[n] * ψ.C[n] * δ(only(dag(r[n])), only(dag(r′[n]))) * ψ′.C[n])[] for n in 1:Nsites]
   eᴿ = [(hᴿ[n] * ψ.C[n] * δ(only(l[n]), only(l′[n])) * ψ′.C[n])[] for n in 1:Nsites]
 
-  @show eᴸ
-  @show eᴿ
-
   for n in 1:Nsites
     # TODO: use these instead, for now can't subtract
     # BlockSparse and DiagBlockSparse tensors
@@ -172,24 +169,16 @@ function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; env
 
   Hᴸ = left_environment_recursive(hᴸ, ψ; niter=environment_iterations)
   Hᴿ = right_environment_recursive(hᴿ, ψ; niter=environment_iterations)
-  for n in 1:Nsites
-    @show tr(Hᴸ[n] * ψ.C[n] * ψ′.C[n])
-    @show tr(Hᴿ[n] * ψ.C[n] * ψ′.C[n])
-  end
 
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  println("C")
   for n in 1:Nsites
     valsₙ, vecsₙ, infoₙ = eigsolve(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.C[n], 1, :SR; ishermitian=true)
-    @show n, valsₙ[1]
     C̃[n] = vecsₙ[1]
   end
 
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  println("Aᶜ")
   for n in 1:Nsites
     valsₙ, vecsₙ, infoₙ = eigsolve(Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.AL[n] * ψ.C[n], 1, :SR; ishermitian=true)
-    @show n, valsₙ[1]
     Ãᶜ[n] = vecsₙ[1]
   end
 
@@ -200,18 +189,18 @@ function vumps_iteration(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; env
     Ãᴿⁿ, _ = polar(Ãᶜ[n] * dag(C̃[n - 1]), uniqueinds(Ãᶜ[n], C̃[n - 1]))
     Ãᴸⁿ = noprime(Ãᴸⁿ)
     Ãᴿⁿ = noprime(Ãᴿⁿ)
-    @show tr(dag(Ãᴸⁿ) * Ãᶜ[n] * dag(C̃[n]));
-    @show tr(dag(Ãᴿⁿ) * Ãᶜ[n] * dag(C̃[n - 1]));
     Ãᴸ[n] = Ãᴸⁿ
     Ãᴿ[n] = Ãᴿⁿ
   end
-  return InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ)
+  return InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ), (eᴸ, eᴿ)
 end
 
 function vumps(∑h, ψ; niter=10, environment_iterations=10)
+  N = nsites(ψ)
   for iter in 1:niter
-    println("\nIteration $iter of $niter")
-    ψ = vumps_iteration(∑h, ψ; environment_iterations=environment_iterations)
+    ψ, (eᴸ, eᴿ) = vumps_iteration(∑h, ψ; environment_iterations=environment_iterations)
+    maxdimψ = maxlinkdim(ψ[0:(N + 1)])
+    println("VUMPS iteration $iter of $niter. Bond dimension = $maxdimψ, energy = ", eᴸ)
   end
   return ψ
 end

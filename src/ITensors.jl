@@ -149,7 +149,6 @@ ITensors.noncommoninds(A::ITensor) = inds(A)
 function Base.sqrt(T::ITensor; ishermitian = true, atol=1e-15)
   @assert ishermitian
   if isdiag(T) && order(T) == 2
-    @show T
     return itensor(sqrt(tensor(T)))
   end
   U′, D, Uᴴ = eigendecomp(T; ishermitian = ishermitian)

@@ -67,11 +67,9 @@ function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; kwar
   C = (C * dag(CL)) * dag(CR)
 
   # TODO: delete or only print when verbose
-  ψ₂ = ψ.AL[n1] * ψ.C[n1] * ψ.AR[n2]
-  ψ̃₂ = ALⁿ¹ * C * ARⁿ²
-  local_energy(ψ, H) = (noprime(ψ * H) * dag(ψ))[]
-  @show local_energy(ψ₂, H[(n1, n2)])
-  @show local_energy(ψ̃₂, H[(n1, n2)])
+  ## ψ₂ = ψ.AL[n1] * ψ.C[n1] * ψ.AR[n2]
+  ## ψ̃₂ = ALⁿ¹ * C * ARⁿ²
+  ## local_energy(ψ, H) = (noprime(ψ * H) * dag(ψ))[]
 
   return (ALⁿ¹, ALⁿ²), C, (ARⁿ¹, ARⁿ²)
 end

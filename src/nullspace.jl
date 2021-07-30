@@ -14,15 +14,15 @@ end
 insert_diag_blocks!(T::ITensor) = insert_diag_blocks!(tensor(T))
 
 # Reshape into an order-2 ITensor
-combine(::Order{2}, T::ITensor, inds::Index...) = combine(Order(2), T, inds)
+matricize(T::ITensor, inds::Index...) = matricize(T, inds)
 
-function combine(::Order{2}, T::ITensor, inds)
+function matricize(T::ITensor, inds)
   left_inds = commoninds(T, inds)
   right_inds = uniqueinds(T, inds)
-  return combine(T, left_inds, right_inds)
+  return matricize(T, left_inds, right_inds)
 end
 
-function combine(T::ITensor, left_inds, right_inds)
+function matricize(T::ITensor, left_inds, right_inds)
   CL = combiner(left_inds; dir=ITensors.Out, tags="CL")
   CR = combiner(right_inds; dir=ITensors.In, tags="CR")
   M = (T * CL) * CR
@@ -121,7 +121,7 @@ function LinearAlgebra.nullspace(::Order{2}, M::ITensor, left_inds, right_inds; 
 end
 
 function LinearAlgebra.nullspace(T::ITensor, is...; kwargs...)
-  M, CL, CR = combine(Order(2), T, is...)
+  M, CL, CR = matricize(T, is...)
   @assert order(M) == 2
   cL = commoninds(M, CL)
   cR = commoninds(M, CR)
