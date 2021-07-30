@@ -47,7 +47,7 @@ end
 input_inds(T::ITensorMap) = T.input_inds
 output_inds(T::ITensorMap) = T.output_inds
 
-function ITensorMap(tensors::Vector{<: ITensor})
+function ITensorMap(tensors::Vector{<:ITensor})
   input_inds = filter(i -> plev(i) == 0, noncommoninds(tensors...))
   output_inds = dag(input_inds')
   return ITensorMap(tensors, input_inds, output_inds)
@@ -98,16 +98,17 @@ end
 # neighbors(ψ, ϕ, (1, N))
 # neighbors(ψ, ϕ, (2, N))
 # Transfer matrix made from two MPS: T|v⟩ -> |w⟩
-function ITensorMap(ψ::MPS, ϕ::MPS; input_inds = nothing, output_inds = nothing)
+function ITensorMap(ψ::MPS, ϕ::MPS; input_inds=nothing, output_inds=nothing)
   N = length(ψ)
   @assert length(ϕ) == N
   tensors::Vector{ITensor} = reverse(collect(Iterators.flatten(Iterators.zip(ψ, ϕ))))
   if isnothing(input_inds)
-    input_inds = unioninds(uniqueinds(ψ[N], ψ[N-1], ϕ[N]), uniqueinds(ϕ[N], ϕ[N-1], ψ[N]))
+    input_inds = unioninds(
+      uniqueinds(ψ[N], ψ[N - 1], ϕ[N]), uniqueinds(ϕ[N], ϕ[N - 1], ψ[N])
+    )
   end
   if isnothing(output_inds)
     output_inds = unioninds(uniqueinds(ψ[1], ψ[2], ϕ[1]), uniqueinds(ϕ[1], ϕ[2], ψ[1]))
   end
   return ITensorMap(tensors, input_inds, output_inds)
 end
-

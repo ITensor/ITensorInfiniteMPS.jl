@@ -1,25 +1,21 @@
 using ITensors
 using ITensorInfiniteMPS
 
-#InfiniteSumLocalOps <: AbstractMPS
-
 # H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ
 function ising_mpo(s; J, h)
   N = length(s)
   a = AutoMPO()
-  for n in 1:N-1
-    a .+= -J, "X", n, "X", n+1
+  for n in 1:(N - 1)
+    a .+= -J, "X", n, "X", n + 1
   end
   for n in 1:N
     a .+= -h, "Z", n
   end
-  H = MPO(a, s)
+  return H = MPO(a, s)
 end
 
 function ising_infinitempo_tensor(s⃗, l, r; J, h)
-  @show s⃗
   s = only(s⃗)
-  #h = emptyITensor(s', dag(s), l, r)
   dₗ = 3 # The link dimension of the TFI
   Hmat = fill(ITensor(s', dag(s)), dₗ, dₗ)
   Hmat[1, 1] = op("Id", s)
@@ -30,7 +26,7 @@ function ising_infinitempo_tensor(s⃗, l, r; J, h)
   Hmat[3, 1] = -h * op("Z", s)
   H = emptyITensor()
   for i in 1:dₗ, j in 1:dₗ
-    H += Hmat[i,j] * setelt(l => i) * setelt(r => j)
+    H += Hmat[i, j] * setelt(l => i) * setelt(r => j)
   end
   return H
 end
@@ -45,9 +41,9 @@ function ising_infinitempo(s; J, h)
   l¹ = [Index(3, "Link,l=$n,c=1") for n in 1:N]
   for n in 1:N
     # TODO: use a CelledVector here to make the code logic simpler
-    l¹ₙ = n == 1 ? replacetags(dag(l¹[N]), "c=1" => "c=0") : l¹[n-1]
+    l¹ₙ = n == 1 ? replacetags(dag(l¹[N]), "c=1" => "c=0") : l¹[n - 1]
     r¹ₙ = l¹[n]
-    H[n] = ising_infinitempo_tensor(s¹[n], l¹ₙ, r¹ₙ; J = J, h = h)
+    H[n] = ising_infinitempo_tensor(s¹[n], l¹ₙ, r¹ₙ; J=J, h=h)
   end
   return H
 end
@@ -62,12 +58,8 @@ ising_localop(s1, s2; kwargs...) = ising_localop(Index(s1), Index(s2); kwargs...
 function ising_infinitesumlocalops(s; J, h)
   N = length(s)
   H = InfiniteSumLocalOps(N)
-  @show s[1]
   s∞ = CelledVector(s)
-  @show s∞[1]
-  @show s∞[2]
-  @show s∞[3]
-  return InfiniteSumLocalOps([ising_localop(s∞[n], s∞[n+1]; J = J, h = h) for n in 1:N])
+  return InfiniteSumLocalOps([ising_localop(s∞[n], s∞[n + 1]; J=J, h=h) for n in 1:N])
 end
 
 let
@@ -76,14 +68,14 @@ let
 
   J = 1.0
   h = 1.5
-  H = ising_mpo(s; J = J, h = h)
+  H = ising_mpo(s; J=J, h=h)
   ψ0 = randomMPS(s)
 
   sweeps = Sweeps(10)
   maxdim!(sweeps, 10)
   cutoff!(sweeps, 1E-10)
   energy, ψ = dmrg(H, ψ0, sweeps)
-  @show energy/N
+  @show energy / N
 
   n1 = N ÷ 2
   n2 = n1 + 1
@@ -93,7 +85,7 @@ let
   println("\nFinite MPS energy on bond (n1, n2) = $((n1, n2))")
 
   ϕ12 = ψ[n1] * ψ[n2]
-  ham12 = ising_localop(s[n1], s[n2]; J = J, h = h)
+  ham12 = ising_localop(s[n1], s[n2]; J=J, h=h)
   @show (ϕ12 * ham12 * prime(dag(ϕ12), commoninds(ϕ12, ham12)))[]
 
   # Get an infinite MPS that approximates
@@ -101,7 +93,7 @@ let
   # `nsites` sets the number of sites in the unit
   # cell of the infinite MPS.
   nsites = 1
-  ψ∞ = infinitemps_approx(ψ; nsites = nsites, nsweeps = 10)
+  ψ∞ = infinitemps_approx(ψ; nsites=nsites, nsweeps=10)
 
   println("\nInfinite MPS energy on a few different bonds")
   println("Infinite MPS has unit cell of size $nsites")
@@ -113,35 +105,8 @@ let
     ϕ12 = ψ∞.AL[n1] * ψ∞.AL[n2] * ψ∞.C[n2]
     s1 = siteind(ψ∞, n1)
     s2 = siteind(ψ∞, n2)
-    ham12 = ising_localop(s1, s2; J = J, h = h)
+    ham12 = ising_localop(s1, s2; J=J, h=h)
     ϕ12ᴴ = prime(dag(ϕ12), commoninds(ϕ12, ham12))
     @show (ϕ12 * ham12 * ϕ12ᴴ)[] / norm(ϕ12)
   end
-
-#  s¹ = siteinds(ψ∞, Cell(1))
-#
-#  # Test computing the energy from an InfiniteMPO
-#  H∞ = ising_infinitempo(s¹; J = J, h = h)
-#  L = ITensorInfiniteMPS.left_environment(H∞, ψ∞.AL, ψ∞.C)
-#  R = ITensorInfiniteMPS.right_environment(H∞, ψ∞.AR, ψ∞.C)
-#  ϕ0 = ψ∞.C[1]
-#  Hϕ0 = noprime(L[1] * ϕ0 * R[1])
-#  @show (dag(ϕ0) * Hϕ0)[]
-#
-#  ϕ1 = ψ∞.AL[1] * ψ∞.C[1]
-#  Hϕ1 = noprime(L[0] * ϕ1 * H∞[1] * R[1])
-#  @show (dag(ϕ1) * Hϕ1)[]
-#  @show norm(ϕ1)
-#  @show norm(ϕ0)
-#
-#  # Test computing the expectation value of an infinite sum
-#  # of local operators
-#  # InfiniteSumLocalOps
-#  Σ∞h = ising_infinitesumlocalops(s¹; J = J, h = h)
-#  ψ12 = ψ∞.AL[1] * ψ∞.AL[2]
-#  h12 = Σ∞h[1]
-#  s12 = commoninds(ψ12, h12)
-#  @show ψ12 * h12 * prime(dag(ψ12), s12)
-
 end
-

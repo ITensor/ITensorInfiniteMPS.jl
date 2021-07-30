@@ -1,9 +1,7 @@
 
-export
-  eachneighborindex,
-  nnodes
+export eachneighborindex, nnodes
 
-const IndexSetNetwork = Vector{Dict{Int, IndexSet}}
+const IndexSetNetwork = Vector{Dict{Int,IndexSet}}
 
 IndexSetNetwork(n::Integer) = [eltype(IndexSetNetwork)() for _ in 1:n]
 
@@ -24,8 +22,7 @@ ITensors.inds(tn::ITensorNetwork) = tn.indsnetwork
 Base.getindex(tn::ITensorNetwork, i::Integer) = itensors(tn)[i]
 
 # TODO: should this update reverse(ij)?
-function Base.setindex!(isn::IndexSetNetwork, is::IndexSet,
-                        ij::Pair{<: Integer, <: Integer})
+function Base.setindex!(isn::IndexSetNetwork, is::IndexSet, ij::Pair{<:Integer,<:Integer})
   i, j = ij
   isn[i][j] = is
   #isn[j][i] = dag(is)
@@ -35,8 +32,9 @@ end
 # TODO: also update indsnetwork with the new indices
 Base.setindex!(tn::ITensorNetwork, t::ITensor, i::Integer) = (itensors(tn)[i] = t)
 
-setinds!(tn::ITensorNetwork, is::IndexSet, ij::Pair{<:Integer, <:Integer}) =
-  inds(tn)[ij] = is
+function setinds!(tn::ITensorNetwork, is::IndexSet, ij::Pair{<:Integer,<:Integer})
+  return inds(tn)[ij] = is
+end
 
 # Iteration iterates through the ITensors of the network
 Base.iterate(tn::ITensorNetwork, args...) = iterate(itensors(tn), args...)
@@ -54,14 +52,14 @@ eachlinkinds(isn::IndexSetNetwork, i::Integer) = values(isn[i])
 
 eachneighborindex(tn::ITensorNetwork, i::Integer) = eachneighborindex(inds(tn))
 
-function ITensorNetwork(tensors::Vector{<: ITensor})
+function ITensorNetwork(tensors::Vector{<:ITensor})
   N = length(tensors)
   indsnetwork = [eltype(IndexSetNetwork)() for n in 1:N]
   # Get the "link" indices
   # Determine the neighborhood of each node/tensor
   # through common indices
   for i in 1:N
-    for j in i+1:N
+    for j in (i + 1):N
       linkindsᵢⱼ = commoninds(tensors[i], tensors[j])
       if !isempty(linkindsᵢⱼ)
         indsnetwork[i][j] = linkindsᵢⱼ
@@ -76,15 +74,15 @@ function ITensorNetwork(tensors::Vector{<: ITensor})
   return ITensorNetwork(tensors, indsnetwork)
 end
 
-function Base.getindex(tn::IndexSetNetwork, ij::Pair{<:Integer, <:Integer})
+function Base.getindex(tn::IndexSetNetwork, ij::Pair{<:Integer,<:Integer})
   i, j = ij
   @assert j ∈ 1:nnodes(tn)
   return get(tn[i], j, IndexSet())
 end
 
-ITensors.inds(tn::ITensorNetwork, ij::Pair{<:Integer, <:Integer}) = inds(tn)[ij]
+ITensors.inds(tn::ITensorNetwork, ij::Pair{<:Integer,<:Integer}) = inds(tn)[ij]
 
-function ITensors.linkinds(tn::ITensorNetwork, ij::Pair{<:Integer, <:Integer})
+function ITensors.linkinds(tn::ITensorNetwork, ij::Pair{<:Integer,<:Integer})
   i, j = ij
   @assert i ≠ j
   return inds(tn, ij)
@@ -117,7 +115,7 @@ end
 # ITensors.jl extensions
 #
 
-ITensors.unioninds(is::Vector{<: IndexSet}) = unioninds(is...)
+ITensors.unioninds(is::Vector{<:IndexSet}) = unioninds(is...)
 
 Base.:*(tn::ITensorNetwork) = *(tn...)
 Base.:*(t::ITensor, tn::ITensorNetwork) = *(t, tn...)
@@ -164,9 +162,9 @@ end
 
 # Get all tensor pairs for a given number of tensors
 function tensor_pairs(n::Integer)
-  pairs = Pair{Int, Int}[]
-  for i in 1:n-1
-    for j in i+1:n
+  pairs = Pair{Int,Int}[]
+  for i in 1:(n - 1)
+    for j in (i + 1):n
       push!(pairs, i => j)
     end
   end
@@ -177,7 +175,9 @@ end
 # TODO: this isn't pruning repeats
 function each_contraction_sequence(n::Integer)
   Ts = Any[]
-  each_each_ab = Iterators.product((ITensorInfiniteMPS.tensor_pairs(n) for n in reverse(2:n))...)
+  each_each_ab = Iterators.product(
+    (ITensorInfiniteMPS.tensor_pairs(n) for n in reverse(2:n))...
+  )
   for each_ab in each_each_ab
     T = Any[1:n...]
     for ab in each_ab
@@ -189,7 +189,9 @@ function each_contraction_sequence(n::Integer)
 end
 
 each_contraction_sequence(tn::ITensorNetwork) = each_contraction_sequence(nnodes(tn))
-each_contraction_sequence(isn::Vector{<: Vector{<: Index}}) = each_contraction_sequence(length(isn))
+function each_contraction_sequence(isn::Vector{<:Vector{<:Index}})
+  return each_contraction_sequence(length(isn))
+end
 each_contraction_sequence(isn::IndexSetNetwork) = each_contraction_sequence(length(isn))
 
 #
@@ -203,24 +205,24 @@ contraction_cost(T1::ITensor, T2::ITensor) = contraction_cost(inds(T1), inds(T2)
 # Index[setdiff(inds(TN[1]), inds(TN[2]))..., setdiff(inds(TN[2]), inds(TN[1]))...]
 #
 
-function _intersect(A::Vector{IndexT}, B::Vector{IndexT}) where {IndexT <: Index}
+function _intersect(A::Vector{IndexT}, B::Vector{IndexT}) where {IndexT<:Index}
   R = IndexT[]
-  for a ∈ A
+  for a in A
     a ∈ B && push!(R, a)
   end
   return R
 end
 
-function _setdiff(A::Vector{IndexT}, B::Vector{IndexT}) where {IndexT <: Index}
+function _setdiff(A::Vector{IndexT}, B::Vector{IndexT}) where {IndexT<:Index}
   R = IndexT[]
-  for a ∈ A
+  for a in A
     a ∉ B && push!(R, a)
   end
   return R
 end
 
 # Faster symdiff
-function _symdiff(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT <: Index}
+function _symdiff(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT<:Index}
   setdiff12 = _setdiff(is1, is2)
   setdiff21 = _setdiff(is2, is1)
   display(setdiff12)
@@ -229,7 +231,7 @@ function _symdiff(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT <: Ind
 end
 
 # Return the noncommon indices and the cost of contraction
-function _contract_inds(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT <: Index}
+function _contract_inds(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT<:Index}
   N1 = length(is1)
   N2 = length(is2)
   Ncommon = 0
@@ -237,7 +239,7 @@ function _contract_inds(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT 
   is1_contracted = fill(false, N1)
   is2_contracted = fill(false, N2)
   # Determine the contracted indices
-  for (n1, i1) ∈ pairs(is1)
+  for (n1, i1) in pairs(is1)
     n2 = findfirst(==(i1), is2)
     if !isnothing(n2)
       Ncommon += 1
@@ -265,12 +267,12 @@ function _contract_inds(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT 
   return isR, cost
 end
 
-function _dim(is::Vector{<: Index})
+function _dim(is::Vector{<:Index})
   isempty(is) && return 1
   return mapreduce(dim, *, is)
 end
 
-function contraction_cost(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT <: Index}
+function contraction_cost(is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT<:Index}
   # 1.169417 s for N = 7 network
   #common_is = _intersect(is1, is2)
   #noncommon_is = _symdiff(is1, is2)
@@ -280,7 +282,9 @@ function contraction_cost(is1::Vector{IndexT}, is2::Vector{IndexT}) where {Index
   return _contract_inds(is1, is2)
 end
 
-function contraction_cost!(cost::Ref{Int}, is1::Vector{IndexT}, is2::Vector{IndexT}) where {IndexT <: Index}
+function contraction_cost!(
+  cost::Ref{Int}, is1::Vector{IndexT}, is2::Vector{IndexT}
+) where {IndexT<:Index}
   contracted_is, current_cost = contraction_cost(is1, is2)
   cost[] += current_cost
   return contracted_is
@@ -288,16 +292,17 @@ end
 
 contraction_cost!(cost::Ref{Int}, ::Vector{Union{}}, ::Vector{Union{}}) = (cost[] += 1)
 
-function contraction_cost!(cost::Ref{Int}, is::Vector{<: Vector{<: Index}}, n::Integer)
+function contraction_cost!(cost::Ref{Int}, is::Vector{<:Vector{<:Index}}, n::Integer)
   return is[n]
 end
 
-function contraction_cost!(cost::Ref{Int}, is::Vector{<: Vector{<: Index}}, sequence)
-  contraction_cost!(cost, contraction_cost!(cost, is, sequence[1]),
-                    contraction_cost!(cost, is, sequence[2]))
+function contraction_cost!(cost::Ref{Int}, is::Vector{<:Vector{<:Index}}, sequence)
+  return contraction_cost!(
+    cost, contraction_cost!(cost, is, sequence[1]), contraction_cost!(cost, is, sequence[2])
+  )
 end
 
-function contraction_cost(isn::Vector{<: Vector{<: Index}}, sequence)
+function contraction_cost(isn::Vector{<:Vector{<:Index}}, sequence)
   # TODO: use the network itself
   cost = Ref(0)
   contraction_cost!(cost, isn, sequence)
@@ -309,7 +314,7 @@ function contraction_cost(tn::ITensorNetwork, sequence)
 end
 
 # Return the optimal contraction sequence
-function optimal_contraction_sequence(isn::Vector{<: Vector{<: Index}})
+function optimal_contraction_sequence(isn::Vector{<:Vector{<:Index}})
   sequences = each_contraction_sequence(isn)
   contraction_costs = map(sequence -> contraction_cost(isn, sequence), sequences)
   mincost, minsequenceindex = findmin(contraction_costs)
@@ -325,4 +330,3 @@ function optimal_contraction_sequence(tn::ITensorNetwork)
   #return optimal_contraction_sequence(inds.(itensors(tn)))
   return optimal_contraction_sequence(collect.(inds.(itensors(tn))))
 end
-

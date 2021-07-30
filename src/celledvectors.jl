@@ -24,12 +24,12 @@ celltags(n1::Integer, n2::Integer) = TagSet(celltagprefix() * n1 * "|" * n2)
 # Determine the cell `n` from the tag `"c=n"`
 function getcell(ts::TagSet)
   celltag = tag_starting_with(ts, celltagprefix())
-  return parse(Int, celltag[length(celltagprefix())+1:end])
+  return parse(Int, celltag[(length(celltagprefix()) + 1):end])
 end
 
 function translatecell(ts::TagSet, n::Integer)
   ncell = getcell(ts)
-  return replacetags(ts, celltags(ncell) => celltags(ncell+n))
+  return replacetags(ts, celltags(ncell) => celltags(ncell + n))
 end
 
 function translatecell(i::Index, n::Integer)
@@ -42,13 +42,16 @@ function translatecell(is::Union{<:Tuple,<:Vector}, n::Integer)
   return translatecell.(is, n)
 end
 
-translatecell(T::ITensor, n::Integer) =
-  ITensors.setinds(T, translatecell(inds(T), n))
+translatecell(T::ITensor, n::Integer) = ITensors.setinds(T, translatecell(inds(T), n))
 
 struct CelledVector{T} <: AbstractVector{T}
   data::Vector{T}
 end
 ITensors.data(cv::CelledVector) = cv.data
+
+function CelledVector{T}(::UndefInitializer, n::Integer) where {T}
+  return CelledVector(Vector{T}(undef, n))
+end
 
 """
     celllength(cv::CelledVector)
@@ -91,14 +94,31 @@ translatecell(x, ::Integer) = x
 function getindex(cv::CelledVector, n::Int)
   cellₙ = cell(cv, n)
   siteₙ = cellindex(cv, n)
-  return translatecell(_getindex_cell1(cv, siteₙ), cellₙ-1)
+  return translatecell(_getindex_cell1(cv, siteₙ), cellₙ - 1)
 end
 
-function setindex!(cv::CelledVector, T::ITensor, n::Int)
+# Do we need this definition? Maybe uses generic Julia fallback
+#getindex(cv::CelledVector, r::AbstractRange) = [cv[n] for n in r]
+
+function Base.firstindex(cv::CelledVector, c::Cell)
+  return (c.cell - 1) * celllength(cv) + 1
+end
+
+function Base.lastindex(cv::CelledVector, c::Cell)
+  return c.cell * celllength(cv)
+end
+
+function Base.eachindex(cv::CelledVector, c::Cell)
+  return firstindex(cv, c):lastindex(cv, c)
+end
+
+getindex(cv::CelledVector, c::Cell) = cv[eachindex(cv, c)]
+
+function setindex!(cv::CelledVector, T, n::Int)
   cellₙ = cell(cv, n)
   siteₙ = cellindex(cv, n)
-  _setindex_cell1!(cv, translatecell(T, -(cellₙ-1)), siteₙ)
-  return ψ
+  _setindex_cell1!(cv, translatecell(T, -(cellₙ - 1)), siteₙ)
+  return cv
 end
 
 celltags(cell) = TagSet("c=$cell")
@@ -138,4 +158,3 @@ celltags(cell) = TagSet("c=$cell")
 #  cv.data[cell_indexₙ] = cv.f(val, -cellₙ + 2)
 #  return cv
 #end
-
