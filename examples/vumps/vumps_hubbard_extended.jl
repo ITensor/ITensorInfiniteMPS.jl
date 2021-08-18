@@ -19,7 +19,7 @@ initstate(n) = isodd(n) ? "↑" : "↓"
 ψ = InfMPS(s, initstate)
 
 model = Model"hubbard"()
-model_params = (t=1.0, U=8.0, V=0.0)
+model_params = (t=1.0, U=0.0, V=0.0)
 @show model, model_params
 
 # Form the Hamiltonian
@@ -32,8 +32,8 @@ println("\nCheck translational invariance of initial infinite MPS")
 cutoff = 1e-8
 maxdim = 100
 outputlevel = 1
-environment_iterations = 30 # Number of iterations used to sum up the Hamiltonian terms (summing a geometric series with a recursive formula, one term at a time)
-vumps_iters = 30 # Number of VUMPS iterations at a given bond dimension
+environment_iterations = 100 # Number of iterations used to sum up the Hamiltonian terms (summing a geometric series with a recursive formula, one term at a time)
+vumps_iters = 100 # Number of VUMPS iterations at a given bond dimension
 outer_iters = 3 # Number of times to increase the bond dimension then run vumps_iters VUMPS iterations
 vumps_kwargs = (
   environment_iterations=environment_iterations, niter=vumps_iters, outputlevel=outputlevel
@@ -93,8 +93,8 @@ Hfinite = MPO(model, sfinite; model_params...)
 ψfinite = randomMPS(sfinite, initstate; linkdims=10)
 println("\nQN sector of starting finite MPS")
 @show flux(ψfinite)
-sweeps = Sweeps(20)
-setmaxdim!(sweeps, 40)
+sweeps = Sweeps(30)
+setmaxdim!(sweeps, 2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 32, 32, 50)
 setcutoff!(sweeps, 1E-8)
 println("\nRun DMRG on $Nfinite sites")
 energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
