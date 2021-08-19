@@ -141,13 +141,52 @@ function (A::Aᴸ)(x)
   return xT + xR
 end
 
+struct Bᴸ
+  hᴸ::InfiniteMPS
+  ψ::InfiniteCanonicalMPS
+  n::Int
+end
+
+# Bᴸ = 1 - Aᴸ
+# Used for testing
+function (A::Bᴸ)(x)
+  hᴸ = A.hᴸ
+  ψ = A.ψ
+  ψ′ = dag(ψ)'
+  n = A.n
+
+  N = length(ψ)
+  @assert n == N
+
+  l = linkinds(only, ψ.AL)
+  l′ = linkinds(only, ψ′.AL)
+  r = linkinds(only, ψ.AR)
+  r′ = linkinds(only, ψ′.AR)
+
+  xT = translatecell(x, -1)
+  for k in 1:N
+    xT = xT * ψ.AL[k] * noprime(ψ′.AL[k], "Site")
+  end
+  δˡ = δ(l[n], l′[n])
+  δʳ = δ(r[n], r′[n])
+  xR = x * ψ.C[n] * ψ′.C[n] * dag(δʳ) * denseblocks(δˡ)
+  return x - xT - xR
+end
+
 function left_environment(hᴸ, ψ)
   ψ̃ = prime(linkinds, dag(ψ))
   # XXX: replace with `nsites`
   #N = nsites(ψ)
   N = length(ψ)
-  A = Aᴸ(hᴸ, ψ, N)
-  Hᴸᴺ¹, info = linsolve(A, hᴸ[N], 1, -1; tol=1e-10)
+
+  ## A = Aᴸ(hᴸ, ψ, N)
+  ## Hᴸᴺ¹, info = linsolve(A, hᴸ[N], 1, -1; tol=1e-15)
+
+  A = Bᴸ(hᴸ, ψ, N)
+  Hᴸᴺ¹, info = linsolve(A, hᴸ[N]; tol=1e-15)
+
+  @show info
+
   # Get the rest of the environments in the unit cell
   Hᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
   Hᴸ[N] = Hᴸᴺ¹

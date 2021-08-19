@@ -83,7 +83,7 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 ###################################################################
 # Test using linsolve to compute environment
 
-function test_left_environment(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS)
+function test_left_environment(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; niter)
   Nsites = nsites(ψ)
   ψᴴ = dag(ψ)
   ψ′ = ψᴴ'
@@ -127,8 +127,10 @@ function test_left_environment(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMP
     hᴿ[n] -= eᴿ[n] * denseblocks(δ(inds(hᴿ[n])))
   end
 
-  return hᴸ
+  Hᴸ_rec = ITensorInfiniteMPS.left_environment_recursive(hᴸ, ψ; niter=niter)
+  Hᴸ = ITensorInfiniteMPS.left_environment(hᴸ, ψ)
+  return Hᴸ, Hᴸ_rec
 end
 
-r = test_left_environment(H, ψ)
+Hᴸ, Hᴸ_rec = test_left_environment(H, ψ; niter=40)
 
