@@ -4,7 +4,7 @@ using ITensorInfiniteMPS.ITensors
 N = 2
 
 model = Model"ising"()
-model_kwargs = (J=1.0, h=1.1)
+model_kwargs = (J=1.0, h=1.0)
 
 function space_shifted(::Model"ising", q̃sz)
   return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
@@ -23,8 +23,8 @@ H = InfiniteITensorSum(model, s; model_kwargs...)
 
 cutoff = 1e-8
 maxdim = 100
-environment_iterations = 10
-niter = 10
+environment_iterations = 30
+niter = 30
 vumps_kwargs = (environment_iterations=environment_iterations, niter=niter)
 
 # Alternate steps of running VUMPS and increasing the bond dimension
@@ -33,8 +33,10 @@ vumps_kwargs = (environment_iterations=environment_iterations, niter=niter)
 ψ = vumps(H, ψ; vumps_kwargs...)
 ψ = subspace_expansion(ψ, H; cutoff=cutoff, maxdim=maxdim)
 ψ = vumps(H, ψ; vumps_kwargs...)
-#ψ = subspace_expansion(ψ, H; cutoff=cutoff, maxdim=maxdim)
-#ψ = vumps(H, ψ; vumps_kwargs...)
+ψ = subspace_expansion(ψ, H; cutoff=cutoff, maxdim=maxdim)
+ψ = vumps(H, ψ; vumps_kwargs...)
+ψ = subspace_expansion(ψ, H; cutoff=cutoff, maxdim=maxdim)
+ψ = vumps(H, ψ; vumps_kwargs...)
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
@@ -59,7 +61,7 @@ function energy(ψ1, ψ2, h)
   return (noprime(ϕ * h) * dag(ϕ))[]
 end
 
-function expect(ψ, o)
+function ITensors.expect(ψ, o)
   return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
 end
 
@@ -127,8 +129,29 @@ function test_left_environment(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMP
     hᴿ[n] -= eᴿ[n] * denseblocks(δ(inds(hᴿ[n])))
   end
 
-  Hᴸ = ITensorInfiniteMPS.left_environment(hᴸ, ψ)
+  ## # Compute endcaps as the sum of terms in the unit cell
+  ## hᴸᴺ¹ = hᴸ[Nsites]
+  ## hᴸᴺ¹ = translatecell(hᴸᴺ¹, -1)
+  ## for n in 1:Nsites
+  ##   hᴸᴺ¹ = hᴸᴺ¹ * ψ.AL[n] * ψ̃.AL[n]
+  ## end
+  ## # Loop over the Hamiltonian terms in the unit cell
+  ## for n in 1:Nsites
+  ##   hᴸⁿ = hᴸ[n]
+  ##   for k in (n + 1):Nsites
+  ##     hᴸⁿ = hᴸⁿ * ψ.AL[k] * ψ̃.AL[k]
+  ##   end
+  ##   hᴸᴺ¹ += hᴸⁿ
+  ## end
+  ## hᴸ[Nsites] = hᴸᴺ¹
+
+  @show hᴸ[1]
+  @show hᴸ[2]
+
   Hᴸ_rec = ITensorInfiniteMPS.left_environment_recursive(hᴸ, ψ; niter=niter)
+
+  hᴸ[2] = hᴸ[1] * ψ.AL[2] * ψ̃.AL[2] + hᴸ[2]
+  Hᴸ = ITensorInfiniteMPS.left_environment(hᴸ, ψ)
 
   @show norm(ITensorInfiniteMPS.Bᴸ(hᴸ, ψ, Nsites)(Hᴸ[Nsites]) - hᴸ[Nsites])
   @show norm(ITensorInfiniteMPS.Bᴸ(hᴸ, ψ, Nsites)(Hᴸ_rec[Nsites]) - hᴸ[Nsites])
@@ -143,7 +166,7 @@ function test_left_environment(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMP
   return Hᴸ, Hᴸ_rec
 end
 
-Hᴸ, Hᴸ_rec = test_left_environment(H, ψ; niter=40)
+#Hᴸ, Hᴸ_rec = test_left_environment(H, ψ; niter=40)
 
 nothing
 

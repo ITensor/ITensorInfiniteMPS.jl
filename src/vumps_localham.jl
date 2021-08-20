@@ -120,7 +120,9 @@ end
 function (A::Aᴸ)(x)
   hᴸ = A.hᴸ
   ψ = A.ψ
-  ψ′ = dag(ψ)'
+  ψᴴ = dag(ψ)
+  ψ′ = ψᴴ'
+  ψ̃ = prime(linkinds, ψᴴ)
   n = A.n
 
   N = length(ψ)
@@ -133,7 +135,7 @@ function (A::Aᴸ)(x)
 
   xT = translatecell(x, -1)
   for k in 1:N
-    xT = xT * ψ.AL[k] * noprime(ψ′.AL[k], "Site")
+    xT = xT * ψ.AL[k] * ψ̃.AL[k]
   end
   δˡ = δ(l[n], l′[n])
   δʳ = δ(r[n], r′[n])
@@ -152,7 +154,9 @@ end
 function (A::Bᴸ)(x)
   hᴸ = A.hᴸ
   ψ = A.ψ
-  ψ′ = dag(ψ)'
+  ψᴴ = dag(ψ)
+  ψ′ = ψᴴ'
+  ψ̃ = prime(linkinds, ψᴴ)
   n = A.n
 
   N = length(ψ)
@@ -165,7 +169,7 @@ function (A::Bᴸ)(x)
 
   xT = translatecell(x, -1)
   for k in 1:N
-    xT = xT * ψ.AL[k] * noprime(ψ′.AL[k], "Site")
+    xT = xT * ψ.AL[k] * ψ̃.AL[k]
   end
   δˡ = δ(l[n], l′[n])
   δʳ = δ(r[n], r′[n])
@@ -179,11 +183,11 @@ function left_environment(hᴸ, ψ)
   #N = nsites(ψ)
   N = length(ψ)
 
-  ## A = Aᴸ(hᴸ, ψ, N)
-  ## Hᴸᴺ¹, info = linsolve(A, hᴸ[N], 1, -1; tol=1e-15)
+  A = Aᴸ(hᴸ, ψ, N)
+  Hᴸᴺ¹, info = linsolve(A, hᴸ[N], 1, -1; tol=1e-15)
 
-  A = Bᴸ(hᴸ, ψ, N)
-  Hᴸᴺ¹, info = linsolve(A, hᴸ[N]; tol=1e-15)
+  ## A = Bᴸ(hᴸ, ψ, N)
+  ## Hᴸᴺ¹, info = linsolve(A, hᴸ[N]; tol=1e-15)
 
   @show info
 
@@ -227,6 +231,62 @@ function right_environment_recursive(hᴿ, ψ; niter=10)
   return Hᴿ
 end
 
+# Struct for use in linear system solver
+struct Aᴿ
+  hᴿ::InfiniteMPS
+  ψ::InfiniteCanonicalMPS
+  n::Int
+end
+
+function (A::Aᴿ)(x)
+  hᴿ = A.hᴿ
+  ψ = A.ψ
+  ψᴴ = dag(ψ)
+  ψ′ = ψᴴ'
+  ψ̃ = prime(linkinds, ψᴴ)
+  n = A.n
+
+  N = length(ψ)
+  @assert n == N
+
+  l = linkinds(only, ψ.AL)
+  l′ = linkinds(only, ψ′.AL)
+  r = linkinds(only, ψ.AR)
+  r′ = linkinds(only, ψ′.AR)
+
+  # XXX: modify for right environment
+  ## xT = translatecell(x, -1)
+  ## for k in 1:N
+  ##   xT = xT * ψ.AL[k] * ψ̃.AL[k]
+  ## end
+  ## δˡ = δ(l[n], l′[n])
+  ## δʳ = δ(r[n], r′[n])
+  ## xR = x * ψ.C[n] * ψ′.C[n] * dag(δʳ) * denseblocks(δˡ)
+  return xT + xR
+end
+
+function right_environment(hᴿ, ψ)
+  ψ̃ = prime(linkinds, dag(ψ))
+  # XXX: replace with `nsites`
+  #N = nsites(ψ)
+  N = length(ψ)
+
+  A = Aᴿ(hᴿ, ψ, N)
+  # XXX: modify for right environment
+  Hᴿᴺ¹, info = linsolve(A, hᴿ[N], 1, -1; tol=1e-15)
+
+  @show info
+
+  ## # Get the rest of the environments in the unit cell
+  ## Hᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
+  ## Hᴸ[N] = Hᴸᴺ¹
+  ## Hᴸᴺ¹ = translatecell(Hᴸᴺ¹, -1)
+  ## for n in 1:(N - 1)
+  ##   Hᴸ[n] = Hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
+  ## end
+  return Hᴿ
+end
+
 function vumps_iteration(
   ∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; environment_iterations=10
 )
@@ -236,6 +296,7 @@ function vumps_iteration(
   # XXX: make this prime the center sites
   ψ̃ = prime(linkinds, ψᴴ)
 
+  # TODO: replace with linkinds(ψ)
   l = CelledVector([commoninds(ψ.AL[n], ψ.AL[n + 1]) for n in 1:Nsites])
   l′ = CelledVector([commoninds(ψ′.AL[n], ψ′.AL[n + 1]) for n in 1:Nsites])
   r = CelledVector([commoninds(ψ.AR[n], ψ.AR[n + 1]) for n in 1:Nsites])
@@ -273,8 +334,12 @@ function vumps_iteration(
     hᴿ[n] -= eᴿ[n] * denseblocks(δ(inds(hᴿ[n])))
   end
 
-  #Hᴸ = left_environment(hᴸ, ψ)
-  Hᴸ = left_environment_recursive(hᴸ, ψ; niter=environment_iterations)
+  # Sum the Hamiltonian terms in the unit cell
+  for n in 2:Nsites
+    hᴸ[n] = hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
+  end
+
+  Hᴸ = left_environment(hᴸ, ψ)
   Hᴿ = right_environment_recursive(hᴿ, ψ; niter=environment_iterations)
 
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
