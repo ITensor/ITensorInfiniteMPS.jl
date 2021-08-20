@@ -127,10 +127,24 @@ function test_left_environment(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMP
     hᴿ[n] -= eᴿ[n] * denseblocks(δ(inds(hᴿ[n])))
   end
 
-  Hᴸ_rec = ITensorInfiniteMPS.left_environment_recursive(hᴸ, ψ; niter=niter)
   Hᴸ = ITensorInfiniteMPS.left_environment(hᴸ, ψ)
+  Hᴸ_rec = ITensorInfiniteMPS.left_environment_recursive(hᴸ, ψ; niter=niter)
+
+  @show norm(ITensorInfiniteMPS.Bᴸ(hᴸ, ψ, Nsites)(Hᴸ[Nsites]) - hᴸ[Nsites])
+  @show norm(ITensorInfiniteMPS.Bᴸ(hᴸ, ψ, Nsites)(Hᴸ_rec[Nsites]) - hᴸ[Nsites])
+
+  @show tr(Hᴸ[Nsites] * ψ.C[Nsites] * ψ′.C[Nsites])
+  @show tr(Hᴸ_rec[Nsites] * ψ.C[Nsites] * ψ′.C[Nsites])
+
+  @show Hᴸ[Nsites]
+  @show Hᴸ_rec[Nsites]
+  @show (Hᴸ[Nsites] - Hᴸ_rec[Nsites]) 
+
   return Hᴸ, Hᴸ_rec
 end
 
 Hᴸ, Hᴸ_rec = test_left_environment(H, ψ; niter=40)
+
+nothing
+
 
