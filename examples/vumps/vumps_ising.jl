@@ -1,10 +1,25 @@
 using ITensorInfiniteMPS
 using ITensorInfiniteMPS.ITensors
 
-N = 2
+##############################################################################
+# VUMPS parameters
+#
+
+maxdim = 30 # Maximum bond dimension
+cutoff = 1e-8 # Singular value cutoff when increasing the bond dimension
+max_vumps_iters = 100 # Maximum number of iterations of the VUMPS algorithm at a fixed bond dimension
+outer_iters = 5 # Number of times to increase the bond dimension
+
+# Parameters of the transverse field Ising model
+model_kwargs = (J=1.0, h=1.0)
+
+##############################################################################
+# CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
+#
+
+N = 2 # Number of sites in the unit cell
 
 model = Model"ising"()
-model_kwargs = (J=1.0, h=1.1)
 
 function space_shifted(::Model"ising", q̃sz)
   return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
@@ -21,20 +36,17 @@ H = InfiniteITensorSum(model, s; model_kwargs...)
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
-cutoff = 1e-8
-maxdim = 100
-environment_iterations = 20
-niter = 20
-vumps_kwargs = (environment_iterations=environment_iterations, niter=niter)
+vumps_kwargs = (tol=1e-8, maxiter=max_vumps_iters)
+subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
+ψ = vumps(H, ψ; vumps_kwargs...)
 
 # Alternate steps of running VUMPS and increasing the bond dimension
-ψ = vumps(H, ψ; vumps_kwargs...)
-ψ = subspace_expansion(ψ, H; cutoff=cutoff, maxdim=maxdim)
-ψ = vumps(H, ψ; vumps_kwargs...)
-ψ = subspace_expansion(ψ, H; cutoff=cutoff, maxdim=maxdim)
-ψ = vumps(H, ψ; vumps_kwargs...)
-ψ = subspace_expansion(ψ, H; cutoff=cutoff, maxdim=maxdim)
-ψ = vumps(H, ψ; vumps_kwargs...)
+for _ in 1:outer_iters
+  println("\nIncrease bond dimension")
+  global ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
+  println("Run VUMPS with new bond dimension")
+  global ψ = vumps(H, ψ; vumps_kwargs...)
+end
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
@@ -43,14 +55,14 @@ vumps_kwargs = (environment_iterations=environment_iterations, niter=niter)
 # Compare to DMRG
 #
 
-Nfinite = 100
+Nfinite = 50
 sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite; model_kwargs...)
 ψfinite = randomMPS(sfinite, initstate)
 @show flux(ψfinite)
-sweeps = Sweeps(20)
-setmaxdim!(sweeps, 10)
-setcutoff!(sweeps, 1E-10)
+sweeps = Sweeps(15)
+setmaxdim!(sweeps, maxdim)
+setcutoff!(sweeps, cutoff)
 energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
 @show energy_finite_total / Nfinite
 
@@ -59,7 +71,7 @@ function energy(ψ1, ψ2, h)
   return (noprime(ϕ * h) * dag(ϕ))[]
 end
 
-function expect(ψ, o)
+function ITensors.expect(ψ, o)
   return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
 end
 

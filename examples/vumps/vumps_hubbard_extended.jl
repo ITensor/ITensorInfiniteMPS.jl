@@ -1,8 +1,22 @@
 using ITensors
 using ITensorInfiniteMPS
 
-# Unit cell size
-N = 2
+##############################################################################
+# VUMPS parameters
+#
+
+maxdim = 30 # Maximum bond dimension
+cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
+max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
+outer_iters = 5 # Number of times to increase the bond dimension
+
+model_params = (t=1.0, U=12.0, V=0.0)
+
+##############################################################################
+# CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
+#
+
+N = 2 # Unit cell size
 
 function electron_space_shift(q̃nf, q̃sz)
   return [
@@ -19,7 +33,6 @@ initstate(n) = isodd(n) ? "↑" : "↓"
 ψ = InfMPS(s, initstate)
 
 model = Model"hubbard"()
-model_params = (t=1.0, U=8.0, V=0.0)
 @show model, model_params
 
 # Form the Hamiltonian
@@ -29,15 +42,8 @@ H = InfiniteITensorSum(model, s; model_params...)
 println("\nCheck translational invariance of initial infinite MPS")
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
-cutoff = 1e-8
-maxdim = 100
 outputlevel = 1
-environment_iterations = 30 # Number of iterations used to sum up the Hamiltonian terms (summing a geometric series with a recursive formula, one term at a time)
-vumps_iters = 30 # Number of VUMPS iterations at a given bond dimension
-outer_iters = 3 # Number of times to increase the bond dimension then run vumps_iters VUMPS iterations
-vumps_kwargs = (
-  environment_iterations=environment_iterations, niter=vumps_iters, outputlevel=outputlevel
-)
+vumps_kwargs = (tol=1e-8, maxiter=max_vumps_iters, outputlevel=outputlevel)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
 # For now, to increase the bond dimension you must alternate
@@ -93,9 +99,12 @@ Hfinite = MPO(model, sfinite; model_params...)
 ψfinite = randomMPS(sfinite, initstate; linkdims=10)
 println("\nQN sector of starting finite MPS")
 @show flux(ψfinite)
-sweeps = Sweeps(20)
-setmaxdim!(sweeps, 40)
-setcutoff!(sweeps, 1E-8)
+sweeps = Sweeps(30)
+maxdims =
+  min.(maxdim, [2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 32, 32, 50])
+@show maxdims
+setmaxdim!(sweeps, maxdims...)
+setcutoff!(sweeps, cutoff)
 println("\nRun DMRG on $Nfinite sites")
 energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
 println("\nEnergy density")
