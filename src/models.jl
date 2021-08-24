@@ -102,3 +102,16 @@ function ITensors.OpSum(::Model{:heisenberg}, n1, n2)
   opsum += "Sz", n1, "Sz", n2
   return opsum
 end
+
+# H = Σⱼ (½ S⁺ⱼS⁻ⱼ₊₁ + ½ S⁻ⱼS⁺ⱼ₊₁ + SᶻⱼSᶻⱼ₊₁)
+function ITensors.MPO(::Model{:heisenberg}, s)
+  N = length(s)
+  os = OpSum()
+  for j in 1:(N - 1)
+    os .+= 0.5, "S+", j, "S-", j + 1
+    os .+= 0.5, "S-", j, "S+", j + 1
+    os .+= "Sz", j, "Sz", j + 1
+  end
+  return MPO(os, s)
+end
+

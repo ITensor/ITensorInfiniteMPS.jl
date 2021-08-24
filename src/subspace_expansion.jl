@@ -3,10 +3,20 @@ function replaceind_indval(IV::Tuple, iĩ::Pair)
   return ntuple(n -> first(IV[n]) == i ? ĩ => last(IV[n]) : IV[n], length(IV))
 end
 
-function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; kwargs...)
+function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxdim, kwargs...)
   n1, n2 = b
   lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
   rⁿ¹ = commoninds(ψ.AR[n2], ψ.C[n1])
+
+  dˡ = dim(lⁿ¹)
+  dʳ = dim(rⁿ¹)
+  @assert dˡ == dʳ
+  if dˡ ≥ maxdim
+    println("Current bond dimension at bond $b is $dˡ while desired maximum dimension is $maxdim, skipping bond dimension increase")
+    return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
+  end
+  maxdim -= dˡ
+
   # Returns `NL` such that `norm(ψ.AL[n1] * NL) ≈ 0`
   NL = nullspace(ψ.AL[n1], lⁿ¹; atol=1e-15)
   NR = nullspace(ψ.AR[n2], rⁿ¹; atol=1e-15)
@@ -17,7 +27,7 @@ function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; kwar
   ψH2 = noprime(ψ.AL[n1] * H[(n1, n2)] * ψ.C[n1] * ψ.AR[n2])
   ψHN2 = ψH2 * NL * NR
 
-  U, S, V = svd(ψHN2, nL; kwargs...)
+  U, S, V = svd(ψHN2, nL; maxdim=maxdim, kwargs...)
   NL *= dag(U)
   NR *= dag(V)
 

@@ -19,7 +19,7 @@ initstate(n) = isodd(n) ? "↑" : "↓"
 ψ = InfMPS(s, initstate)
 
 model = Model"hubbard"()
-model_params = (t=1.0, U=12.0, V=0.0)
+model_params = (t=1.0, U=0.0, V=0.0)
 @show model, model_params
 
 # Form the Hamiltonian
@@ -32,11 +32,11 @@ println("\nCheck translational invariance of initial infinite MPS")
 cutoff = 1e-8
 maxdim = 10
 outputlevel = 1
-environment_iterations = 100 # Number of iterations used to sum up the Hamiltonian terms (summing a geometric series with a recursive formula, one term at a time)
-vumps_iters = 100 # Number of VUMPS iterations at a given bond dimension
-outer_iters = 4 # Number of times to increase the bond dimension then run vumps_iters VUMPS iterations
+tol = 1e-8
+vumps_iters = 200 # Number of VUMPS iterations at a given bond dimension
+outer_iters = 5 # Number of times to increase the bond dimension then run vumps_iters VUMPS iterations
 vumps_kwargs = (
-  environment_iterations=environment_iterations, niter=vumps_iters, outputlevel=outputlevel
+  tol=tol, maxiter=vumps_iters, outputlevel=outputlevel
 )
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 

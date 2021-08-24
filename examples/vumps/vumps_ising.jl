@@ -4,7 +4,7 @@ using ITensorInfiniteMPS.ITensors
 N = 2
 
 model = Model"ising"()
-model_kwargs = (J=1.0, h=0.95)
+model_kwargs = (J=1.0, h=1.0)
 
 function space_shifted(::Model"ising", q̃sz)
   return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
@@ -22,12 +22,12 @@ H = InfiniteITensorSum(model, s; model_kwargs...)
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
 cutoff = 1e-8
-maxdim = 10
-environment_iterations = 20
-niter = 20
-outer_iters = 4
-vumps_kwargs = (environment_iterations=environment_iterations, niter=niter)
+maxdim = 20
+maxiter = 100
+outer_iters = 5
+vumps_kwargs = (tol=1e-8, maxiter=maxiter)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
+ψ = vumps(H, ψ; vumps_kwargs...)
 
 # Alternate steps of running VUMPS and increasing the bond dimension
 for _ in 1:outer_iters
@@ -50,8 +50,8 @@ Hfinite = MPO(model, sfinite; model_kwargs...)
 ψfinite = randomMPS(sfinite, initstate)
 @show flux(ψfinite)
 sweeps = Sweeps(15)
-setmaxdim!(sweeps, 10)
-setcutoff!(sweeps, 1E-10)
+setmaxdim!(sweeps, maxdim)
+setcutoff!(sweeps, cutoff)
 energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
 @show energy_finite_total / Nfinite
 
@@ -80,4 +80,3 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 
 @show Sz1_finite, Sz2_finite
 @show Sz1_infinite, Sz2_infinite
-
