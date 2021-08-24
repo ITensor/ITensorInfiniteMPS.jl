@@ -1,7 +1,20 @@
 using ITensors
 using ITensorInfiniteMPS
 
-N = 2
+##############################################################################
+# VUMPS parameters
+#
+
+maxdim = 30 # Maximum bond dimension
+cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
+max_vumps_iters = 100 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
+outer_iters = 6 # Number of times to increase the bond dimension
+
+##############################################################################
+# CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
+#
+
+N = 2 # Number of sites in the unit cell
 
 heisenberg_space_shift(q̃nf, q̃sz) = [QN("Sz", 1 - q̃sz) => 1, QN("Sz", -1 - q̃sz) => 1]
 
@@ -18,11 +31,7 @@ H = InfiniteITensorSum(model, s)
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
-cutoff = 1e-8
-maxdim = 20
-maxiter = 100
-outer_iters = 5
-vumps_kwargs = (tol=1e-8, maxiter=maxiter)
+vumps_kwargs = (tol=1e-8, maxiter=max_vumps_iters)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 ψ = vumps(H, ψ; vumps_kwargs...)
 

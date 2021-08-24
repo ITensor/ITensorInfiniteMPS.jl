@@ -3,7 +3,7 @@ function replaceind_indval(IV::Tuple, iĩ::Pair)
   return ntuple(n -> first(IV[n]) == i ? ĩ => last(IV[n]) : IV[n], length(IV))
 end
 
-function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxdim, kwargs...)
+function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxdim, cutoff, kwargs...)
   n1, n2 = b
   lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
   rⁿ¹ = commoninds(ψ.AR[n2], ψ.C[n1])
@@ -27,7 +27,8 @@ function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxd
   ψH2 = noprime(ψ.AL[n1] * H[(n1, n2)] * ψ.C[n1] * ψ.AR[n2])
   ψHN2 = ψH2 * NL * NR
 
-  U, S, V = svd(ψHN2, nL; maxdim=maxdim, kwargs...)
+  U, S, V = svd(ψHN2, nL; maxdim=maxdim, cutoff=cutoff, kwargs...)
+  @show S[end, end]
   NL *= dag(U)
   NR *= dag(V)
 
@@ -108,3 +109,4 @@ function subspace_expansion(ψ, H; kwargs...)
   end
   return ψ
 end
+

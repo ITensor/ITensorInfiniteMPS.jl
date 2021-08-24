@@ -1,8 +1,22 @@
 using ITensors
 using ITensorInfiniteMPS
 
-# Unit cell size
-N = 2
+##############################################################################
+# VUMPS parameters
+#
+
+maxdim = 30 # Maximum bond dimension
+cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
+max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
+outer_iters = 5 # Number of times to increase the bond dimension
+
+model_params = (t=1.0, U=12.0, V=0.0)
+
+##############################################################################
+# CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
+#
+
+N = 2 # Unit cell size
 
 function electron_space_shift(q̃nf, q̃sz)
   return [
@@ -19,7 +33,6 @@ initstate(n) = isodd(n) ? "↑" : "↓"
 ψ = InfMPS(s, initstate)
 
 model = Model"hubbard"()
-model_params = (t=1.0, U=0.0, V=0.0)
 @show model, model_params
 
 # Form the Hamiltonian
@@ -29,14 +42,9 @@ H = InfiniteITensorSum(model, s; model_params...)
 println("\nCheck translational invariance of initial infinite MPS")
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
-cutoff = 1e-8
-maxdim = 10
 outputlevel = 1
-tol = 1e-8
-vumps_iters = 200 # Number of VUMPS iterations at a given bond dimension
-outer_iters = 5 # Number of times to increase the bond dimension then run vumps_iters VUMPS iterations
 vumps_kwargs = (
-  tol=tol, maxiter=vumps_iters, outputlevel=outputlevel
+  tol=1e-8, maxiter=max_vumps_iters, outputlevel=outputlevel
 )
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
@@ -94,8 +102,10 @@ Hfinite = MPO(model, sfinite; model_params...)
 println("\nQN sector of starting finite MPS")
 @show flux(ψfinite)
 sweeps = Sweeps(30)
-setmaxdim!(sweeps, 2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 32, 32, 50)
-setcutoff!(sweeps, 1E-8)
+maxdims = min.(maxdim, [2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 32, 32, 50])
+@show maxdims
+setmaxdim!(sweeps, maxdims...)
+setcutoff!(sweeps, cutoff)
 println("\nRun DMRG on $Nfinite sites")
 energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
 println("\nEnergy density")
