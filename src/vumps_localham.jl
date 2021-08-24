@@ -401,7 +401,7 @@ function vumps(∑h, ψ; maxiter=10, tol=1e-8, outputlevel=1, multisite_update_a
               "VUMPS iteration $iter (out of maximum $maxiter). Bond dimension = $maxdimψ, energy = $((eᴸ, eᴿ)), ϵᵖʳᵉˢ = $ϵᵖʳᵉˢ, tol = $tol"
       )
     if ϵᵖʳᵉˢ < tol
-      println("Precision error $ϵᵖʳᵉˢ reached tolerance $tol, stopping VUMPS iterations.")
+      println("Precision error $ϵᵖʳᵉˢ reached tolerance $tol, stopping VUMPS after $iter iterations (of a maximum $maxiter).")
       break
     end
   end

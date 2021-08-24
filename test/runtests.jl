@@ -27,20 +27,21 @@ using Random
 
   cutoff = 1e-8
   maxdim = 100
-  environment_iterations = 20
-  niter = 20
+  tol = 1e-8
+  maxiter = 20
   outer_iters = 3
-  vumps_kwargs = (environment_iterations=environment_iterations, niter=niter, outputlevel=0)
+  vumps_kwargs = (tol=tol, maxiter=maxiter, outputlevel=0)
+  subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
   # Alternate steps of running VUMPS and increasing the bond dimension
   ψ = vumps(H, ψ; vumps_kwargs...)
   for _ in 1:outer_iters
-    ψ = subspace_expansion(ψ, H; cutoff=cutoff, maxdim=maxdim)
+    ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
     ψ = vumps(H, ψ; vumps_kwargs...)
   end
 
   # Check translational invariance
-  @test contract(ψ.AL[1:N]..., ψ.C[N]) ≈ contract(ψ.C[0], ψ.AR[1:N]...) rtol = 1e-7
+  @test contract(ψ.AL[1:N]..., ψ.C[N]) ≈ contract(ψ.C[0], ψ.AR[1:N]...) rtol = 1e-6
 
   #
   # Compare to DMRG
