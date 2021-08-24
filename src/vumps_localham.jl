@@ -140,41 +140,7 @@ function (A::Aᴸ)(x)
   δˡ = δ(l[n], l′[n])
   δʳ = δ(r[n], r′[n])
   xR = x * ψ.C[n] * ψ′.C[n] * dag(δʳ) * denseblocks(δˡ)
-  return xT + xR
-end
-
-struct Bᴸ
-  hᴸ::InfiniteMPS
-  ψ::InfiniteCanonicalMPS
-  n::Int
-end
-
-# Bᴸ = 1 - Aᴸ
-# Used for testing
-function (A::Bᴸ)(x)
-  hᴸ = A.hᴸ
-  ψ = A.ψ
-  ψᴴ = dag(ψ)
-  ψ′ = ψᴴ'
-  ψ̃ = prime(linkinds, ψᴴ)
-  n = A.n
-
-  N = length(ψ)
-  @assert n == N
-
-  l = linkinds(only, ψ.AL)
-  l′ = linkinds(only, ψ′.AL)
-  r = linkinds(only, ψ.AR)
-  r′ = linkinds(only, ψ′.AR)
-
-  xT = translatecell(x, -1)
-  for k in 1:N
-    xT = xT * ψ.AL[k] * ψ̃.AL[k]
-  end
-  δˡ = δ(l[n], l′[n])
-  δʳ = δ(r[n], r′[n])
-  xR = x * ψ.C[n] * ψ′.C[n] * dag(δʳ) * denseblocks(δˡ)
-  return x - xT - xR
+  return xT - xR
 end
 
 function left_environment(hᴸ, ψ)
@@ -185,9 +151,6 @@ function left_environment(hᴸ, ψ)
 
   A = Aᴸ(hᴸ, ψ, N)
   Hᴸᴺ¹, info = linsolve(A, hᴸ[N], 1, -1; tol=1e-15)
-
-  ## A = Bᴸ(hᴸ, ψ, N)
-  ## Hᴸᴺ¹, info = linsolve(A, hᴸ[N]; tol=1e-15)
 
   @show info
 
@@ -238,6 +201,7 @@ struct Aᴿ
   n::Int
 end
 
+# TODO: complete
 function (A::Aᴿ)(x)
   hᴿ = A.hᴿ
   ψ = A.ψ
@@ -254,17 +218,18 @@ function (A::Aᴿ)(x)
   r = linkinds(only, ψ.AR)
   r′ = linkinds(only, ψ′.AR)
 
-  # XXX: modify for right environment
-  ## xT = translatecell(x, -1)
-  ## for k in 1:N
-  ##   xT = xT * ψ.AL[k] * ψ̃.AL[k]
-  ## end
-  ## δˡ = δ(l[n], l′[n])
-  ## δʳ = δ(r[n], r′[n])
-  ## xR = x * ψ.C[n] * ψ′.C[n] * dag(δʳ) * denseblocks(δˡ)
-  return xT + xR
+  xT = x
+  for k in reverse(1:N)
+    xT = xT * ψ.AR[k] * ψ̃.AR[k]
+  end
+  xT = translatecell(xT, 1)
+  δˡ = δ(l[n], l′[n])
+  δʳ = δ(r[n], r′[n])
+  xR = x * ψ.C[n] * ψ′.C[n] * δˡ * denseblocks(dag(δʳ))
+  return xT - xR
 end
 
+# TODO: complete
 function right_environment(hᴿ, ψ)
   ψ̃ = prime(linkinds, dag(ψ))
   # XXX: replace with `nsites`
@@ -272,18 +237,16 @@ function right_environment(hᴿ, ψ)
   N = length(ψ)
 
   A = Aᴿ(hᴿ, ψ, N)
-  # XXX: modify for right environment
   Hᴿᴺ¹, info = linsolve(A, hᴿ[N], 1, -1; tol=1e-15)
 
   @show info
 
-  ## # Get the rest of the environments in the unit cell
-  ## Hᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
-  ## Hᴸ[N] = Hᴸᴺ¹
-  ## Hᴸᴺ¹ = translatecell(Hᴸᴺ¹, -1)
-  ## for n in 1:(N - 1)
-  ##   Hᴸ[n] = Hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
-  ## end
+  # Get the rest of the environments in the unit cell
+  Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
+  Hᴿ[N] = Hᴿᴺ¹
+  for n in reverse(1:(N - 1))
+    Hᴿ[n] = Hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
+  end
   return Hᴿ
 end
 
@@ -338,9 +301,12 @@ function vumps_iteration(
   for n in 2:Nsites
     hᴸ[n] = hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
   end
-
   Hᴸ = left_environment(hᴸ, ψ)
-  Hᴿ = right_environment_recursive(hᴿ, ψ; niter=environment_iterations)
+
+  for n in 2:Nsites
+    hᴿ[n] = hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
+  end
+  Hᴿ = right_environment(hᴿ, ψ)
 
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   for n in 1:Nsites
