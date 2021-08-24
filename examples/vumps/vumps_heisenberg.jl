@@ -90,4 +90,3 @@ orthogonalize!(ψfinite, nfinite + 1)
 Sz2_finite = expect(ψfinite[nfinite + 1], "Sz")
 
 @show Sz1_finite, Sz2_finite
-

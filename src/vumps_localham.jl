@@ -188,7 +188,9 @@ function vumps_iteration(args...; multisite_update_alg="sequential", kwargs...)
   elseif multisite_update_alg == "parallel"
     return vumps_iteration_parallel(args...; kwargs...)
   else
-    error("Multisite update algorithm multisite_update_alg = $multisite_update_alg not supported, use \"parallel\" or \"sequential\"")
+    error(
+      "Multisite update algorithm multisite_update_alg = $multisite_update_alg not supported, use \"parallel\" or \"sequential\"",
+    )
   end
 end
 
@@ -196,7 +198,7 @@ function vumps_iteration_sequential(
   ∑h::InfiniteITensorSum,
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
-  (ϵᴿ!)=fill(1e-15, nsites(ψ))
+  (ϵᴿ!)=fill(1e-15, nsites(ψ)),
 )
   Nsites = nsites(ψ)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
@@ -254,8 +256,12 @@ function vumps_iteration_sequential(
     end
     Hᴿ = right_environment(hᴿ, ψ; tol=krylov_tol)
 
-    Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = eigsolve(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), ψ.C[n - 1], 1, :SR; ishermitian=true, tol=krylov_tol)
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = eigsolve(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.C[n], 1, :SR; ishermitian=true, tol=krylov_tol)
+    Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = eigsolve(
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), ψ.C[n - 1], 1, :SR; ishermitian=true, tol=krylov_tol
+    )
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = eigsolve(
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.C[n], 1, :SR; ishermitian=true, tol=krylov_tol
+    )
     Avalsₙ, Avecsₙ, Ainfoₙ = eigsolve(
       Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.AL[n] * ψ.C[n], 1, :SR; ishermitian=true, tol=krylov_tol
     )
@@ -359,7 +365,9 @@ function vumps_iteration_parallel(
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   for n in 1:Nsites
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = eigsolve(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.C[n], 1, :SR; ishermitian=true, tol=krylov_tol)
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = eigsolve(
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.C[n], 1, :SR; ishermitian=true, tol=krylov_tol
+    )
     Avalsₙ, Avecsₙ, Ainfoₙ = eigsolve(
       Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.AL[n] * ψ.C[n], 1, :SR; ishermitian=true, tol=krylov_tol
     )
@@ -387,21 +395,27 @@ function vumps_iteration_parallel(
   return InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ), (eᴸ, eᴿ)
 end
 
-function vumps(∑h, ψ; maxiter=10, tol=1e-8, outputlevel=1, multisite_update_alg="sequential")
+function vumps(
+  ∑h, ψ; maxiter=10, tol=1e-8, outputlevel=1, multisite_update_alg="sequential"
+)
   N = nsites(ψ)
-  (ϵᴸ!)=fill(tol, nsites(ψ))
-  (ϵᴿ!)=fill(tol, nsites(ψ))
-  outputlevel > 0 && println("Running VUMPS with multisite_update_alg = $multisite_update_alg")
+  (ϵᴸ!) = fill(tol, nsites(ψ))
+  (ϵᴿ!) = fill(tol, nsites(ψ))
+  outputlevel > 0 &&
+    println("Running VUMPS with multisite_update_alg = $multisite_update_alg")
   for iter in 1:maxiter
-    ψ, (eᴸ, eᴿ) = vumps_iteration(∑h, ψ; (ϵᴸ!)=(ϵᴸ!), (ϵᴿ!)=(ϵᴿ!), multisite_update_alg=multisite_update_alg)
+    ψ, (eᴸ, eᴿ) = vumps_iteration(
+      ∑h, ψ; (ϵᴸ!)=(ϵᴸ!), (ϵᴿ!)=(ϵᴿ!), multisite_update_alg=multisite_update_alg
+    )
     ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
     maxdimψ = maxlinkdim(ψ[0:(N + 1)])
-    outputlevel > 0 &&
-      println(
-              "VUMPS iteration $iter (out of maximum $maxiter). Bond dimension = $maxdimψ, energy = $((eᴸ, eᴿ)), ϵᵖʳᵉˢ = $ϵᵖʳᵉˢ, tol = $tol"
-      )
+    outputlevel > 0 && println(
+      "VUMPS iteration $iter (out of maximum $maxiter). Bond dimension = $maxdimψ, energy = $((eᴸ, eᴿ)), ϵᵖʳᵉˢ = $ϵᵖʳᵉˢ, tol = $tol",
+    )
     if ϵᵖʳᵉˢ < tol
-      println("Precision error $ϵᵖʳᵉˢ reached tolerance $tol, stopping VUMPS after $iter iterations (of a maximum $maxiter).")
+      println(
+        "Precision error $ϵᵖʳᵉˢ reached tolerance $tol, stopping VUMPS after $iter iterations (of a maximum $maxiter).",
+      )
       break
     end
   end

@@ -43,9 +43,7 @@ println("\nCheck translational invariance of initial infinite MPS")
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
 outputlevel = 1
-vumps_kwargs = (
-  tol=1e-8, maxiter=max_vumps_iters, outputlevel=outputlevel
-)
+vumps_kwargs = (tol=1e-8, maxiter=max_vumps_iters, outputlevel=outputlevel)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
 # For now, to increase the bond dimension you must alternate
@@ -102,7 +100,8 @@ Hfinite = MPO(model, sfinite; model_params...)
 println("\nQN sector of starting finite MPS")
 @show flux(ψfinite)
 sweeps = Sweeps(30)
-maxdims = min.(maxdim, [2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 32, 32, 50])
+maxdims =
+  min.(maxdim, [2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 32, 32, 50])
 @show maxdims
 setmaxdim!(sweeps, maxdims...)
 setcutoff!(sweeps, cutoff)

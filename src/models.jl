@@ -114,4 +114,3 @@ function ITensors.MPO(::Model{:heisenberg}, s)
   end
   return MPO(os, s)
 end
-

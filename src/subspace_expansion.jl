@@ -3,7 +3,9 @@ function replaceind_indval(IV::Tuple, iĩ::Pair)
   return ntuple(n -> first(IV[n]) == i ? ĩ => last(IV[n]) : IV[n], length(IV))
 end
 
-function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxdim, cutoff, kwargs...)
+function subspace_expansion(
+  ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxdim, cutoff, kwargs...
+)
   n1, n2 = b
   lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
   rⁿ¹ = commoninds(ψ.AR[n2], ψ.C[n1])
@@ -12,7 +14,9 @@ function subspace_expansion(ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxd
   dʳ = dim(rⁿ¹)
   @assert dˡ == dʳ
   if dˡ ≥ maxdim
-    println("Current bond dimension at bond $b is $dˡ while desired maximum dimension is $maxdim, skipping bond dimension increase")
+    println(
+      "Current bond dimension at bond $b is $dˡ while desired maximum dimension is $maxdim, skipping bond dimension increase",
+    )
     return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
   end
   maxdim -= dˡ
@@ -109,4 +113,3 @@ function subspace_expansion(ψ, H; kwargs...)
   end
   return ψ
 end
-
