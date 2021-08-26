@@ -82,13 +82,11 @@ end
 
 # Struct for use in linear system solver
 struct Aᴸ
-  hᴸ::InfiniteMPS
   ψ::InfiniteCanonicalMPS
   n::Int
 end
 
 function (A::Aᴸ)(x)
-  hᴸ = A.hᴸ
   ψ = A.ψ
   ψᴴ = dag(ψ)
   ψ′ = ψᴴ'
@@ -96,7 +94,7 @@ function (A::Aᴸ)(x)
   n = A.n
 
   N = length(ψ)
-  @assert n == N
+  #@assert n == N
 
   l = linkinds(only, ψ.AL)
   l′ = linkinds(only, ψ′.AL)
@@ -104,7 +102,7 @@ function (A::Aᴸ)(x)
   r′ = linkinds(only, ψ′.AR)
 
   xT = translatecell(x, -1)
-  for k in 1:N
+  for k in (n - N + 1):n
     xT = xT * ψ.AL[k] * ψ̃.AL[k]
   end
   δˡ = δ(l[n], l′[n])
@@ -113,14 +111,12 @@ function (A::Aᴸ)(x)
   return xT - xR
 end
 
-function left_environment(hᴸ, ψ; tol=1e-15)
+function left_environment(hᴸ, 𝕙ᴸ, ψ; tol=1e-15)
   ψ̃ = prime(linkinds, dag(ψ))
-  # XXX: replace with `nsites`
-  #N = nsites(ψ)
-  N = length(ψ)
+  N = nsites(ψ)
 
-  A = Aᴸ(hᴸ, ψ, N)
-  Hᴸᴺ¹, info = linsolve(A, hᴸ[N], 1, -1; tol=tol)
+  Aᴺ = Aᴸ(ψ, N)
+  Hᴸᴺ¹, info = linsolve(Aᴺ, 𝕙ᴸ[N], 1, -1; tol=tol)
   # Get the rest of the environments in the unit cell
   Hᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
   Hᴸ[N] = Hᴸᴺ¹
@@ -128,6 +124,12 @@ function left_environment(hᴸ, ψ; tol=1e-15)
   for n in 1:(N - 1)
     Hᴸ[n] = Hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
   end
+  # Compute more accurate environments
+  # Not currently working
+  #for n in 1:(N - 1)
+  #  Aⁿ = Aᴸ(ψ, n)
+  #  Hᴸ[n], info = linsolve(Aⁿ, 𝕙ᴸ[n], Hᴸ[n], 1, -1; tol=tol)
+  #end
   return Hᴸ
 end
 
@@ -247,10 +249,24 @@ function vumps_iteration_sequential(
       hᴸ[k] -= eᴸ[k] * denseblocks(δ(inds(hᴸ[k])))
       hᴿ[k] -= eᴿ[k] * denseblocks(δ(inds(hᴿ[k])))
     end
-    for k in 2:Nsites
-      hᴸ[k] = hᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + hᴸ[k]
+
+    function left_environment_cell(ψ, ψ̃, hᴸ, n)
+      Nsites = nsites(ψ)
+      𝕙ᴸ = copy(hᴸ)
+      for k in reverse((n - Nsites + 2):n)
+        𝕙ᴸ[k] = 𝕙ᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + 𝕙ᴸ[k]
+      end
+      return 𝕙ᴸ[n]
     end
-    Hᴸ = left_environment(hᴸ, ψ; tol=krylov_tol)
+
+    #for k in 2:Nsites
+    #  hᴸ[k] = hᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + hᴸ[k]
+    #end
+    𝕙ᴸ = copy(hᴸ)
+    for k in 1:Nsites
+      𝕙ᴸ[k] = left_environment_cell(ψ, ψ̃, hᴸ, k)
+    end
+    Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=krylov_tol)
     for k in 2:Nsites
       hᴿ[k] = hᴿ[k + 1] * ψ.AR[k + 1] * ψ̃.AR[k + 1] + hᴿ[k]
     end
@@ -268,12 +284,20 @@ function vumps_iteration_sequential(
     C̃[n - 1] = Cvecsₙ₋₁[1]
     C̃[n] = Cvecsₙ[1]
     Ãᶜ[n] = Avecsₙ[1]
-    Ãᴸⁿ, X = polar(Ãᶜ[n] * dag(C̃[n]), uniqueinds(Ãᶜ[n], C̃[n]))
-    Ãᴿⁿ, _ = polar(Ãᶜ[n] * dag(C̃[n - 1]), uniqueinds(Ãᶜ[n], C̃[n - 1]))
-    Ãᴸⁿ = noprime(Ãᴸⁿ)
-    Ãᴿⁿ = noprime(Ãᴿⁿ)
-    Ãᴸ[n] = Ãᴸⁿ
-    Ãᴿ[n] = Ãᴿⁿ
+
+    function ortho_overlap(AC, C)
+      AL, _ = polar(AC * dag(C), uniqueinds(AC, C))
+      return noprime(AL)
+    end
+
+    function ortho_polar(AC, C)
+      UAC, _ = polar(AC, uniqueinds(AC, C))
+      UC, _ = polar(C, commoninds(C, AC))
+      return noprime(UAC) * noprime(dag(UC))
+    end
+
+    Ãᴸ[n] = ortho_polar(Ãᶜ[n], C̃[n])
+    Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n - 1])
 
     # Update state for next iteration
     #ψ = InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ)
