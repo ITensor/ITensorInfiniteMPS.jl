@@ -99,16 +99,33 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 #
 
 using KrylovKit
+using LinearAlgebra
 
 T = TransferMatrix(ψ.AL)
 Tᵀ = transpose(T)
 vⁱᴿ = randomITensor(dag(input_inds(T)))
 vⁱᴸ = randomITensor(dag(input_inds(Tᵀ)))
 
-neigs = 4
+neigs = 10
 tol = 1e-10
 λ⃗ᴿ, v⃗ᴿ, right_info = eigsolve(T, vⁱᴿ, neigs, :LM; tol=tol)
 λ⃗ᴸ, v⃗ᴸ, left_info = eigsolve(Tᵀ, vⁱᴸ, neigs, :LM; tol=tol)
 
+@show norm(T(v⃗ᴿ[1]) - λ⃗ᴿ[1] * v⃗ᴿ[1])
+@show norm(Tᵀ(v⃗ᴸ[1]) - λ⃗ᴸ[1] * v⃗ᴸ[1])
+
 @show λ⃗ᴿ
 @show λ⃗ᴸ
+
+# Full eigendecomposition
+
+Tfull = prod(T)
+DV = eigen(Tfull, input_inds(T), output_inds(T))
+
+@show norm(Tfull * DV.V - DV.Vt * DV.D)
+
+d = diag(array(DV.D))
+
+p = sortperm(d; by=abs, rev=true)
+@show p[1:neigs]
+@show d[p[1:neigs]]
