@@ -5,9 +5,9 @@ using ITensorInfiniteMPS.ITensors
 # VUMPS parameters
 #
 
-maxdim = 30 # Maximum bond dimension
-cutoff = 1e-8 # Singular value cutoff when increasing the bond dimension
-max_vumps_iters = 100 # Maximum number of iterations of the VUMPS algorithm at a fixed bond dimension
+maxdim = 20 # Maximum bond dimension
+cutoff = 1e-12 # Singular value cutoff when increasing the bond dimension
+max_vumps_iters = 50 # Maximum number of iterations of the VUMPS algorithm at a fixed bond dimension
 outer_iters = 5 # Number of times to increase the bond dimension
 
 # Parameters of the transverse field Ising model
@@ -36,12 +36,12 @@ H = InfiniteITensorSum(model, s; model_kwargs...)
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
-vumps_kwargs = (tol=1e-8, maxiter=max_vumps_iters)
+vumps_kwargs = (tol=1e-5, maxiter=max_vumps_iters)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 ψ = vumps(H, ψ; vumps_kwargs...)
 
 # Alternate steps of running VUMPS and increasing the bond dimension
-for _ in 1:outer_iters
+@time for _ in 1:outer_iters
   println("\nIncrease bond dimension")
   global ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
   println("Run VUMPS with new bond dimension")
@@ -55,15 +55,15 @@ end
 # Compare to DMRG
 #
 
-Nfinite = 50
+Nfinite = 100
 sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite; model_kwargs...)
 ψfinite = randomMPS(sfinite, initstate)
 @show flux(ψfinite)
-sweeps = Sweeps(15)
+sweeps = Sweeps(10)
 setmaxdim!(sweeps, maxdim)
 setcutoff!(sweeps, cutoff)
-energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
+energy_finite_total, ψfinite = @time dmrg(Hfinite, ψfinite, sweeps)
 @show energy_finite_total / Nfinite
 
 function energy(ψ1, ψ2, h)
@@ -74,6 +74,8 @@ end
 function ITensors.expect(ψ, o)
   return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
 end
+
+# Exact energy at criticality: 4/pi = 1.2732395447351628
 
 nfinite = Nfinite ÷ 2
 orthogonalize!(ψfinite, nfinite)
@@ -91,3 +93,23 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 
 @show Sz1_finite, Sz2_finite
 @show Sz1_infinite, Sz2_infinite
+
+##############################################################################
+# Compute eigenspace of the transfer matrix
+#
+
+using KrylovKit
+
+T = TransferMatrix(ψ.AL)
+Tᵀ = transpose(T)
+vⁱᴿ = randomITensor(dag(input_inds(T)))
+vⁱᴸ = randomITensor(dag(input_inds(Tᵀ)))
+
+neigs = 4
+tol = 1e-10
+λ⃗ᴿ, v⃗ᴿ, right_info = eigsolve(T, vⁱᴿ, neigs, :LM; tol=tol)
+λ⃗ᴸ, v⃗ᴸ, left_info = eigsolve(Tᵀ, vⁱᴸ, neigs, :LM; tol=tol)
+
+@show λ⃗ᴿ
+@show λ⃗ᴸ
+

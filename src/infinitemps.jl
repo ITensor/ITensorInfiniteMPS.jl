@@ -6,7 +6,7 @@
 # TODO: store the cell 1 as an MPS
 # Implement `getcell(::InfiniteMPS, n::Integer) -> MPS`
 mutable struct InfiniteMPS <: AbstractInfiniteMPS
-  data::Vector{ITensor}
+  data::CelledVector{ITensor}
   llim::Int #RealInfinity
   rlim::Int #RealInfinity
   reverse::Bool
@@ -43,7 +43,12 @@ function ITensors.prime(ψ::InfiniteCanonicalMPS, args...; kwargs...)
 end
 
 function ITensors.prime(f::typeof(linkinds), ψ::InfiniteCanonicalMPS, args...; kwargs...)
-  return fmap(x -> prime(f, x, args...; kwargs...), ψ)
+  # Doesn't prime ψ.C
+  #return fmap(x -> prime(f, x, args...; kwargs...), ψ)
+  AL = prime(linkinds, ψ.AL, args...; kwargs...)
+  C = prime(ψ.C, args...; kwargs...)
+  AR = prime(linkinds, ψ.AR, args...; kwargs...)
+  return InfiniteCanonicalMPS(AL, C, AR)
 end
 
 function ITensors.dag(ψ::InfiniteCanonicalMPS, args...; kwargs...)

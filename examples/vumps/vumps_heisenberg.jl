@@ -5,10 +5,10 @@ using ITensorInfiniteMPS
 # VUMPS parameters
 #
 
-maxdim = 30 # Maximum bond dimension
-cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
-max_vumps_iters = 100 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
-outer_iters = 6 # Number of times to increase the bond dimension
+maxdim = 64 # Maximum bond dimension
+cutoff = 1e-8 # Singular value cutoff when increasing the bond dimension
+max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
+outer_iters = 8 # Number of times to increase the bond dimension
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
@@ -68,7 +68,7 @@ energy_infinite = map(b -> expect_two_site(ψ, H[b], b), bs)
 # Compare to DMRG
 #
 
-Nfinite = 50
+Nfinite = 100
 sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite)
 ψfinite = randomMPS(sfinite, initstate)

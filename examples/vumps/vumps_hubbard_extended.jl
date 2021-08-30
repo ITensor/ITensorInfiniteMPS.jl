@@ -10,7 +10,7 @@ cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
 outer_iters = 5 # Number of times to increase the bond dimension
 
-model_params = (t=1.0, U=12.0, V=0.0)
+model_params = (t=1.0, U=0.0, V=0.0)
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
@@ -93,7 +93,7 @@ energy_infinite = map(b -> expect_two_site(ψ, H[b], b), bs)
 # Compare to DMRG
 #
 
-Nfinite = 40
+Nfinite = 100
 sfinite = siteinds("Electron", Nfinite; conserve_qns=true)
 Hfinite = MPO(model, sfinite; model_params...)
 ψfinite = randomMPS(sfinite, initstate; linkdims=10)

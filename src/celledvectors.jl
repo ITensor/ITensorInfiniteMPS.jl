@@ -49,6 +49,8 @@ struct CelledVector{T} <: AbstractVector{T}
 end
 ITensors.data(cv::CelledVector) = cv.data
 
+Base.convert(::Type{CelledVector{T}}, v::Vector) where {T} = CelledVector{T}(v)
+
 function CelledVector{T}(::UndefInitializer, n::Integer) where {T}
   return CelledVector(Vector{T}(undef, n))
 end
@@ -108,9 +110,13 @@ function Base.lastindex(cv::CelledVector, c::Cell)
   return c.cell * celllength(cv)
 end
 
-function Base.eachindex(cv::CelledVector, c::Cell)
+function Base.keys(cv::CelledVector, c::Cell)
   return firstindex(cv, c):lastindex(cv, c)
 end
+
+## function Base.eachindex(cv::CelledVector, c::Cell)
+##   return firstindex(cv, c):lastindex(cv, c)
+## end
 
 getindex(cv::CelledVector, c::Cell) = cv[eachindex(cv, c)]
 

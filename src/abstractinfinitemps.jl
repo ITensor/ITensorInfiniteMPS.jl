@@ -104,6 +104,14 @@ function setindex!(ψ::AbstractInfiniteMPS, T::ITensor, n::Int)
   return ψ
 end
 
+function Base.keys(ψ::AbstractInfiniteMPS, c::Cell)
+  return keys(ITensors.data(ψ), c)
+end
+
+function getindex(ψ::AbstractInfiniteMPS, c::Cell)
+  return ψ[eachindex(ψ, c)]
+end
+
 default_link_tags(left_or_right, n) = TagSet("Link,$left_or_right=$n")
 function default_link_tags(left_or_right, n, cell)
   return addtags(default_link_tags(left_or_right, n), celltags(cell))
