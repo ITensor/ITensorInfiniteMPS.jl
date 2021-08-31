@@ -130,7 +130,9 @@ v⃗ᴸ ./= sqrt.(N⃗)
 function proj(v⃗ᴸ, v⃗ᴿ, n)
   Lⁿ = v⃗ᴸ[n]
   Rⁿ = v⃗ᴿ[n]
-  return ITensorMap([translatecell(Lⁿ, 1), translatecell(Rⁿ, -1)]; input_inds=inds(Rⁿ), output_inds=inds(Lⁿ))
+  return ITensorMap(
+    [translatecell(Lⁿ, 1), translatecell(Rⁿ, -1)]; input_inds=inds(Rⁿ), output_inds=inds(Lⁿ)
+  )
 end
 
 P⃗ = [proj(v⃗ᴸ, v⃗ᴿ, n) for n in 1:neigs]

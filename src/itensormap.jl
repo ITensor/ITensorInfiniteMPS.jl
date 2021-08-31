@@ -62,13 +62,19 @@ struct ITensorMap <: AbstractITensorMap
   end
 end
 
-ITensorMap(itensors::Vector{ITensor}, input_inds, output_inds) = ITensorMap(itensors, true, input_inds, output_inds)
+function ITensorMap(itensors::Vector{ITensor}, input_inds, output_inds)
+  return ITensorMap(itensors, true, input_inds, output_inds)
+end
 
 function default_input_inds(itensors::Vector{ITensor})
   return filter(i -> plev(i) == 0, noncommoninds(itensors...))
 end
 
-function ITensorMap(itensors::Vector{ITensor}; input_inds=default_input_inds(itensors), output_inds=dag(input_inds'))
+function ITensorMap(
+  itensors::Vector{ITensor};
+  input_inds=default_input_inds(itensors),
+  output_inds=dag(input_inds'),
+)
   return ITensorMap(itensors, input_inds, output_inds)
 end
 
@@ -101,7 +107,9 @@ end
 #   return ITensorMap(itensors, input_inds, output_inds)
 # end
 
-set_scalar(T::ITensorMap, scalar::Number) = ITensorMap(T.itensors, scalar, input_inds(T), output_inds(T))
+function set_scalar(T::ITensorMap, scalar::Number)
+  return ITensorMap(T.itensors, scalar, input_inds(T), output_inds(T))
+end
 
 # Lazily scale by a scalar
 (T::ITensorMap * c::Number) = set_scalar(T, T.scalar * c)
@@ -162,5 +170,3 @@ end
 (M::ITensorMapSum * c::Number) = ITensorMapSum([m * c for m in M.itensormaps])
 (c::Number * M::ITensorMapSum) = M * c
 -(M::ITensorMapSum) = -1 * M
-
-

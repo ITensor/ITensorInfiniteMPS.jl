@@ -42,4 +42,3 @@ using Random
   @test MA⁻MB isa ITensorInfiniteMPS.ITensorMapSum
   @test MA⁻MB(v) ≈ noprime(A2 * A1 * v - B2 * B1 * v)
 end
-
