@@ -117,6 +117,31 @@ tol = 1e-10
 @show λ⃗ᴿ
 @show λ⃗ᴸ
 
+# Normalize the vectors
+N⃗ = [(translatecell(v⃗ᴸ[n], 1) * v⃗ᴿ[n])[] for n in 1:neigs]
+v⃗ᴿ ./= sqrt.(N⃗)
+v⃗ᴸ ./= sqrt.(N⃗)
+
+# Form a second starting vector orthogonal to v⃗ᴿ[1]
+# This doesn't work. TODO: project out v⃗ᴿ[1], v⃗ᴸ[1] from T
+#λ⃗ᴿ², v⃗ᴿ², right_info_2 = eigsolve(T, vⁱᴿ², neigs, :LM; tol=tol)
+
+# Projector onto the n-th eigenstate
+function proj(v⃗ᴸ, v⃗ᴿ, n)
+  Lⁿ = v⃗ᴸ[n]
+  Rⁿ = v⃗ᴿ[n]
+  return ITensorMap([translatecell(Lⁿ, 1), translatecell(Rⁿ, -1)]; input_inds=inds(Rⁿ), output_inds=inds(Lⁿ))
+end
+
+P⃗ = [proj(v⃗ᴸ, v⃗ᴿ, n) for n in 1:neigs]
+T⁻P = T - sum(P⃗)
+
+#vⁱᴿ² = vⁱᴿ - (translatecell(v⃗ᴸ[1], 1) * vⁱᴿ)[] / norm(v⃗ᴿ[1]) * v⃗ᴿ[1]
+#@show norm(dag(vⁱᴿ²) * v⃗ᴿ[1])
+
+λ⃗ᴾᴿ, v⃗ᴾᴿ, right_info = eigsolve(T⁻P, vⁱᴿ, neigs, :LM; tol=tol)
+@show λ⃗ᴾᴿ
+
 # Full eigendecomposition
 
 Tfull = prod(T)

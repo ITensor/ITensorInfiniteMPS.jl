@@ -16,7 +16,7 @@ using IterTools
 using ITensors.NDTensors: eachdiagblock
 using KrylovKit: eigsolve, linsolve
 
-import Base: getindex, length, setindex!
+import Base: getindex, length, setindex!, +, -, *
 
 import ITensors: AbstractMPS
 
