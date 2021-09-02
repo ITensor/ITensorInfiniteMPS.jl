@@ -70,3 +70,30 @@ function Base.getindex(l::InfiniteITensorSum, n1n2::Tuple{Int,Int})
   return l.data[n1]
 end
 nsites(h::InfiniteITensorSum) = length(l.data)
+
+## HDF5 support for the InfiniteCanonicalMPS type
+
+function HDF5.write(parent::Union{HDF5.File,HDF5.Group}, name::AbstractString, ψ::InfiniteCanonicalMPS)
+  g = create_group(parent, name)
+  attributes(g)["type"] = "InfiniteCanonicalMPS"
+  attributes(g)["version"] = 1
+  N = nsites(ψ)
+  write(g, "length", N)
+  for n in 1:N
+    write(g, "AL[$(n)]", ψ.AL[n])
+    write(g, "AR[$(n)]", ψ.AR[n])
+    write(g, "C[$(n)]", ψ.C[n])
+  end
+end
+
+function HDF5.read(parent::Union{HDF5.File,HDF5.Group}, name::AbstractString, ::Type{InfiniteCanonicalMPS})
+  g = open_group(parent, name)
+  if read(attributes(g)["type"]) != "InfiniteCanonicalMPS"
+    error("HDF5 group or file does not contain InfiniteCanonicalMPS data")
+  end
+  N = read(g, "length")
+  AL = InfiniteMPS([read(g, "AL[$(i)]", ITensor) for i in 1:N])
+  AR = InfiniteMPS([read(g, "AR[$(i)]", ITensor) for i in 1:N])
+  C = InfiniteMPS([read(g, "C[$(i)]", ITensor) for i in 1:N])
+  return InfiniteCanonicalMPS(AL, C, AR)
+end
