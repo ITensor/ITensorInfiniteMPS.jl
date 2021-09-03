@@ -171,4 +171,3 @@ p = sortperm(d; by=abs, rev=true)
 
 println("Error if ED with Arpack")
 @show d[p[1:neigs]] - λ⃗ᴿᴬ
-

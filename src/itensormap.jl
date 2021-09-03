@@ -186,4 +186,3 @@ function LinearAlgebra.mul!(y, A::AbstractITensorMap, x)
   y .= vec(array(yt))
   return y
 end
-
