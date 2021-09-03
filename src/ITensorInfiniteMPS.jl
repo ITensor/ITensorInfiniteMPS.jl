@@ -12,6 +12,8 @@ using LinearAlgebra
 # For indexing starting from something other than 0.
 using OffsetArrays
 using IterTools
+# For HDF5 support
+using HDF5
 
 using ITensors.NDTensors: eachdiagblock
 using KrylovKit: eigsolve, linsolve
