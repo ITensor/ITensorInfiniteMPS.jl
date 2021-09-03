@@ -73,7 +73,9 @@ nsites(h::InfiniteITensorSum) = length(l.data)
 
 ## HDF5 support for the InfiniteCanonicalMPS type
 
-function HDF5.write(parent::Union{HDF5.File,HDF5.Group}, name::AbstractString, ψ::InfiniteCanonicalMPS)
+function HDF5.write(
+  parent::Union{HDF5.File,HDF5.Group}, name::AbstractString, ψ::InfiniteCanonicalMPS
+)
   g = create_group(parent, name)
   attributes(g)["type"] = "InfiniteCanonicalMPS"
   attributes(g)["version"] = 1
@@ -86,7 +88,9 @@ function HDF5.write(parent::Union{HDF5.File,HDF5.Group}, name::AbstractString, �
   end
 end
 
-function HDF5.read(parent::Union{HDF5.File,HDF5.Group}, name::AbstractString, ::Type{InfiniteCanonicalMPS})
+function HDF5.read(
+  parent::Union{HDF5.File,HDF5.Group}, name::AbstractString, ::Type{InfiniteCanonicalMPS}
+)
   g = open_group(parent, name)
   if read(attributes(g)["type"]) != "InfiniteCanonicalMPS"
     error("HDF5 group or file does not contain InfiniteCanonicalMPS data")
