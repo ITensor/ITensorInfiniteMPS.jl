@@ -5,10 +5,10 @@ using ITensorInfiniteMPS.ITensors
 # VUMPS parameters
 #
 
-maxdim = 20 # Maximum bond dimension
+maxdim = 5 # Maximum bond dimension
 cutoff = 1e-12 # Singular value cutoff when increasing the bond dimension
-max_vumps_iters = 50 # Maximum number of iterations of the VUMPS algorithm at a fixed bond dimension
-outer_iters = 5 # Number of times to increase the bond dimension
+max_vumps_iters = 10 # Maximum number of iterations of the VUMPS algorithm at a fixed bond dimension
+outer_iters = 3 # Number of times to increase the bond dimension
 
 # Parameters of the transverse field Ising model
 model_kwargs = (J=1.0, h=1.0)
@@ -98,6 +98,7 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 # Compute eigenspace of the transfer matrix
 #
 
+using Arpack
 using KrylovKit
 using LinearAlgebra
 
@@ -116,9 +117,13 @@ tol = 1e-10
 
 @show λ⃗ᴿ
 @show λ⃗ᴸ
+@show flux.(v⃗ᴿ)
+
+neigs = length(v⃗ᴿ)
 
 # Normalize the vectors
 N⃗ = [(translatecell(v⃗ᴸ[n], 1) * v⃗ᴿ[n])[] for n in 1:neigs]
+
 v⃗ᴿ ./= sqrt.(N⃗)
 v⃗ᴸ ./= sqrt.(N⃗)
 
@@ -144,6 +149,13 @@ T⁻P = T - sum(P⃗)
 λ⃗ᴾᴿ, v⃗ᴾᴿ, right_info = eigsolve(T⁻P, vⁱᴿ, neigs, :LM; tol=tol)
 @show λ⃗ᴾᴿ
 
+vⁱᴿ⁻ᵈᵃᵗᵃ = vec(array(vⁱᴿ))
+λ⃗ᴿᴬ, v⃗ᴿ⁻ᵈᵃᵗᵃ = Arpack.eigs(T; v0=vⁱᴿ⁻ᵈᵃᵗᵃ, nev=neigs)
+v⃗ᴿᴬ = [itensor(v⃗ᴿ⁻ᵈᵃᵗᵃ[:, n], input_inds(T); tol=1e-14) for n in 1:length(λ⃗ᴿᴬ)]
+
+@show λ⃗ᴿᴬ
+@show flux.(v⃗ᴿᴬ)
+
 # Full eigendecomposition
 
 Tfull = prod(T)
@@ -156,3 +168,7 @@ d = diag(array(DV.D))
 p = sortperm(d; by=abs, rev=true)
 @show p[1:neigs]
 @show d[p[1:neigs]]
+
+println("Error if ED with Arpack")
+@show d[p[1:neigs]] - λ⃗ᴿᴬ
+

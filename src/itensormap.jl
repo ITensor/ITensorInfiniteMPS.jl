@@ -170,3 +170,20 @@ end
 (M::ITensorMapSum * c::Number) = ITensorMapSum([m * c for m in M.itensormaps])
 (c::Number * M::ITensorMapSum) = M * c
 -(M::ITensorMapSum) = -1 * M
+
+# Required by Arpack.eigs
+Base.size(T::AbstractITensorMap) = (dim(output_inds(T)), dim(input_inds(T)))
+LinearAlgebra.issymmetric(::AbstractITensorMap) = false
+# TODO: promote the element types of all of the ITensors
+# in the ITensorMap
+Base.eltype(T::AbstractITensorMap) = eltype(T.itensors[1])
+function LinearAlgebra.mul!(y, A::AbstractITensorMap, x)
+  xt = itensor(x, dag(input_inds(A)); tol=1e-15)
+  # XXX: something wrong with in-place ITensor
+  # contraction, not overwriting input data
+  yt = A(xt)
+  yt = permute(yt, input_inds(A))
+  y .= vec(array(yt))
+  return y
+end
+
