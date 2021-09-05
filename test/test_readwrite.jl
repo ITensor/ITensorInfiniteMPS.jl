@@ -1,6 +1,6 @@
 using ITensors
 using ITensorInfiniteMPS
-using HDF5
+using ITensorInfiniteMPS.HDF5
 using Test
 
 @testset "HDF5 Read and Write" begin
