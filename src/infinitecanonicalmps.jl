@@ -58,12 +58,25 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   N = length(A)
   l = CelledVector{indtype(A)}(undef, N)
   n = N
-  qn_ln = zero_qn(siteind(A, 1))
-  l[N] = Index([qn_ln => 1], default_link_tags("l", n, 1); dir=left_dir)
+  s = siteind(A, 1)
+  dim = if hasqns(s)
+    kwargs = (;dir=left_dir)
+    qn_ln = zero_qn(s)
+    [qn_ln => 1]
+  else
+    kwargs = (;)
+    1
+  end
+  l[N] = Index(dim, default_link_tags("l", n, 1); kwargs...)
   for n in 1:(N - 1)
     # TODO: is this correct?
-    qn_ln = (flux(A[n]) + qn_ln) * left_dir
-    l[n] = Index([qn_ln => 1], default_link_tags("l", n, 1); dir=left_dir)
+    dim = if hasqns(s)
+      qn_ln = (flux(A[n]) + qn_ln) * left_dir
+      [qn_ln => 1]
+    else
+      1
+    end
+    l[n] = Index(dim, default_link_tags("l", n, 1); kwargs...)
   end
   for n in 1:N
     A[n] = A[n] * onehot(l[n - 1] => 1) * onehot(dag(l[n]) => 1)
