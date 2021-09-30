@@ -95,6 +95,24 @@ function ITensors.MPO(::Model{:hubbard}, s; t, U, V)
   return MPO(opsum, s)
 end
 
+"""
+    energy_exact(::Model{:heisenberg}, n)
+
+Compute the analytic isotropic heisenberg chain ground energy for length `n`.
+Assumes the heisenberg model is defined with spin
+operators not pauli matrices (overall factor of 2 smaller). Taken from [1].
+
+[1] Nickel, Bernie. "Scaling corrections to the ground state energy
+of the spin-½ isotropic anti-ferromagnetic Heisenberg chain." Journal of
+Physics Communications 1.5 (2017): 055021
+"""
+function energy_exact(::Model{:heisenberg}, n)
+  E∞ = (0.5 - 2 * log(2)) * n
+  Eᶠⁱⁿⁱᵗᵉ = π^2 / (6n)
+  correction = 1 + 0.375 / log(n)^3
+  return (E∞ - Eᶠⁱⁿⁱᵗᵉ * correction) / 2
+end
+
 function ITensors.OpSum(::Model{:heisenberg}, n1, n2)
   opsum = OpSum()
   opsum += 0.5, "S+", n1, "S-", n2

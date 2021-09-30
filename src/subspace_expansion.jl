@@ -3,8 +3,11 @@ function replaceind_indval(IV::Tuple, iĩ::Pair)
   return ntuple(n -> first(IV[n]) == i ? ĩ => last(IV[n]) : IV[n], length(IV))
 end
 
+# atol controls the tolerance cutoff for determining which eigenvectors are in the null
+# space of the isometric MPS tensors. Setting to 1e-2 since we only want to keep
+# the eigenvectors corresponding to eigenvalues of approximately 1.
 function subspace_expansion(
-  ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxdim, cutoff, kwargs...
+  ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxdim, cutoff, atol=1e-2, kwargs...
 )
   n1, n2 = b
   lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
@@ -22,8 +25,8 @@ function subspace_expansion(
   maxdim -= dˡ
 
   # Returns `NL` such that `norm(ψ.AL[n1] * NL) ≈ 0`
-  NL = nullspace(ψ.AL[n1], lⁿ¹; atol=1e-15)
-  NR = nullspace(ψ.AR[n2], rⁿ¹; atol=1e-15)
+  NL = nullspace(ψ.AL[n1], lⁿ¹; atol=atol)
+  NR = nullspace(ψ.AR[n2], rⁿ¹; atol=atol)
 
   nL = uniqueinds(NL, ψ.AL[n1])
   nR = uniqueinds(NR, ψ.AR[n2])
@@ -32,6 +35,9 @@ function subspace_expansion(
   ψHN2 = ψH2 * NL * NR
 
   U, S, V = svd(ψHN2, nL; maxdim=maxdim, cutoff=cutoff, kwargs...)
+  if dim(S) == 0
+    return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
+  end
   @show S[end, end]
   NL *= dag(U)
   NR *= dag(V)

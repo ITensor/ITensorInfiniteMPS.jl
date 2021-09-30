@@ -8,10 +8,10 @@ using ITensorInfiniteMPS.ITensors
 maxdim = 5 # Maximum bond dimension
 cutoff = 1e-12 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 10 # Maximum number of iterations of the VUMPS algorithm at a fixed bond dimension
-outer_iters = 3 # Number of times to increase the bond dimension
+outer_iters = 10 # Number of times to increase the bond dimension
 
 # Parameters of the transverse field Ising model
-model_kwargs = (J=1.0, h=1.0)
+model_kwargs = (J=1.0, h=0.8)
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
