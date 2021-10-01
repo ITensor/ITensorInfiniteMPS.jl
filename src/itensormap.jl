@@ -66,6 +66,14 @@ function ITensorMap(itensors::Vector{ITensor}, input_inds, output_inds)
   return ITensorMap(itensors, true, input_inds, output_inds)
 end
 
+function (M1::ITensorMap * M2::ITensorMap)
+  # TODO: check the directions are correct
+  @assert output_inds(M2) == input_inds(M1)
+  return ITensorMap(
+    vcat(M1.itensors, M2.itensors), M1.scalar * M2.scalar, input_inds(M2), output_inds(M1)
+  )
+end
+
 function default_input_inds(itensors::Vector{ITensor})
   return filter(i -> plev(i) == 0, noncommoninds(itensors...))
 end
