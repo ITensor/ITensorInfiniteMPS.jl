@@ -4,14 +4,12 @@ using Random
 
 Random.seed!(1234)
 
-include("models.jl")
-
 N = 100
 s = siteinds("S=1/2", N)
 
 J = 1.0
 h = 1.5
-model = Model(:ising)
+model = Model("ising")
 H = MPO(model, s; J=J, h=h)
 ψ0 = randomMPS(s)
 

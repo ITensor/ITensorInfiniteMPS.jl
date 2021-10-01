@@ -6,9 +6,10 @@ using ITensorInfiniteMPS
 #
 
 maxdim = 64 # Maximum bond dimension
-cutoff = 1e-8 # Singular value cutoff when increasing the bond dimension
-max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
-outer_iters = 8 # Number of times to increase the bond dimension
+cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
+max_vumps_iters = 100 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
+vumps_tol = 1e-6
+outer_iters = 6 # Number of times to increase the bond dimension
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
@@ -23,7 +24,7 @@ s = infsiteinds("S=1/2", N; space=heisenberg_space)
 initstate(n) = isodd(n) ? "↑" : "↓"
 ψ = InfMPS(s, initstate)
 
-model = Model"heisenberg"()
+model = Model("heisenberg")
 
 # Form the Hamiltonian
 H = InfiniteITensorSum(model, s)
@@ -31,7 +32,7 @@ H = InfiniteITensorSum(model, s)
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
-vumps_kwargs = (tol=1e-8, maxiter=max_vumps_iters)
+vumps_kwargs = (tol=vumps_tol, maxiter=max_vumps_iters)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 ψ = vumps(H, ψ; vumps_kwargs...)
 
@@ -61,7 +62,10 @@ Sz = [expect(ψ, "Sz", n) for n in 1:N]
 bs = [(1, 2), (2, 3)]
 energy_infinite = map(b -> expect_two_site(ψ, H[b], b), bs)
 
+energy_exact = reference(model, Observable("energy"))
+
 @show energy_infinite
+@show energy_exact
 @show Sz
 
 #
@@ -71,13 +75,16 @@ energy_infinite = map(b -> expect_two_site(ψ, H[b], b), bs)
 Nfinite = 100
 sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite)
-ψfinite = randomMPS(sfinite, initstate)
+ψfinite = randomMPS(sfinite, initstate; linkdims=10)
 @show flux(ψfinite)
 sweeps = Sweeps(15)
 setmaxdim!(sweeps, maxdim)
 setcutoff!(sweeps, cutoff)
 energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
 @show energy_finite_total / Nfinite
+
+energy_exact_finite = reference(model, Observable("energy"); N=Nfinite)
+@show energy_exact_finite
 
 function ITensors.expect(ψ, o)
   return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]

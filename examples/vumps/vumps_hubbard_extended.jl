@@ -10,7 +10,7 @@ cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
 outer_iters = 5 # Number of times to increase the bond dimension
 
-model_params = (t=1.0, U=0.0, V=0.0)
+model_params = (t=1.0, U=10.0, V=0.0)
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
@@ -119,8 +119,11 @@ Nup_finite = ITensors.expect(ψfinite, "Nup")[nfinite:(nfinite + 1)]
 Ndn_finite = ITensors.expect(ψfinite, "Ndn")[nfinite:(nfinite + 1)]
 Sz_finite = ITensors.expect(ψfinite, "Sz")[nfinite:(nfinite + 1)]
 
+energy_exact = reference(model, Observable("energy"); U=model_params.U/model_params.t)
+
 println("\nResults from VUMPS")
 @show energy_infinite
+@show energy_exact
 @show Nup
 @show Ndn
 @show Nup .+ Ndn

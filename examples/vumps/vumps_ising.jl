@@ -11,7 +11,7 @@ max_vumps_iters = 10 # Maximum number of iterations of the VUMPS algorithm at a 
 outer_iters = 10 # Number of times to increase the bond dimension
 
 # Parameters of the transverse field Ising model
-model_kwargs = (J=1.0, h=0.8)
+model_params = (J=1.0, h=0.8)
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
@@ -31,7 +31,7 @@ initstate(n) = "↑"
 ψ = InfMPS(s, initstate)
 
 # Form the Hamiltonian
-H = InfiniteITensorSum(model, s; model_kwargs...)
+H = InfiniteITensorSum(model, s; model_params...)
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
@@ -57,7 +57,7 @@ end
 
 Nfinite = 100
 sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
-Hfinite = MPO(model, sfinite; model_kwargs...)
+Hfinite = MPO(model, sfinite; model_params...)
 ψfinite = randomMPS(sfinite, initstate)
 @show flux(ψfinite)
 sweeps = Sweeps(10)
@@ -66,7 +66,7 @@ setcutoff!(sweeps, cutoff)
 energy_finite_total, ψfinite = @time dmrg(Hfinite, ψfinite, sweeps)
 @show energy_finite_total / Nfinite
 
-function energy(ψ1, ψ2, h)
+function energy_local(ψ1, ψ2, h)
   ϕ = ψ1 * ψ2
   return (noprime(ϕ * h) * dag(ϕ))[]
 end
@@ -79,11 +79,14 @@ end
 
 nfinite = Nfinite ÷ 2
 orthogonalize!(ψfinite, nfinite)
-hnfinite = ITensor(model, sfinite[nfinite], sfinite[nfinite + 1]; model_kwargs...)
-energy_finite = energy(ψfinite[nfinite], ψfinite[nfinite + 1], hnfinite)
-energy_infinite = energy(ψ.AL[1], ψ.AL[2] * ψ.C[2], H[(1, 2)])
+hnfinite = ITensor(model, sfinite[nfinite], sfinite[nfinite + 1]; model_params...)
+energy_finite = energy_local(ψfinite[nfinite], ψfinite[nfinite + 1], hnfinite)
+energy_infinite = energy_local(ψ.AL[1], ψ.AL[2] * ψ.C[2], H[(1, 2)])
 @show energy_finite, energy_infinite
 @show abs(energy_finite - energy_infinite)
+
+energy_exact = reference(model, Observable("energy"); model_params...)
+@show energy_exact
 
 Sz1_finite = expect(ψfinite[nfinite], "Sz")
 orthogonalize!(ψfinite, nfinite + 1)
@@ -151,10 +154,18 @@ T⁻P = T - sum(P⃗)
 
 vⁱᴿ⁻ᵈᵃᵗᵃ = vec(array(vⁱᴿ))
 λ⃗ᴿᴬ, v⃗ᴿ⁻ᵈᵃᵗᵃ = Arpack.eigs(T; v0=vⁱᴿ⁻ᵈᵃᵗᵃ, nev=neigs)
-v⃗ᴿᴬ = [itensor(v⃗ᴿ⁻ᵈᵃᵗᵃ[:, n], input_inds(T); tol=1e-14) for n in 1:length(λ⃗ᴿᴬ)]
+
+## XXX: this is giving an error about trying to set the element of the wrong QN block for:
+## maxdim = 5
+## cutoff = 1e-12
+## max_vumps_iters = 10
+## outer_iters = 10
+## model_params = (J=1.0, h=0.8)
+##
+## v⃗ᴿᴬ = [itensor(v⃗ᴿ⁻ᵈᵃᵗᵃ[:, n], input_inds(T); tol=1e-4) for n in 1:length(λ⃗ᴿᴬ)]
+## @show flux.(v⃗ᴿᴬ)
 
 @show λ⃗ᴿᴬ
-@show flux.(v⃗ᴿᴬ)
 
 # Full eigendecomposition
 

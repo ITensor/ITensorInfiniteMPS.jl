@@ -14,6 +14,8 @@ using OffsetArrays
 using IterTools
 # For HDF5 support
 using HDF5
+# For integration support when computing exact reference results
+using QuadGK
 
 using ITensors.NDTensors: eachdiagblock
 using KrylovKit: eigsolve, linsolve
@@ -31,7 +33,11 @@ include("infinitemps.jl")
 include("infinitempo.jl")
 include("infinitecanonicalmps.jl")
 include("transfermatrix.jl")
-include("models.jl")
+include("models/models.jl")
+include("models/ising.jl")
+include("models/heisenberg.jl")
+include("models/hubbard.jl")
+include("models/xx.jl")
 include("orthogonalize.jl")
 include("infinitemps_approx.jl")
 include("nullspace.jl")
@@ -48,14 +54,17 @@ export Cell,
   InfiniteSumLocalOps,
   ITensorMap,
   ITensorNetwork,
-  Model,
   TransferMatrix,
   @Model_str,
+  Model,
+  @Observable_str,
+  Observable,
   input_inds,
   infinitemps_approx,
   infsiteinds,
   nsites,
   output_inds,
+  reference,
   subspace_expansion,
   translatecell,
   vumps,
