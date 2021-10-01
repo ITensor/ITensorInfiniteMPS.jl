@@ -60,7 +60,7 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   n = N
   s = siteind(A, 1)
   dim = if hasqns(s)
-    kwargs = (;dir=left_dir)
+    kwargs = (; dir=left_dir)
     qn_ln = zero_qn(s)
     [qn_ln => 1]
   else
