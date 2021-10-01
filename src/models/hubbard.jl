@@ -51,11 +51,15 @@ end
 }
 """
 function reference(::Model"hubbard", ::Observable"energy"; U, Npoints=50)
-  f(x) = 1/π * sum(n -> (-1)^(n + 1)  * (2n)/(x^2 + (2n)^2), 1:10000)
-  m(i, j) = (8π)/U * (2π)/Npoints * f(4/U * (sin(-π + (2(i - 1)  * π)/Npoints) - sin(-π + (2(j - 1) * π)/Npoints)))
+  f(x) = 1 / π * sum(n -> (-1)^(n + 1) * (2n) / (x^2 + (2n)^2), 1:10000)
+  function m(i, j)
+    return (8π) / U * (2π) / Npoints * f(
+      4 / U * (sin(-π + (2(i - 1) * π) / Npoints) - sin(-π + (2(j - 1) * π) / Npoints))
+    )
+  end
   matrix = [m(i, j) for i in 1:Npoints, j in 1:Npoints]
   for i in 1:Npoints
-    matrix[i, :] *= cos(-π + (i - 1) * (2π)/Npoints)
+    matrix[i, :] *= cos(-π + (i - 1) * (2π) / Npoints)
   end
   ones_vec = ones(Npoints)
   d = Diagonal(2π .* ones_vec)

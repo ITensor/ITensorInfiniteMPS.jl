@@ -119,7 +119,7 @@ Nup_finite = ITensors.expect(ψfinite, "Nup")[nfinite:(nfinite + 1)]
 Ndn_finite = ITensors.expect(ψfinite, "Ndn")[nfinite:(nfinite + 1)]
 Sz_finite = ITensors.expect(ψfinite, "Sz")[nfinite:(nfinite + 1)]
 
-energy_exact = reference(model, Observable("energy"); U=model_params.U/model_params.t)
+energy_exact = reference(model, Observable("energy"); U=model_params.U / model_params.t)
 
 println("\nResults from VUMPS")
 @show energy_infinite
