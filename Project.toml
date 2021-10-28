@@ -22,6 +22,7 @@ ITensors = "0.2"
 IterTools = "1"
 KrylovKit = "0.5"
 OffsetArrays = "1"
+QuadGK = "2"
 Requires = "1"
 julia = "1"
 
