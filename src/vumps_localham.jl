@@ -201,9 +201,8 @@ function vumps_iteration_sequential(
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
-  eigsolve_tol=( x -> x/100 ),
+  eigsolve_tol=(x -> x / 100),
 )
-
   Nsites = nsites(ψ)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
   krylov_tol = eigsolve_tol(ϵᵖʳᵉˢ)
@@ -330,7 +329,7 @@ function vumps_iteration_parallel(
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
-  eigsolve_tol=(x -> x/100),
+  eigsolve_tol=(x -> x / 100),
 )
   Nsites = nsites(ψ)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
@@ -423,7 +422,13 @@ function vumps_iteration_parallel(
 end
 
 function vumps(
-  ∑h, ψ; maxiter=10, tol=1e-8, outputlevel=1, multisite_update_alg="sequential", eigsolve_tol=( x ->x/100 ),
+  ∑h,
+  ψ;
+  maxiter=10,
+  tol=1e-8,
+  outputlevel=1,
+  multisite_update_alg="sequential",
+  eigsolve_tol=(x -> x / 100),
 )
   N = nsites(ψ)
   (ϵᴸ!) = fill(tol, nsites(ψ))
@@ -432,7 +437,12 @@ function vumps(
     println("Running VUMPS with multisite_update_alg = $multisite_update_alg")
   for iter in 1:maxiter
     ψ, (eᴸ, eᴿ) = vumps_iteration(
-      ∑h, ψ; (ϵᴸ!)=(ϵᴸ!), (ϵᴿ!)=(ϵᴿ!), multisite_update_alg=multisite_update_alg, eigsolve_tol=eigsolve_tol,
+      ∑h,
+      ψ;
+      (ϵᴸ!)=(ϵᴸ!),
+      (ϵᴿ!)=(ϵᴿ!),
+      multisite_update_alg=multisite_update_alg,
+      eigsolve_tol=eigsolve_tol,
     )
     ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
     maxdimψ = maxlinkdim(ψ[0:(N + 1)])
