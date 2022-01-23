@@ -72,7 +72,7 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   for n in 1:(N - 1)
     # TODO: is this correct?
     dim = if hasqns(s)
-      qn_ln = (flux(A[n]) + left_dir * qn_ln) * left_dir #Fixed a bug on flux conservation
+      qn_ln = flux(A[n]) * left_dir + qn_ln#Fixed a bug on flux conservation
       [qn_ln => 1]
     else
       1
