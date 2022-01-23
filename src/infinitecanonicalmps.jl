@@ -82,10 +82,9 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   for n in 1:N
     A[n] = A[n] * onehot(l[n - 1] => 1) * onehot(dag(l[n]) => 1)
   end
+  
   @assert all(i->flux(i)==zero_qn(s), A) "Flux not invariant under one unit cell translation, not implemented"
-  #if !all(i->flux(i)==zero_qn(s), A)
-  #  throw(error("Flux not invariant under one unit cell translation, not implemented"))
-  #end
+  
   return A
 end
 
