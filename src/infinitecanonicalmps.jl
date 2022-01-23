@@ -53,16 +53,17 @@ function zero_qn(i::Index)
   return zero(qn(first(space(i))))
 end
 
+
 function insert_linkinds!(A; left_dir=ITensors.Out)
   # TODO: use `celllength` here
-  N = length(A)
+  N = nsites(A)
   l = CelledVector{indtype(A)}(undef, N)
   n = N
   s = siteind(A, 1)
   dim = if hasqns(s)
     kwargs = (; dir=left_dir)
     qn_ln = zero_qn(s)
-    [qn_ln => 1]
+    [qn_ln => 1] #Default to 0 on the right
   else
     kwargs = (;)
     1
@@ -71,7 +72,7 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   for n in 1:(N - 1)
     # TODO: is this correct?
     dim = if hasqns(s)
-      qn_ln = (flux(A[n]) + qn_ln) * left_dir
+      qn_ln = (flux(A[n]) + left_dir * qn_ln) * left_dir #Fixed a bug on flux conservation
       [qn_ln => 1]
     else
       1
@@ -81,6 +82,10 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   for n in 1:N
     A[n] = A[n] * onehot(l[n - 1] => 1) * onehot(dag(l[n]) => 1)
   end
+  @assert all(i->flux(i)==zero_qn(s), A) "Flux not invariant under one unit cell translation, not implemented"
+  #if !all(i->flux(i)==zero_qn(s), A)
+  #  throw(error("Flux not invariant under one unit cell translation, not implemented"))
+  #end
   return A
 end
 
