@@ -5,11 +5,11 @@ using ITensorInfiniteMPS
 # VUMPS parameters
 #
 
-maxdim = 64 # Maximum bond dimension
-cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
+maxdim = 100 # Maximum bond dimension
+cutoff = 1e-8 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 100 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
 vumps_tol = 1e-6
-outer_iters = 6 # Number of times to increase the bond dimension
+outer_iters = 8 # Number of times to increase the bond dimension
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
@@ -32,7 +32,7 @@ H = InfiniteITensorSum(model, s)
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
-vumps_kwargs = (tol=vumps_tol, maxiter=max_vumps_iters)
+vumps_kwargs = (tol=vumps_tol, maxiter=max_vumps_iters, eigsolve_tol=(x -> x / 1000))
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 ψ = vumps(H, ψ; vumps_kwargs...)
 
