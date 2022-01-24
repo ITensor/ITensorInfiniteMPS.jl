@@ -69,8 +69,10 @@ function Base.getindex(l::InfiniteITensorSum, n1n2::Tuple{Int,Int})
   @assert n2 == n1 + 1
   return l.data[n1]
 end
-nsites(h::InfiniteITensorSum) = length(l.data)
-
+nsites(h::InfiniteITensorSum) = length(h.data)
+#Gives the range of the Hamiltonian. Useful for better optimized contraction in VUMPS
+nranges(h::InfiniteITensorSum) = order.(h.data)÷2
+nrange(h::InfiniteITensorSum, n::Int64) = order(h.data[n])÷2
 ## HDF5 support for the InfiniteCanonicalMPS type
 
 function HDF5.write(
