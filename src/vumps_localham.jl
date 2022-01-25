@@ -571,7 +571,7 @@ end
 ##   end
 ##   return Hᴸ
 ## end
-## 
+##
 ## function right_environment_recursive(hᴿ, ψ; niter=10)
 ##   ψ̃ = prime(linkinds, dag(ψ))
 ##   # XXX: replace with `nsites`

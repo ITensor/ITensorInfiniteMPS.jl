@@ -11,6 +11,7 @@ celltagprefix() = "c="
 celltags(n::Integer) = TagSet(celltagprefix() * string(n))
 celltags(n1::Integer, n2::Integer) = TagSet(celltagprefix() * n1 * "|" * n2)
 
+indextagprefix() = "n="
 #
 # translatecell
 #
@@ -26,6 +27,12 @@ function getcell(ts::TagSet)
   celltag = tag_starting_with(ts, celltagprefix())
   return parse(Int, celltag[(length(celltagprefix()) + 1):end])
 end
+
+function getsite(ts::TagSet)
+  celltag = ITensorInfiniteMPS.tag_starting_with(ts, indextagprefix())
+  return parse(Int, celltag[(length(indextagprefix()) + 1):end])
+end
+
 
 function translatecell(ts::TagSet, n::Integer)
   ncell = getcell(ts)
