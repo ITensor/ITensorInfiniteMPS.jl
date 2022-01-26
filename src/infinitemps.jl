@@ -67,10 +67,9 @@ function ITensors.findfirstsiteind(ψ::InfiniteMPS, i::Index)
 end
 function ITensors.findsites(ψ::InfiniteMPS, T::ITensor)
   s = filterinds(T; plev=0)
-  return [ITensors.findfirstsiteind(ψ, i) for i in s]
+  return sort([ITensors.findfirstsiteind(ψ, i) for i in s])
 end
 ITensors.findsites(ψ::InfiniteCanonicalMPS, T::ITensor) = findsites(ψ.AL, T)
-
 
 # For now, only represents nearest neighbor interactions
 # on a linear chain
@@ -86,13 +85,13 @@ function Base.getindex(l::InfiniteITensorSum, n1n2::Tuple{Int,Int})
 end
 nsites(h::InfiniteITensorSum) = length(h.data)
 #Gives the range of the Hamiltonian. Useful for better optimized contraction in VUMPS
-nsites_support(h::InfiniteITensorSum) = order.(h.data)÷2
-nsites_support(h::InfiniteITensorSum, n::Int64) = order(h.data[n])÷2
+nsites_support(h::InfiniteITensorSum) = order.(h.data) ÷ 2
+nsites_support(h::InfiniteITensorSum, n::Int64) = order(h.data[n]) ÷ 2
 
-nrange(h::InfiniteITensorSum) = nrange.(h.data)
-nrange(h::InfiniteITensorSum, n::Int64) = nrange(h.data[n])
-function nrange(h::ITensor)
-  ns = sort(findsites(h))
+nrange(h::InfiniteITensorSum) = nrange.(h.data, ncell=nsites(h))
+nrange(h::InfiniteITensorSum, n::Int64) = nrange(h.data[n]; ncell=nsites(h))
+function nrange(h::ITensor; ncell=0)
+  ns = findsites(h; ncell=ncell)
   return ns[end] - ns[1] + 1
 end
 
@@ -101,12 +100,12 @@ function ITensors.findfirstsiteind(h::ITensor, i::Index, ncell::Int64)
   n1 = getsite(i)
   return (c - 1) * ncell + n1
 end
-function ITensors.findsites(h::ITensor; ncell::Int64 = 1)
+function ITensors.findsites(h::ITensor; ncell::Int64=1)
   s = filterinds(h; plev=0)
-  return [ITensors.findfirstsiteind(h, i, ncell) for i in s]
+  return sort([ITensors.findfirstsiteind(h, i, ncell) for i in s])
 end
 ITensors.findsites(h::InfiniteITensorSum) = [findsites(h, n) for n in 1:nsites(h)]
-ITensors.findsites(h::InfiniteITensorSum, n::Int64) = findsites(h.data[n], ncell = nsites(h))
+ITensors.findsites(h::InfiniteITensorSum, n::Int64) = findsites(h.data[n]; ncell=nsites(h))
 
 ## HDF5 support for the InfiniteCanonicalMPS type
 
