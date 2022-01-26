@@ -33,7 +33,6 @@ function getsite(ts::TagSet)
   return parse(Int, celltag[(length(indextagprefix()) + 1):end])
 end
 
-
 function translatecell(ts::TagSet, n::Integer)
   ncell = getcell(ts)
   return replacetags(ts, celltags(ncell) => celltags(ncell + n))

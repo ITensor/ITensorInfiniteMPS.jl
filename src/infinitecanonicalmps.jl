@@ -53,7 +53,6 @@ function zero_qn(i::Index)
   return zero(qn(first(space(i))))
 end
 
-
 function insert_linkinds!(A; left_dir=ITensors.Out)
   # TODO: use `celllength` here
   N = nsites(A)
@@ -65,7 +64,7 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
     qn_ln = zero_qn(s)
     [qn_ln => 1] #Default to 0 on the right
   else
-    kwargs = (;)
+    kwargs = ()
     1
   end
   l[N] = Index(dim, default_link_tags("l", n, 1); kwargs...)
@@ -82,9 +81,9 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   for n in 1:N
     A[n] = A[n] * onehot(l[n - 1] => 1) * onehot(dag(l[n]) => 1)
   end
-  
-  @assert all(i->flux(i)==zero_qn(s), A) "Flux not invariant under one unit cell translation, not implemented"
-  
+
+  @assert all(i -> flux(i) == zero_qn(s), A) "Flux not invariant under one unit cell translation, not implemented"
+
   return A
 end
 
