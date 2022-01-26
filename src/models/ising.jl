@@ -11,6 +11,19 @@ function ITensors.MPO(::Model"ising", s; J, h)
   return MPO(a, s)
 end
 
+# H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ
+function ITensors.OpSum(::Model"ising", n1, n2; J, h)
+  opsum = OpSum()
+  if J != 0
+    opsum += -J, "X", n1, "X", n2
+  end
+  if h != 0
+    opsum += -h / 2, "Z", n1
+    opsum += -h / 2, "Z", n2
+  end
+  return opsum
+end
+
 # H = -J X₁X₂ - h Z₁
 # XXX: use `op` instead of `ITensor`
 function ITensors.ITensor(::Model"ising", s1::Index, s2::Index; J, h)

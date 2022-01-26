@@ -33,5 +33,5 @@ end
 function ITensors.ITensor(model::Model, s::CelledVector, n::Int64; kwargs...)
   n1, n2 = 1, 2
   opsum = OpSum(model, n1, n2; kwargs...)
-  return prod(MPO(opsum, [s[x] for x in n:n+nrange(model)-1])) #modification to allow for more than two sites per term in the Hamiltonians
+  return prod(MPO(opsum, [s[x] for x in n:(n + nrange(model) - 1)])) #modification to allow for more than two sites per term in the Hamiltonians
 end
