@@ -14,14 +14,16 @@ function subspace_expansion(
 
   if range_H > 2
     ψᴴ = dag(ψ)
-    ψ′= prime(ψᴴ)
+    ψ′ = prime(ψᴴ)
   end
 
   n1, n2 = b
   lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
   rⁿ¹ = commoninds(ψ.AR[n2], ψ.C[n1])
   r = linkinds(only, ψ.AR)
+  s = siteinds(only, ψ)
   δʳ(n) = δ(dag(r[n]), prime(r[n]))
+  δˢ(n) = δ(dag(s[n]), prime(s[n]))
 
   dˡ = dim(lⁿ¹)
   dʳ = dim(rⁿ¹)
@@ -42,20 +44,30 @@ function subspace_expansion(
   nR = uniqueinds(NR, ψ.AR[n2])
   if range_H == 2
     ψH2 = noprime(ψ.AL[n1] * H[(n1, n2)] * ψ.C[n1] * ψ.AR[n2])
-  else   # TODO better expansion taking into account the translation of the Hamiltonian?
-   ψH2 =  H[(n1, n2)] * ψ.AR[n2 + range_H - 2] * ψ′.AR[n2 + range_H - 2] * δʳ(n2 + range_H - 2)
-   for j in reverse(1:range_H - 3)
-     ψH2 = ψH2 * ψ.AR[n2 + j] * ψ'.AR[n2 + j]
-   end
-   ψH2 = noprime(ψH2 * ψ.AL[n1] * ψ.C[n1] * ψ.AR[n2])
- end
- ψHN2 = ψH2 * NL * NR
+  else   # TODO better expansion taking into account the translation of the Hamiltonian? Some results seem weird
+    ψH2 =
+      H[(n1, n2)] * ψ.AR[n2 + range_H - 2] * ψ′.AR[n2 + range_H - 2] * δʳ(n2 + range_H - 2)
+    common_sites = findsites(ψ, H[(n1, n2)])
+    idx = length(common_sites) - 1
+    for j in reverse(1:(range_H - 3))
+      if n2 + j == common_sites[idx]
+        ψH2 = ψH2 * ψ.AR[n2 + j] * ψ′.AR[n2 + j]
+        idx -= 1
+      else
+        ψH2 = ψH2 * ψ.AR[n2 + j] * δˢ(n2 + j) * ψ′.AR[n2 + j]
+      end
+    end
+    ψH2 = noprime(ψH2 * ψ.AL[n1] * ψ.C[n1] * ψ.AR[n2])
+  end
+  ψHN2 = ψH2 * NL * NR
 
- #Added due to crash during testing
- if norm(ψHN2.tensor) < 1e-12
-  println("Impossible to do a subspace expansion, probably due to conservation constraints")
-  return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
- end
+  #Added due to crash during testing
+  if norm(ψHN2.tensor) < 1e-12
+    println(
+      "Impossible to do a subspace expansion, probably due to conservation constraints"
+    )
+    return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
+  end
 
   U, S, V = svd(ψHN2, nL; maxdim=maxdim, cutoff=cutoff, kwargs...)
   if dim(S) == 0 #Crash before reaching this point
@@ -106,6 +118,7 @@ function subspace_expansion(
     end
   end
 
+  # TODO check that part for n body
   CL = combiner(l; tags=tags(only(lⁿ¹)))
   CR = combiner(r; tags=tags(only(rⁿ¹)))
   ALⁿ¹ *= CL
