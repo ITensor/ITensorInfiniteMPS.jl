@@ -475,6 +475,7 @@ function vumps(
       multisite_update_alg=multisite_update_alg,
       method=method,
       eigsolve_tol=eigsolve_tol,
+      dt
     )
     ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
     maxdimψ = maxlinkdim(ψ[0:(N + 1)])
