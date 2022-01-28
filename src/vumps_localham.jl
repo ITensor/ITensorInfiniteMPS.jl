@@ -378,10 +378,23 @@ function vumps_iteration_parallel(
   end
 
   # Sum the Hamiltonian terms in the unit cell
-  for n in 2:Nsites
-    hᴸ[n] = hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
+  function left_environment_cell(ψ, ψ̃, hᴸ, n)
+    Nsites = nsites(ψ)
+    𝕙ᴸ = copy(hᴸ)
+    for k in reverse((n - Nsites + 2):n)
+      𝕙ᴸ[k] = 𝕙ᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + 𝕙ᴸ[k]
+    end
+    return 𝕙ᴸ[n]
   end
-  Hᴸ = left_environment(hᴸ, ψ; tol=krylov_tol)
+
+  #for k in 2:Nsites
+  #  hᴸ[k] = hᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + hᴸ[k]
+  #end
+  𝕙ᴸ = copy(hᴸ)
+  for k in 1:Nsites
+    𝕙ᴸ[k] = left_environment_cell(ψ, ψ̃, hᴸ, k)
+  end
+  Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=krylov_tol)
 
   for n in 2:Nsites
     hᴿ[n] = hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
