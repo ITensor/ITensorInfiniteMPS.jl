@@ -37,6 +37,11 @@ function ITensors.OpSum(::Model"ising_extended", n1, n2; J=1.0, h=1.0, J₂=0.0)
   return opsum
 end
 
+function ITensors.ITensor(::Model"ising_extended", s1, s2, s3; J=1.0, h=1.0, J₂=0.0)
+  opsum = OpSum(Model"ising_extended"(), 1, 2; J=J, h=h, J₂=J₂)
+  return prod(MPO(opsum, [s1, s2, s3]))
+end
+
 function reference(::Model"ising_extended", ::Observable"energy"; J=1.0, h=1.0, J₂=0.0)
   f(k) = sqrt((J * cos(k) + J₂ * cos(2k) - h)^2 + (J * sin(k) + J₂ * sin(2k))^2)
   return -1 / 2π * ITensorInfiniteMPS.∫(k -> f(k), -π, π)
