@@ -459,6 +459,7 @@ function vumps(
   multisite_update_alg="sequential",
   method="groundstate",
   eigsolve_tol=(x -> x / 100),
+  dt=nothing
 )
   N = nsites(ψ)
   (ϵᴸ!) = fill(tol, nsites(ψ))
