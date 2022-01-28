@@ -407,10 +407,10 @@ function vumps_iteration_parallel(
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   
   if method == "groundstate"
-    updater = (H,T) -> eigsolve(H, T, 1, :SR, ishermitian = true, tol = krylov_tol)[2]
+    updater = (H,T) -> eigsolve(H, T, 1, :SR; ishermitian = true, tol = krylov_tol)[2]
   elseif method == "tdvp"
     dt = get(kwargs, :dt, 0.1)
-    updater = (H,T) -> exponentiate(H,-1im*dt,T,1, ishermitian = true, tol = krylov_tol)[1]
+    updater = (H,T) -> exponentiate(H,-1im*dt,T,1; ishermitian = true, tol = krylov_tol)[1]
   else
     error(
       "Update function method = $method not supported, use \"groundstate\" or \"tdvp\"",
