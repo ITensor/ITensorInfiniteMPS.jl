@@ -7,12 +7,11 @@
 # appreciated so we can support more generic Hamiltonians.
 # Ideally, the implementation would only overload the minimal amount
 # of code needed to be modified (like computing quasi-left and
-# right environments and updates to `AC` and `C`, and share the high
+# right environments and updates to `AC` and `C`), and share the high
 # level code with the existing VUMPS code in `src/vumps_localham.jl`.
 #
-# @LHerviou has expressed interest in writing a version of 
-# VUMPS that works with MPOs, so you should coordinate with
-# him if you are interested in helping out!
+# Please reach out on this issue: https://github.com/ITensor/ITensorInfiniteMPS.jl/issues/39
+# if you are interested in implementing this feature.
 #################################################################
 
 # Make an ITensorMap representing the transfer matrix T|v> = |Tv>

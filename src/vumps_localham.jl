@@ -468,7 +468,7 @@ return function tdvp_solver(M, time_step, v₀, solver_tol)
   return nothing, v, info
 end
 
-function vumps(args...; time_step=Inf, solver_tol=(x -> x / 100), kwargs...)
+function vumps(args...; time_step=Inf, eigsolve_tol=(x -> x / 100), solver_tol=eigsolve_tol, kwargs...)
   @assert isinf(time_step) && time_step < 0
   println("Using VUMPS solver with time step $time_step")
   return tdvp(vumps_solver, args...; time_step=time_step, solver_tol=solver_tol, kwargs...)
