@@ -18,7 +18,7 @@ using HDF5
 using QuadGK
 
 using ITensors.NDTensors: eachdiagblock
-using KrylovKit: eigsolve, linsolve
+using KrylovKit: eigsolve, linsolve, exponentiate
 
 import Base: getindex, length, setindex!, +, -, *
 
@@ -67,6 +67,7 @@ export Cell,
   reference,
   subspace_expansion,
   translatecell,
+  tdvp,
   vumps,
   ⊕,
   ⊗,
