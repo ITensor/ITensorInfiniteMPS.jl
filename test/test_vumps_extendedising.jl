@@ -62,15 +62,15 @@ using Random
   end
 
   function ITensors.expect(ψ::InfiniteCanonicalMPS, h::ITensor)
-    l = linkinds(only, ψ.AL)
-    r = linkinds(only, ψ.AR)
-    s = siteinds(only, ψ)
-    δˢ(n) = δ(dag(s[n]), prime(s[n]))
-    δˡ(n) = δ(l[n], prime(dag(l[n])))
-    δʳ(n) = δ(dag(r[n]), prime(r[n]))
+    l = linkinds(ITensorInfiniteMPS.only, ψ.AL)
+    r = linkinds(ITensorInfiniteMPS.only, ψ.AR)
+    s = siteinds(ITensorInfiniteMPS.only, ψ)
+    δˢ(n) = ITensorInfiniteMPS.δ(dag(s[n]), prime(s[n]))
+    δˡ(n) = ITensorInfiniteMPS.δ(l[n], prime(dag(l[n])))
+    δʳ(n) = ITensorInfiniteMPS.δ(dag(r[n]), prime(r[n]))
     ψ′ = prime(dag(ψ))
 
-    ns = sort(findsites(ψ, h))
+    ns = sort(ITensorInfiniteMPS.findsites(ψ, h))
     nrange = ns[end] - ns[1] + 1
     idx = 2
     temp_O = δˡ(ns[1] - 1) * ψ.AL[ns[1]] * h * ψ′.AL[ns[1]]
