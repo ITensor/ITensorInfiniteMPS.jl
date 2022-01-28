@@ -407,7 +407,7 @@ function vumps_iteration_parallel(
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   
   if method == "groundstate"
-    updater = (H,T) -> eigsolve(H, T, 1, :SR; ishermitian = true, tol = krylov_tol)[2]
+    updater = (H,T) -> eigsolve(H, T, 1, :SR; ishermitian = true, tol = krylov_tol)[2][1]
   elseif method == "tdvp"
     dt = get(kwargs, :dt, 0.1)
     updater = (H,T) -> exponentiate(H,-1im*dt,T; ishermitian = true, tol = krylov_tol)[1]
@@ -418,10 +418,10 @@ function vumps_iteration_parallel(
   end
 
   for n in 1:Nsites
-    Cvecsₙ = updater(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n),ψ.C[n])
-    Avecsₙ = updater(Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.AL[n] * ψ.C[n])
-    C̃[n] = Cvecsₙ[1]
-    Ãᶜ[n] = Avecsₙ[1]
+    Cvecₙ = updater(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n),ψ.C[n])
+    Avecₙ = updater(Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.AL[n] * ψ.C[n])
+    C̃[n] = Cvecₙ
+    Ãᶜ[n] = Avecₙ
   end
 
   function ortho_overlap(AC, C)
