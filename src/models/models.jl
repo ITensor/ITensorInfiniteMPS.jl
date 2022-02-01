@@ -24,7 +24,7 @@ end
 function InfiniteITensorSum(model::Model, s::CelledVector; kwargs...)
   N = length(s)
   H = InfiniteITensorSum(N)
-  tensors = [ITensor(model, s[n], s[n + 1]; n = n, kwargs...) for n in 1:N] #support for staggered potentials and dimerized hoppings.
+  tensors = [ITensor(model, s[n], s[n + 1]; kwargs...) for n in 1:N]
   return InfiniteITensorSum(tensors)
 end
 
@@ -34,7 +34,7 @@ function ITensors.ITensor(model::Model, s1, s2; kwargs...)
 end
 
 function ITensors.ITensor(model::Model, s1::Index, s2::Index; kwargs...)
-  n1, n2 = 1, 2                                                             
+  n1, n2 = 1, 2
   opsum = OpSum(model, n1, n2; kwargs...)
   return prod(MPO(opsum, [s1, s2]))
 end
