@@ -530,10 +530,23 @@ function tdvp_iteration_parallel(
   end
 
   # Sum the Hamiltonian terms in the unit cell
-  for n in 2:Nsites
-    hᴸ[n] = hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
+  function left_environment_cell(ψ, ψ̃, hᴸ, n)
+    Nsites = nsites(ψ)
+    𝕙ᴸ = copy(hᴸ)
+    for k in reverse((n - Nsites + 2):n)
+      𝕙ᴸ[k] = 𝕙ᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + 𝕙ᴸ[k]
+    end
+    return 𝕙ᴸ[n]
   end
-  Hᴸ = left_environment(hᴸ, ψ; tol=_solver_tol)
+
+  #for k in 2:Nsites
+  #  hᴸ[k] = hᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + hᴸ[k]
+  #end
+  𝕙ᴸ = copy(hᴸ)
+  for k in 1:Nsites
+    𝕙ᴸ[k] = left_environment_cell(ψ, ψ̃, hᴸ, k)
+  end
+  Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=_solver_tol)
 
   for n in 2:Nsites
     hᴿ[n] = hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
@@ -548,21 +561,27 @@ function tdvp_iteration_parallel(
       Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
     )
 
-    C̃[n] = Cvecsₙ[1]
-    Ãᶜ[n] = Avecsₙ[1]
+    C̃[n] = Cvecsₙ
+    Ãᶜ[n] = Avecsₙ
   end
 
-  # TODO: based on minimum singular values of C̃, use more accurate
-  # method for finding Ãᴸ, Ãᴿ
+  function ortho_overlap(AC, C)
+    AL, _ = polar(AC * dag(C), uniqueinds(AC, C))
+    return noprime(AL)
+  end
+
+  function ortho_polar(AC, C)
+    UAC, _ = polar(AC, uniqueinds(AC, C))
+    UC, _ = polar(C, commoninds(C, AC))
+    return noprime(UAC) * noprime(dag(UC))
+  end
+
+
   Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   for n in 1:Nsites
-    Ãᴸⁿ, X = polar(Ãᶜ[n] * dag(C̃[n]), uniqueinds(Ãᶜ[n], C̃[n]))
-    Ãᴿⁿ, _ = polar(Ãᶜ[n] * dag(C̃[n - 1]), uniqueinds(Ãᶜ[n], C̃[n - 1]))
-    Ãᴸⁿ = noprime(Ãᴸⁿ)
-    Ãᴿⁿ = noprime(Ãᴿⁿ)
-    Ãᴸ[n] = Ãᴸⁿ
-    Ãᴿ[n] = Ãᴿⁿ
+    Ãᴸ[n] = ortho_polar(Ãᶜ[n], C̃[n])
+    Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n-1])
   end
 
   for n in 1:Nsites
