@@ -415,13 +415,6 @@ function tdvp_iteration_parallel(
     Ãᶜ[n] = Avecsₙ[1]
   end
 
-  for n in 1:Nsites
-    Cvecₙ = updater(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n),ψ.C[n])
-    Avecₙ = updater(Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.AL[n] * ψ.C[n])
-    C̃[n] = Cvecₙ
-    Ãᶜ[n] = Avecₙ
-  end
-
   function ortho_overlap(AC, C)
     AL, _ = polar(AC * dag(C), uniqueinds(AC, C))
     return noprime(AL)
