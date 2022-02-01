@@ -1,3 +1,18 @@
+#################################################################
+# XXX: This version of VUMPS using MPOs is not working. It was
+# the initial implementation of VUMPS I (@mtfishman) tried to make, but
+# there was a bug and it was temporarily abandoned in favor
+# of the simpler local Hamiltonian implementation found in
+# `src/vumps_localham.jl`. Help getting this working would be highly
+# appreciated so we can support more generic Hamiltonians.
+# Ideally, the implementation would only overload the minimal amount
+# of code needed to be modified (like computing quasi-left and
+# right environments and updates to `AC` and `C`), and share the high
+# level code with the existing VUMPS code in `src/vumps_localham.jl`.
+#
+# Please reach out on this issue: https://github.com/ITensor/ITensorInfiniteMPS.jl/issues/39
+# if you are interested in implementing this feature.
+#################################################################
 
 # Make an ITensorMap representing the transfer matrix T|v> = |Tv>
 function transfer_matrix(ψ::InfiniteMPS)

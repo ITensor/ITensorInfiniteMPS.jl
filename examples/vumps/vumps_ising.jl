@@ -9,9 +9,10 @@ maxdim = 5 # Maximum bond dimension
 cutoff = 1e-12 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 10 # Maximum number of iterations of the VUMPS algorithm at a fixed bond dimension
 outer_iters = 10 # Number of times to increase the bond dimension
+time_step = -Inf # -Inf corresponds to VUMPS
 
 # Parameters of the transverse field Ising model
-model_params = (J=1.0, h=0.8)
+model_params = (J=1.0, h=0.9)
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
@@ -38,14 +39,14 @@ H = InfiniteITensorSum(model, s; model_params...)
 
 vumps_kwargs = (tol=1e-5, maxiter=max_vumps_iters)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
-ψ = vumps(H, ψ; vumps_kwargs...)
+ψ = tdvp(H, ψ; time_step=time_step, vumps_kwargs...)
 
 # Alternate steps of running VUMPS and increasing the bond dimension
 @time for _ in 1:outer_iters
   println("\nIncrease bond dimension")
   global ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
   println("Run VUMPS with new bond dimension")
-  global ψ = vumps(H, ψ; vumps_kwargs...)
+  global ψ = tdvp(H, ψ; time_step=time_step, vumps_kwargs...)
 end
 
 # Check translational invariance
