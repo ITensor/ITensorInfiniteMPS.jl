@@ -46,7 +46,9 @@ using Random
   energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
 
   for multisite_update_alg in ["sequential", "parallel"]
-    vumps_kwargs = (multisite_update_alg=multisite_update_alg, tol=tol, maxiter=maxiter, outputlevel=0)
+    vumps_kwargs = (
+      multisite_update_alg=multisite_update_alg, tol=tol, maxiter=maxiter, outputlevel=0
+    )
     subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
     # Alternate steps of running VUMPS and increasing the bond dimension
