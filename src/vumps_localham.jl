@@ -481,9 +481,11 @@ function tdvp_iteration_parallel(
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
+  time_step,
   solver_tol=(x -> x / 100),
 )
   Nsites = nsites(ψ)
+  range_∑h = nrange(∑h, 1)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
   _solver_tol = solver_tol(ϵᵖʳᵉˢ)
   ψᴴ = dag(ψ)
@@ -497,61 +499,96 @@ function tdvp_iteration_parallel(
   r = CelledVector([commoninds(ψ.AR[n], ψ.AR[n + 1]) for n in 1:Nsites])
   r′ = CelledVector([commoninds(ψ′.AR[n], ψ′.AR[n + 1]) for n in 1:Nsites])
 
-  hᴸ = InfiniteMPS([
-    δ(only(l[n - 2]), only(l′[n - 2])) *
-    ψ.AL[n - 1] *
-    ψ.AL[n] *
-    ∑h[(n - 1, n)] *
-    ψ′.AL[n - 1] *
-    ψ′.AL[n] for n in 1:Nsites
-  ])
+  # TODO improve the multisite contraction such that we contract with identities
+  hᴸ = Vector{ITensor}(undef, Nsites)
+  for k in 1:Nsites
+    hᴸ[k] =
+      δ(only(l[k - range_∑h]), only(l′[k - range_∑h])) *
+      ψ.AL[k - range_∑h + 1] *
+      ∑h[(k - range_∑h + 1, k - range_∑h + 2)] *
+      ψ′.AL[k - range_∑h + 1]
+    common_sites = findsites(ψ, ∑h[(k - range_∑h + 1, k - range_∑h + 2)])
+    idx = 2
+    for j in 2:range_∑h
+      if k - range_∑h + j == common_sites[idx]
+        hᴸ[k] = hᴸ[k] * ψ.AL[k - range_∑h + j] * ψ′.AL[k - range_∑h + j]
+        idx += 1
+      else
+        hᴸ[k] =
+          hᴸ[k] * ψ.AL[k - range_∑h + j] * ψ′.AL[k - range_∑h + j] * δˢ(k - range_∑h + j)
+      end
+    end
+  end
+  hᴸ = InfiniteMPS(hᴸ)
 
-  hᴿ = InfiniteMPS([
-    δ(only(dag(r[n + 2])), only(dag(r′[n + 2]))) *
-    ψ.AR[n + 2] *
-    ψ.AR[n + 1] *
-    ∑h[(n + 1, n + 2)] *
-    ψ′.AR[n + 2] *
-    ψ′.AR[n + 1] for n in 1:Nsites
-  ])
-
+  hᴿ = Vector{ITensor}(undef, Nsites)
+  for k in 1:Nsites
+    hᴿ[k] =
+      ψ.AR[k + range_∑h] *
+      ∑h[(k + 1, k + 2)] *
+      ψ′.AR[k + range_∑h] *
+      δ(only(dag(r[k + range_∑h])), only(dag(r′[k + range_∑h])))
+    common_sites = findsites(ψ, ∑h[(k + 1, k + 2)])
+    idx = length(common_sites) - 1
+    for j in (range_∑h - 1):-1:1
+      if k + j == common_sites[idx]
+        hᴿ[k] = hᴿ[k] * ψ.AR[k + j] * ψ′.AR[k + j]
+        idx -= 1
+      else
+        hᴿ[k] = hᴿ[k] * ψ.AR[k + j] * ψ′.AR[k + j] * δˢ(k + j)
+      end
+    end
+  end
+  hᴿ = InfiniteMPS(hᴿ)
   eᴸ = [
-    (hᴸ[n] * ψ.C[n] * δ(only(dag(r[n])), only(dag(r′[n]))) * ψ′.C[n])[] for n in 1:Nsites
+    (hᴸ[k] * ψ.C[k] * δ(only(dag(r[k])), only(dag(r′[k]))) * ψ′.C[k])[] for k in 1:Nsites
   ]
-  eᴿ = [(hᴿ[n] * ψ.C[n] * δ(only(l[n]), only(l′[n])) * ψ′.C[n])[] for n in 1:Nsites]
-
-  for n in 1:Nsites
-    # TODO: use these instead, for now can't subtract
-    # BlockSparse and DiagBlockSparse tensors
-    #hᴸ[n] -= eᴸ[n] * δ(inds(hᴸ[n]))
-    #hᴿ[n] -= eᴿ[n] * δ(inds(hᴿ[n]))
-    hᴸ[n] -= eᴸ[n] * denseblocks(δ(inds(hᴸ[n])))
-    hᴿ[n] -= eᴿ[n] * denseblocks(δ(inds(hᴿ[n])))
+  eᴿ = [(hᴿ[k] * ψ.C[k] * δ(only(l[k]), only(l′[k])) * ψ′.C[k])[] for k in 1:Nsites]
+  for k in 1:Nsites
+    # TODO: remove `denseblocks` once BlockSparse + DiagBlockSparse is supported
+    hᴸ[k] -= eᴸ[k] * denseblocks(δ(inds(hᴸ[k])))
+    hᴿ[k] -= eᴿ[k] * denseblocks(δ(inds(hᴿ[k])))
   end
 
-  # Sum the Hamiltonian terms in the unit cell
-  function left_environment_cell(ψ, ψ̃, hᴸ, n)
+  # TODO Promote full function?
+  function left_environment_cell(ψ, ψ̃, hᴸ)
     Nsites = nsites(ψ)
     𝕙ᴸ = copy(hᴸ)
-    for k in reverse((n - Nsites + 2):n)
-      𝕙ᴸ[k] = 𝕙ᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + 𝕙ᴸ[k]
+    # TODO restrict to the useful ones only?
+    for n in 1:Nsites
+      for k in 1:(Nsites - 1)
+        temp = copy(hᴸ[n - k])
+        for kp in reverse(0:(k - 1))
+          temp = temp * ψ.AL[n - kp] * ψ̃.AL[n - kp]
+        end
+        𝕙ᴸ[n] = temp + 𝕙ᴸ[n]
+      end
     end
-    return 𝕙ᴸ[n]
+    return 𝕙ᴸ
   end
 
-  #for k in 2:Nsites
-  #  hᴸ[k] = hᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + hᴸ[k]
-  #end
-  𝕙ᴸ = copy(hᴸ)
-  for k in 1:Nsites
-    𝕙ᴸ[k] = left_environment_cell(ψ, ψ̃, hᴸ, k)
-  end
+  𝕙ᴸ = left_environment_cell(ψ, ψ̃, hᴸ)
   Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=_solver_tol)
 
-  for n in 2:Nsites
-    hᴿ[n] = hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
+  # TODO Promote full function
+  function right_environment_cell(ψ, ψ̃, hᴿ)
+    Nsites = nsites(ψ)
+    𝕙ᴿ = copy(hᴿ)
+    # TODO restrict to the useful ones only
+    for n in 1:Nsites
+      for k in 1:(Nsites - 1)
+        temp = copy(hᴿ[n + k])
+        for kp in reverse(1:k)
+          temp = temp * ψ.AR[n + kp] * ψ̃.AR[n + kp]
+        end
+        𝕙ᴿ[n] = temp + 𝕙ᴿ[n]
+      end
+    end
+    return 𝕙ᴿ
   end
-  Hᴿ = right_environment(hᴿ, ψ; tol=_solver_tol)
+
+  𝕙ᴿ = right_environment_cell(ψ, ψ̃, hᴿ)
+  Hᴿ = right_environment(hᴿ, 𝕙ᴿ, ψ; tol=_solver_tol)
 
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
@@ -598,8 +635,8 @@ function tdvp(
   tol=1e-8,
   outputlevel=1,
   multisite_update_alg="sequential",
-  solver_tol=(x -> x / 100),
   time_step,
+  solver_tol=(x -> x / 100),
 )
   N = nsites(ψ)
   (ϵᴸ!) = fill(tol, nsites(ψ))
