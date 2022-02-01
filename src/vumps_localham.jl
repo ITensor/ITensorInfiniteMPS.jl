@@ -184,11 +184,11 @@ function right_environment(hᴿ, ψ; tol=1e-15)
   return Hᴿ
 end
 
-function vumps_iteration(args...; multisite_update_alg="sequential", kwargs...)
+function tdvp_iteration(args...; multisite_update_alg="sequential", kwargs...)
   if multisite_update_alg == "sequential"
-    return vumps_iteration_sequential(args...; kwargs...)
+    return tdvp_iteration_sequential(args...; kwargs...)
   elseif multisite_update_alg == "parallel"
-    return vumps_iteration_parallel(args...; kwargs...)
+    return tdvp_iteration_parallel(args...; kwargs...)
   else
     error(
       "Multisite update algorithm multisite_update_alg = $multisite_update_alg not supported, use \"parallel\" or \"sequential\"",
@@ -196,16 +196,18 @@ function vumps_iteration(args...; multisite_update_alg="sequential", kwargs...)
   end
 end
 
-function vumps_iteration_sequential(
+function tdvp_iteration_sequential(
+  solver::Function,
   ∑h::InfiniteITensorSum,
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
-  eigsolve_tol=(x -> x / 100),
+  time_step,
+  solver_tol=(x -> x / 100),
 )
   Nsites = nsites(ψ)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
-  krylov_tol = eigsolve_tol(ϵᵖʳᵉˢ)
+  _solver_tol = solver_tol(ϵᵖʳᵉˢ)
   ψᴴ = dag(ψ)
   ψ′ = ψᴴ'
   # XXX: make this prime the center sites
@@ -267,24 +269,23 @@ function vumps_iteration_sequential(
     for k in 1:Nsites
       𝕙ᴸ[k] = left_environment_cell(ψ, ψ̃, hᴸ, k)
     end
-    Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=krylov_tol)
+    Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=_solver_tol)
     for k in 2:Nsites
       hᴿ[k] = hᴿ[k + 1] * ψ.AR[k + 1] * ψ̃.AR[k + 1] + hᴿ[k]
     end
-    Hᴿ = right_environment(hᴿ, ψ; tol=krylov_tol)
+    Hᴿ = right_environment(hᴿ, ψ; tol=_solver_tol)
 
-    Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = eigsolve(
-      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), ψ.C[n - 1], 1, :SR; ishermitian=true, tol=krylov_tol
+    Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = solver(
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol
     )
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = eigsolve(
-      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.C[n], 1, :SR; ishermitian=true, tol=krylov_tol
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol)
+    Avalsₙ, Avecsₙ, Ainfoₙ = solver(
+      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
     )
-    Avalsₙ, Avecsₙ, Ainfoₙ = eigsolve(
-      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), ψ.AL[n] * ψ.C[n], 1, :SR; ishermitian=true, tol=krylov_tol
-    )
-    C̃[n - 1] = Cvecsₙ₋₁[1]
-    C̃[n] = Cvecsₙ[1]
-    Ãᶜ[n] = Avecsₙ[1]
+
+    C̃[n - 1] = Cvecsₙ₋₁
+    C̃[n] = Cvecsₙ
+    Ãᶜ[n] = Avecsₙ
 
     function ortho_overlap(AC, C)
       AL, _ = polar(AC * dag(C), uniqueinds(AC, C))
@@ -324,18 +325,18 @@ function vumps_iteration_sequential(
   return ψ, (eᴸ, eᴿ)
 end
 
-function vumps_iteration_parallel(
+function tdvp_iteration_parallel(
+  solver::Function,
   ∑h::InfiniteITensorSum,
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
-  eigsolve_tol=(x -> x / 100),
-  kwargs...
+  solver_tol=(x -> x / 100),
 )
   method = get(kwargs,:method,"groundstate")
   Nsites = nsites(ψ)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
-  krylov_tol = eigsolve_tol(ϵᵖʳᵉˢ)
+  _solver_tol = solver_tol(ϵᵖʳᵉˢ)
   ψᴴ = dag(ψ)
   ψ′ = ψᴴ'
   # XXX: make this prime the center sites
@@ -396,25 +397,23 @@ function vumps_iteration_parallel(
   for k in 1:Nsites
     𝕙ᴸ[k] = left_environment_cell(ψ, ψ̃, hᴸ, k)
   end
-  Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=krylov_tol)
+  Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=_solver_tol)
 
   for n in 2:Nsites
     hᴿ[n] = hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
   end
-  Hᴿ = right_environment(hᴿ, ψ; tol=krylov_tol)
+  Hᴿ = right_environment(hᴿ, ψ; tol=_solver_tol)
 
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  
-  if method == "groundstate"
-    updater = (H,T) -> eigsolve(H, T, 1, :SR; ishermitian = true, tol = krylov_tol)[2][1]
-  elseif method == "tdvp"
-    dt = get(kwargs, :dt, 0.1)
-    updater = (H,T) -> exponentiate(H,-1im*dt,T; ishermitian = true, tol = krylov_tol)[1]
-  else
-    error(
-      "Update function method = $method not supported, use \"groundstate\" or \"tdvp\"",
+  for n in 1:Nsites
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol)
+    Avalsₙ, Avecsₙ, Ainfoₙ = solver(
+      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
     )
+
+    C̃[n] = Cvecsₙ[1]
+    Ãᶜ[n] = Avecsₙ[1]
   end
 
   for n in 1:Nsites
@@ -450,16 +449,16 @@ function vumps_iteration_parallel(
   return InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ), (eᴸ, eᴿ)
 end
 
-function vumps(
+function tdvp(
+  solver::Function,
   ∑h,
   ψ;
   maxiter=10,
   tol=1e-8,
   outputlevel=1,
   multisite_update_alg="sequential",
-  method="groundstate",
-  eigsolve_tol=(x -> x / 100),
-  dt=nothing
+  solver_tol=(x -> x / 100),
+  time_step,
 )
   N = nsites(ψ)
   (ϵᴸ!) = fill(tol, nsites(ψ))
@@ -467,15 +466,15 @@ function vumps(
   outputlevel > 0 &&
     println("Running VUMPS with multisite_update_alg = $multisite_update_alg")
   for iter in 1:maxiter
-    ψ, (eᴸ, eᴿ) = vumps_iteration(
+    ψ, (eᴸ, eᴿ) = tdvp_iteration(
+      solver,
       ∑h,
       ψ;
       (ϵᴸ!)=(ϵᴸ!),
       (ϵᴿ!)=(ϵᴿ!),
       multisite_update_alg=multisite_update_alg,
-      method=method,
-      eigsolve_tol=eigsolve_tol,
-      dt=dt
+      solver_tol=solver_tol,
+      time_step=time_step,
     )
     ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
     maxdimψ = maxlinkdim(ψ[0:(N + 1)])
@@ -490,6 +489,38 @@ function vumps(
     end
   end
   return ψ
+end
+
+function vumps_solver(M, time_step, v₀, solver_tol)
+  λ⃗, v⃗, info = eigsolve(M, v₀, 1, :SR; ishermitian=true, tol=solver_tol)
+  return λ⃗[1], v⃗[1], info
+end
+
+return function tdvp_solver(M, time_step, v₀, solver_tol)
+  v, info = exponentiate(M, time_step, v₀; ishermitian=true, tol=solver_tol)
+  return nothing, v, info
+end
+
+function vumps(
+  args...; time_step=-Inf, eigsolve_tol=(x -> x / 100), solver_tol=eigsolve_tol, kwargs...
+)
+  @assert isinf(time_step) && time_step < 0
+  println("Using VUMPS solver with time step $time_step")
+  return tdvp(vumps_solver, args...; time_step=time_step, solver_tol=solver_tol, kwargs...)
+end
+
+function tdvp(args...; time_step, solver_tol=(x -> x / 100), kwargs...)
+  solver = if !isinf(time_step)
+    println("Using TDVP solver with time step $time_step")
+    tdvp_solver
+  elseif time_step < 0
+    # Call VUMPS instead
+    println("Using VUMPS solver with time step $time_step")
+    vumps_solver
+  else
+    error("Time step $time_step not supported.")
+  end
+  return tdvp(solver, args...; time_step=time_step, solver_tol=solver_tol, kwargs...)
 end
 
 ##################################################################
