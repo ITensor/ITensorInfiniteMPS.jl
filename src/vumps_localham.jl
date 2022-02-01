@@ -333,7 +333,6 @@ function tdvp_iteration_parallel(
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
   solver_tol=(x -> x / 100),
 )
-  method = get(kwargs,:method,"groundstate")
   Nsites = nsites(ψ)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
   _solver_tol = solver_tol(ϵᵖʳᵉˢ)
