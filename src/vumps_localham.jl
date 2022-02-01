@@ -411,8 +411,8 @@ function tdvp_iteration_parallel(
       Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
     )
 
-    C̃[n] = Cvecsₙ[1]
-    Ãᶜ[n] = Avecsₙ[1]
+    C̃[n] = Cvecsₙ
+    Ãᶜ[n] = Avecsₙ
   end
 
   function ortho_overlap(AC, C)
