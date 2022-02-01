@@ -403,7 +403,7 @@ function tdvp_iteration_sequential(
     end
 
     𝕙ᴸ = left_environment_cell(ψ, ψ̃, hᴸ)
-    Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=krylov_tol)
+    Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=_solver_tol)
 
     # TODO Promote full function
     function right_environment_cell(ψ, ψ̃, hᴿ)
@@ -423,7 +423,7 @@ function tdvp_iteration_sequential(
     end
 
     𝕙ᴿ = right_environment_cell(ψ, ψ̃, hᴿ)
-    Hᴿ = right_environment(hᴿ, 𝕙ᴿ, ψ; tol=krylov_tol)
+    Hᴿ = right_environment(hᴿ, 𝕙ᴿ, ψ; tol=_solver_tol)
 
     Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = solver(
       Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol
