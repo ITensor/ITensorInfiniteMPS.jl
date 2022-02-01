@@ -59,6 +59,7 @@ function blocksparsetensor(blocks::Dict{B,TB}) where {B,TB}
   b1, Tb1 = first(pairs(blocks))
   N = length(b1)
   indstypes = typeof.(inds(Tb1))
+  blocktype = eltype(Tb1)
   indsT = getindex.(indstypes)
   # Determine the indices from the blocks
   for (b, Tb) in pairs(blocks)
@@ -72,7 +73,7 @@ function blocksparsetensor(blocks::Dict{B,TB}) where {B,TB}
       indsTn[bn] = indsTb[n]
     end
   end
-  T = BlockSparseTensor(indsT)
+  T = BlockSparseTensor(blocktype, indsT)
   for (b, Tb) in pairs(blocks)
     if !isempty(Tb)
       T[b] = Tb
