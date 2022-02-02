@@ -14,7 +14,7 @@ time_step = -Inf # -Inf corresponds to VUMPS
 solver_tol = (x -> x / 100) # Tolerance for the local solver (eigsolve in VUMPS and exponentiate in TDVP)
 multisite_update_alg = "parallel" # Choose between ["sequential", "parallel"]
 conserve_qns = true
-N = 2 # Number of sites in the unit cell
+N = 2 # Number of sites in the unit cell (1 site unit cell is currently broken)
 
 # Parameters of the transverse field Ising model
 model_params = (J=1.0, h=0.9)
