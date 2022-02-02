@@ -15,6 +15,7 @@ macro Observable_str(s)
 end
 
 ∫(f, a, b) = quadgk(f, a, b)[1]
+ITensorInfiniteMPS.nrange(model::Model) = 2; #required to keep everything compatible with the current implementation for 2 band models
 
 # Create an infinite sum of Hamiltonian terms
 function InfiniteITensorSum(model::Model, s::Vector; kwargs...)
@@ -24,17 +25,13 @@ end
 function InfiniteITensorSum(model::Model, s::CelledVector; kwargs...)
   N = length(s)
   H = InfiniteITensorSum(N)
-  tensors = [ITensor(model, s[n], s[n + 1]; kwargs...) for n in 1:N]
+  tensors = [ITensor(model, s, n; kwargs...) for n in 1:N] #slightly improved version. Note: the current implementation does not really allow for staggered potentials for example
   return InfiniteITensorSum(tensors)
 end
 
 # Version accepting IndexSet
-function ITensors.ITensor(model::Model, s1, s2; kwargs...)
-  return ITensor(model, Index(s1), Index(s2); kwargs...)
-end
-
-function ITensors.ITensor(model::Model, s1::Index, s2::Index; kwargs...)
+function ITensors.ITensor(model::Model, s::CelledVector, n::Int64; kwargs...)
   n1, n2 = 1, 2
   opsum = OpSum(model, n1, n2; kwargs...)
-  return prod(MPO(opsum, [s1, s2]))
+  return prod(MPO(opsum, [s[x] for x in n:(n + nrange(model) - 1)])) #modification to allow for more than two sites per term in the Hamiltonians
 end

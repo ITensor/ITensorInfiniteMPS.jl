@@ -9,9 +9,23 @@ end
 function subspace_expansion(
   ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxdim, cutoff, atol=1e-2, kwargs...
 )
+  range_H = nrange(H, 1)
+  @assert range_H > 1 "Not defined for purely local Hamiltonians"
+
+  if range_H > 2
+    ψᴴ = dag(ψ)
+    ψ′ = prime(ψᴴ)
+  end
+
   n1, n2 = b
   lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
   rⁿ¹ = commoninds(ψ.AR[n2], ψ.C[n1])
+  l = linkinds(only, ψ.AL)
+  r = linkinds(only, ψ.AR)
+  s = siteinds(only, ψ)
+  δʳ(n) = δ(dag(r[n]), prime(r[n]))
+  δˢ(n) = δ(dag(s[n]), prime(s[n]))
+  δˡ(n) = δ(l[n], dag(prime(l[n])))
 
   dˡ = dim(lⁿ¹)
   dʳ = dim(rⁿ¹)
@@ -30,12 +44,69 @@ function subspace_expansion(
 
   nL = uniqueinds(NL, ψ.AL[n1])
   nR = uniqueinds(NR, ψ.AR[n2])
-
-  ψH2 = noprime(ψ.AL[n1] * H[(n1, n2)] * ψ.C[n1] * ψ.AR[n2])
+  if range_H == 2
+    ψH2 = noprime(ψ.AL[n1] * H[(n1, n2)] * ψ.C[n1] * ψ.AR[n2])
+  else   # Should be a better version now
+    ψH2 =
+      H[(n1, n2)] * ψ.AR[n2 + range_H - 2] * ψ′.AR[n2 + range_H - 2] * δʳ(n2 + range_H - 2)
+    common_sites = findsites(ψ, H[(n1, n2)])
+    idx = length(common_sites) - 1
+    for j in reverse(1:(range_H - 3))
+      if n2 + j == common_sites[idx]
+        ψH2 = ψH2 * ψ.AR[n2 + j] * ψ′.AR[n2 + j]
+        idx -= 1
+      else
+        ψH2 = ψH2 * ψ.AR[n2 + j] * δˢ(n2 + j) * ψ′.AR[n2 + j]
+      end
+    end
+    ψH2 = noprime(ψH2 * ψ.AL[n1] * ψ.C[n1] * ψ.AR[n2])
+    for n in 1:(range_H - 2)
+      temp_H2 = H[(n1 - n, n2 - n)] * δʳ(n2 + range_H - 2 - n)
+      common_sites = findsites(ψ, H[(n1 - n, n2 - n)])
+      idx = length(common_sites)
+      for j in (n2 + range_H - 2 - n):-1:(n2 + 1)
+        if j == common_sites[idx]
+          temp_H2 = temp_H2 * ψ.AR[j] * ψ′.AR[j]
+          idx -= 1
+        else
+          temp_H2 = temp_H2 * ψ.AR[j] * ψ′.AR[j] * δˢ(j)
+        end
+      end
+      if common_sites[idx] == n2
+        temp_H2 = temp_H2 * ψ.AR[n2]
+        idx -= 1
+      else
+        temp_H2 = temp_H2 * ψ.AR[n2] * δˢ(n2)
+      end
+      if common_sites[idx] == n1
+        temp_H2 = temp_H2 * ψ.AL[n1] * ψ.C[n1]
+        idx -= 1
+      else
+        temp_H2 = temp_H2 * ψ.AL[n1] * ψ.C[n1] * δˢ(n1)
+      end
+      for j in 1:n
+        if n1 - j == common_sites[idx]
+          temp_H2 = temp_H2 * ψ.AL[n1 - j] * ψ′.AL[n1 - j]
+          idx -= 1
+        else
+          temp_H2 = temp_H2 * ψ.AL[n1 - j] * δˢ(n1 - j) * ψ′.AL[n1 - j]
+        end
+      end
+      ψH2 = ψH2 + noprime(temp_H2 * δˡ(n1 - n - 1))
+    end
+  end
   ψHN2 = ψH2 * NL * NR
 
+  #Added due to crash during testing
+  if norm(ψHN2.tensor) < 1e-12
+    println(
+      "Impossible to do a subspace expansion, probably due to conservation constraints"
+    )
+    return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
+  end
+
   U, S, V = svd(ψHN2, nL; maxdim=maxdim, cutoff=cutoff, kwargs...)
-  if dim(S) == 0
+  if dim(S) == 0 #Crash before reaching this point
     return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
   end
   @show S[end, end]

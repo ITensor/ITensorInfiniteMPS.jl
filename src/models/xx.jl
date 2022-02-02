@@ -3,10 +3,20 @@ function ITensors.MPO(::Model"xx", s)
   N = length(s)
   os = OpSum()
   for n in 1:(N - 1)
-    os .+= -J, "X", n, "X", n + 1
-    os .+= -J, "Y", n, "Y", n + 1
+    os .+= 1, "X", n, "X", n + 1
+    os .+= 1, "Y", n, "Y", n + 1
   end
   return MPO(os, s)
+end
+
+# H = X₁X₂ + Y₁Y₂
+function ITensors.OpSum(::Model"xx", n1, n2)
+  opsum = OpSum()
+  for j in 1:(N - 1)
+    opsum .+= 0.5, "S+", j, "S-", j + 1
+    opsum .+= 0.5, "S-", j, "S+", j + 1
+  end
+  return opsum
 end
 
 # H = X₁X₂ + Y₁Y₂
