@@ -676,6 +676,7 @@ end
 
 return function tdvp_solver(M, time_step, v₀, solver_tol)
   v, info = exponentiate(M, time_step, v₀; ishermitian=true, tol=solver_tol)
+  v = v / norm(v)
   return nothing, v, info
 end
 
