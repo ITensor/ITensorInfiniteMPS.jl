@@ -426,12 +426,11 @@ function tdvp_iteration_parallel(
     return noprime(UAC) * noprime(dag(UC))
   end
 
-
   Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   for n in 1:Nsites
     Ãᴸ[n] = ortho_polar(Ãᶜ[n], C̃[n])
-    Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n-1])
+    Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n - 1])
   end
 
   for n in 1:Nsites
