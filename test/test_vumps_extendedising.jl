@@ -17,37 +17,10 @@ using Random
   space_ = fill(space_shifted(1), N)
   s = infsiteinds("S=1/2", N; space=space_)
   initstate(n) = "↑"
-  ψ = InfMPS(s, initstate)
-
   # Form the Hamiltonian
   H = InfiniteITensorSum(model, s; model_kwargs...)
 
-  # Check translational invariance
-  @test contract(ψ.AL[1:N]..., ψ.C[N]) ≈ contract(ψ.C[0], ψ.AR[1:N]...)
-
-  cutoff = 1e-8
-  maxdim = 100
-  tol = 1e-8
-  maxiter = 20
-  outer_iters = 4
-  vumps_kwargs = (tol=tol, maxiter=maxiter, outputlevel=0)
-  subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
-
-  # Alternate steps of running VUMPS and increasing the bond dimension
-  ψ = vumps(H, ψ; vumps_kwargs...)
-  for _ in 1:outer_iters
-    ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
-    ψ = vumps(H, ψ; vumps_kwargs...)
-  end
-
-  # Check translational invariance
-  @test norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...)) ≈ 0 atol =
-    1e-5
-
-  #
   # Compare to DMRG
-  #
-
   Nfinite = 100
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
@@ -102,14 +75,43 @@ using Random
   orthogonalize!(ψfinite, nfinite)
   energy_finite = energy(ψfinite, hnfinite, nfinite)
 
-  energy_infinite = expect(ψ, H)
-  Sz1_finite, Sz2_finite = expect(ψfinite, "Sz")[(Nfinite ÷ 2):(Nfinite ÷ 2 + 1)]
-  Sz1_infinite, Sz2_infinite = [expect(ψ, "Sz", n) for n in 1:N]
+  cutoff = 1e-8
+  maxdim = 100
+  tol = 1e-8
+  maxiter = 20
+  outer_iters = 4
+  for multisite_update_alg in ["sequential", "parallel"]
+    vumps_kwargs = (
+      multisite_update_alg=multisite_update_alg, tol=tol, maxiter=maxiter, outputlevel=0
+    )
+    subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
-  @test energy_finite ≈ sum(energy_infinite) / N rtol = 1e-4
-  @test Sz1_finite ≈ Sz1_infinite rtol = 1e-3
-  @test Sz1_finite ≈ Sz2_finite rtol = 1e-5
-  @test Sz1_infinite ≈ Sz2_infinite rtol = 1e-5
+    #
+    # Alternate steps of running VUMPS and increasing the bond dimension
+    ψ = InfMPS(s, initstate)
+
+    # Check translational invariance
+    @test contract(ψ.AL[1:N]..., ψ.C[N]) ≈ contract(ψ.C[0], ψ.AR[1:N]...)
+
+    ψ = vumps(H, ψ; vumps_kwargs...)
+    for _ in 1:outer_iters
+      ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
+      ψ = vumps(H, ψ; vumps_kwargs...)
+    end
+
+    # Check translational invariance
+    @test norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...)) ≈ 0 atol =
+      1e-5
+
+    energy_infinite = expect(ψ, H)
+    Sz1_finite, Sz2_finite = expect(ψfinite, "Sz")[(Nfinite ÷ 2):(Nfinite ÷ 2 + 1)]
+    Sz1_infinite, Sz2_infinite = [expect(ψ, "Sz", n) for n in 1:N]
+
+    @test energy_finite ≈ sum(energy_infinite) / N rtol = 1e-4
+    @test Sz1_finite ≈ Sz1_infinite rtol = 1e-3
+    @test Sz1_finite ≈ Sz2_finite rtol = 1e-5
+    @test Sz1_infinite ≈ Sz2_infinite rtol = 1e-5
+  end
 end
 
 # XXX: orthogonalize is broken right now
