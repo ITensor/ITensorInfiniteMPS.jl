@@ -38,15 +38,15 @@ using Random
 
   for multisite_update_alg in ["sequential", "parallel"],
     conserve_qns in [true, false],
-    nsites in [2, 3, 4],
+    nsites in [1, 2, 3, 4],
     time_step in [-Inf, -0.5]
 
-    if conserve_qns
-      # Flux density is inconsistent for odd unit cells
-      isodd(nsites) && continue
-    end
+    #if conserve_qns
+    # Flux density is inconsistent for odd unit cells
+    #  isodd(nsites) && continue
+    #end
 
-    space_ = fill(space_shifted(model, 0; conserve_qns=conserve_qns), nsites)
+    space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsites)
     s = infsiteinds("S=1/2", nsites; space=space_)
     ψ = InfMPS(s, initstate)
 
@@ -123,7 +123,7 @@ end
 ##     space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
 ##     ψ = InfiniteMPS(ComplexF64, s; space=space)
 ##     randn!.(ψ)
-## 
+##
 ##     ψ = orthogonalize(ψ, :)
 ##     @test prod(ψ.AL[1:N]) * ψ.C[N] ≈ ψ.C[0] * prod(ψ.AR[1:N])
 ##   end
