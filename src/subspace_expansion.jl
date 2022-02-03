@@ -129,7 +129,7 @@ function subspace_expansion(
     end
   end
   if nsites(ψ) == 1
-    ALⁿ² = ITensor( commoninds(C, ARⁿ²), uniqueinds(ALⁿ¹, ψ.AL[n1 - 1])...)
+    ALⁿ² = ITensor(commoninds(C, ARⁿ²), uniqueinds(ALⁿ¹, ψ.AL[n1 - 1])...)
     il = only(uniqueinds(ALⁿ¹, ALⁿ²))
     ĩl = only(uniqueinds(ALⁿ², ALⁿ¹))
     for IV in eachindval(inds(ALⁿ¹))
@@ -198,7 +198,6 @@ function subspace_expansion(
     ARⁿ¹ *= dag(CR)
     C = (C * dag(CL)) * dag(CR)
     return (ALⁿ¹, ALⁿ²), C, (ARⁿ¹, ARⁿ²)
-
   end
 
   # TODO: delete or only print when verbose
@@ -219,7 +218,7 @@ function subspace_expansion(ψ, H; kwargs...)
     ALⁿ¹², Cⁿ¹, ARⁿ¹² = subspace_expansion(ψ, H, (n1, n2); kwargs...)
     ALⁿ¹, ALⁿ² = ALⁿ¹²
     ARⁿ¹, ARⁿ² = ARⁿ¹²
-    if N==1
+    if N == 1
       AL[n1] = ALⁿ²
       C[n1] = Cⁿ¹
       AR[n2] = ARⁿ¹
@@ -234,13 +233,13 @@ function subspace_expansion(ψ, H; kwargs...)
   end
   return ψ
 end
- #
- #
- # tt = ψ1.AL[1] * ψ1.C[1]; e = (tt * dag(tt))[]
- # @show norm( ψ1.AL[1] * ψ1.C[1] -  ψ1.C[0] * ψ1.AR[1] )
- # l = linkinds(only, ψ1.AL)
- # r = linkinds(only, ψ1.AR)
- # tt = δ(l[0], prime(dag(l[0]))) * ψ1.AL[1] * dag(prime(ψ1)).AL[1] * dag(δ(s[1], dag(prime(s[1]))));
- # tt == denseblocks(δ(l[1], prime(dag(l[1]))))
- # tt = δ(dag(r[1]), prime(r[1])) * ψ1.AR[1] * dag(prime(ψ1)).AR[1] * dag(δ(s[1], dag(prime(s[1]))));
- # tt == denseblocks(δ(dag(r[0]), prime(r[0])))
+#
+#
+# tt = ψ1.AL[1] * ψ1.C[1]; e = (tt * dag(tt))[]
+# @show norm( ψ1.AL[1] * ψ1.C[1] -  ψ1.C[0] * ψ1.AR[1] )
+# l = linkinds(only, ψ1.AL)
+# r = linkinds(only, ψ1.AR)
+# tt = δ(l[0], prime(dag(l[0]))) * ψ1.AL[1] * dag(prime(ψ1)).AL[1] * dag(δ(s[1], dag(prime(s[1]))));
+# tt == denseblocks(δ(l[1], prime(dag(l[1]))))
+# tt = δ(dag(r[1]), prime(r[1])) * ψ1.AR[1] * dag(prime(ψ1)).AR[1] * dag(δ(s[1], dag(prime(s[1]))));
+# tt == denseblocks(δ(dag(r[0]), prime(r[0])))

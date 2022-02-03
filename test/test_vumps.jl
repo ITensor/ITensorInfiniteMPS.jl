@@ -42,7 +42,7 @@ using Random
     time_step in [-Inf, -0.5]
 
     #if conserve_qns
-      # Flux density is inconsistent for odd unit cells
+    # Flux density is inconsistent for odd unit cells
     #  isodd(nsites) && continue
     #end
 

@@ -24,7 +24,6 @@ end
 
 function InfiniteITensorSum(model::Model, s::CelledVector; kwargs...)
   N = length(s)
-  H = InfiniteITensorSum(N)
   tensors = [ITensor(model, s, n; kwargs...) for n in 1:N] #slightly improved version. Note: the current implementation does not really allow for staggered potentials for example
   return InfiniteITensorSum(tensors)
 end
