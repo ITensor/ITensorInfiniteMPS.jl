@@ -13,8 +13,8 @@ outer_iters = 5 # Number of times to increase the bond dimension
 time_step = -Inf # -Inf corresponds to VUMPS, finite time_step corresponds to TDVP
 solver_tol = (x -> x / 100) # Tolerance for the local solver (eigsolve in VUMPS and exponentiate in TDVP)
 multisite_update_alg = "parallel" # Choose between ["sequential", "parallel"]. Only parallel works with TDVP.
-conserve_qns = false
-N = 2 # Number of sites in the unit cell (1-site unit cell is currently broken)
+conserve_qns = true # Whether or not to conserve spin parity
+nsite = 2 # Number of sites in the unit cell
 
 # Parameters of the transverse field Ising model
 model_params = (J=1.0, h=0.9)
@@ -33,8 +33,11 @@ function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
   end
 end
 
-space_ = fill(space_shifted(model, 0; conserve_qns=conserve_qns), N)
-s = infsiteinds("S=1/2", N; space=space_)
+# Shift the QNs by 1 so that the flux of the unit cell is zero
+# and therefore the flux density of the uniform state is zero
+# to avoid diverging flux in the thermodynamic limit.
+space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsite)
+s = infsiteinds("S=1/2", nsite; space=space_)
 initstate(n) = "↑"
 ψ = InfMPS(s, initstate)
 
@@ -42,7 +45,7 @@ initstate(n) = "↑"
 H = InfiniteITensorSum(model, s; model_params...)
 
 # Check translational invariance
-@show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
+@show norm(contract(ψ.AL[1:nsite]..., ψ.C[nsite]) - contract(ψ.C[0], ψ.AR[1:nsite]...))
 
 vumps_kwargs = (
   tol=tol,
@@ -51,7 +54,6 @@ vumps_kwargs = (
   multisite_update_alg=multisite_update_alg,
 )
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
-#ψ = tdvp(H, ψ; time_step=time_step, vumps_kwargs...)
 
 # Alternate steps of running VUMPS and increasing the bond dimension
 @time for _ in 1:outer_iters
@@ -62,22 +64,22 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 end
 
 # Check translational invariance
-@show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
+@show norm(contract(ψ.AL[1:nsite]..., ψ.C[nsite]) - contract(ψ.C[0], ψ.AR[1:nsite]...))
 
 #
 # Compare to DMRG
 #
 
-Nfinite = 100
-sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
-Hfinite = MPO(model, sfinite; model_params...)
-ψfinite = randomMPS(sfinite, initstate)
-@show flux(ψfinite)
+nsite_finite = 100
+s_finite = siteinds("S=1/2", nsite_finite; conserve_szparity=true)
+H_finite = MPO(model, s_finite; model_params...)
+ψ_finite = randomMPS(s_finite, initstate)
+@show flux(ψ_finite)
 sweeps = Sweeps(10)
 setmaxdim!(sweeps, maxdim)
 setcutoff!(sweeps, cutoff)
-energy_finite_total, ψfinite = @time dmrg(Hfinite, ψfinite, sweeps)
-@show energy_finite_total / Nfinite
+energy_finite_total, ψ_finite = @time dmrg(H_finite, ψ_finite, sweeps)
+@show energy_finite_total / nsite_finite
 
 function energy_local(ψ1, ψ2, h)
   ϕ = ψ1 * ψ2
@@ -90,10 +92,10 @@ end
 
 # Exact energy at criticality: 4/pi = 1.2732395447351628
 
-nfinite = Nfinite ÷ 2
-orthogonalize!(ψfinite, nfinite)
-hnfinite = ITensor(model, sfinite[nfinite], sfinite[nfinite + 1]; model_params...)
-energy_finite = energy_local(ψfinite[nfinite], ψfinite[nfinite + 1], hnfinite)
+n_finite = nsite_finite ÷ 2
+orthogonalize!(ψ_finite, n_finite)
+hn_finite = ITensor(model, s_finite[n_finite], s_finite[n_finite + 1]; model_params...)
+energy_finite = energy_local(ψ_finite[n_finite], ψ_finite[n_finite + 1], hn_finite)
 energy_infinite = energy_local(ψ.AL[1], ψ.AL[2] * ψ.C[2], H[(1, 2)])
 @show energy_finite, energy_infinite
 @show abs(energy_finite - energy_infinite)
@@ -101,9 +103,9 @@ energy_infinite = energy_local(ψ.AL[1], ψ.AL[2] * ψ.C[2], H[(1, 2)])
 energy_exact = reference(model, Observable("energy"); model_params...)
 @show energy_exact
 
-Sz1_finite = expect(ψfinite[nfinite], "Sz")
-orthogonalize!(ψfinite, nfinite + 1)
-Sz2_finite = expect(ψfinite[nfinite + 1], "Sz")
+Sz1_finite = expect(ψ_finite[n_finite], "Sz")
+orthogonalize!(ψ_finite, n_finite + 1)
+Sz2_finite = expect(ψ_finite[n_finite + 1], "Sz")
 Sz1_infinite = expect(ψ.AL[1] * ψ.C[1], "Sz")
 Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 
