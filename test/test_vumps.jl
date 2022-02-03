@@ -6,36 +6,27 @@ using Random
 @testset "vumps" begin
   Random.seed!(1234)
 
-  N = 2
   model = Model"ising"()
   model_kwargs = (J=1.0, h=1.1)
 
-  function space_shifted(::Model"ising", q̃sz)
-    return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
+  function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
+    if conserve_qns
+      return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
+    else
+      return [QN() => 2]
+    end
   end
-
-  space_ = fill(space_shifted(model, 0), N)
-  s = infsiteinds("S=1/2", N; space=space_)
-  initstate(n) = "↑"
-  ψ = InfMPS(s, initstate)
-
-  # Form the Hamiltonian
-  H = InfiniteITensorSum(model, s; model_kwargs...)
-
-  # Check translational invariance
-  @test contract(ψ.AL[1:N]..., ψ.C[N]) ≈ contract(ψ.C[0], ψ.AR[1:N]...)
 
   # VUMPS arguments
   cutoff = 1e-8
-  maxdim = 100
+  maxdim = 20
   tol = 1e-8
   maxiter = 20
   outer_iters = 3
 
-  #
-  # Compare to DMRG
-  #
+  initstate(n) = "↑"
 
+  # DMRG arguments
   Nfinite = 100
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
@@ -45,21 +36,44 @@ using Random
   setcutoff!(sweeps, 1E-10)
   energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
 
-  for multisite_update_alg in ["sequential", "parallel"]
+  for multisite_update_alg in ["sequential", "parallel"],
+    conserve_qns in [true, false],
+    nsites in [1, 2, 3, 4],
+    time_step in [-Inf, -0.5]
+
+    #if conserve_qns
+      # Flux density is inconsistent for odd unit cells
+    #  isodd(nsites) && continue
+    #end
+
+    space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsites)
+    s = infsiteinds("S=1/2", nsites; space=space_)
+    ψ = InfMPS(s, initstate)
+
+    # Form the Hamiltonian
+    H = InfiniteITensorSum(model, s; model_kwargs...)
+
+    # Check translational invariance
+    @test contract(ψ.AL[1:nsites]..., ψ.C[nsites]) ≈ contract(ψ.C[0], ψ.AR[1:nsites]...)
+
     vumps_kwargs = (
-      multisite_update_alg=multisite_update_alg, tol=tol, maxiter=maxiter, outputlevel=0
+      multisite_update_alg=multisite_update_alg,
+      tol=tol,
+      maxiter=maxiter,
+      outputlevel=0,
+      time_step=time_step,
     )
     subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
     # Alternate steps of running VUMPS and increasing the bond dimension
-    ψ = vumps(H, ψ; vumps_kwargs...)
     for _ in 1:outer_iters
       ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
-      ψ = vumps(H, ψ; vumps_kwargs...)
+      ψ = tdvp(H, ψ; vumps_kwargs...)
     end
 
     # Check translational invariance
-    @test contract(ψ.AL[1:N]..., ψ.C[N]) ≈ contract(ψ.C[0], ψ.AR[1:N]...) rtol = 1e-6
+    ## @test contract(ψ.AL[1:nsites]..., ψ.C[nsites]) ≈ contract(ψ.C[0], ψ.AR[1:nsites]...) rtol =
+    ##   1e-6
 
     function energy(ψ1, ψ2, h)
       ϕ = ψ1 * ψ2
@@ -109,7 +123,7 @@ end
 ##     space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
 ##     ψ = InfiniteMPS(ComplexF64, s; space=space)
 ##     randn!.(ψ)
-## 
+##
 ##     ψ = orthogonalize(ψ, :)
 ##     @test prod(ψ.AL[1:N]) * ψ.C[N] ≈ ψ.C[0] * prod(ψ.AR[1:N])
 ##   end

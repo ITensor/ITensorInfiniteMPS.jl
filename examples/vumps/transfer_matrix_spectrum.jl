@@ -1,20 +1,20 @@
-using ITensorInfiniteMPS
 using ITensors
+using ITensorInfiniteMPS
 
 ##############################################################################
-# VUMPS/TDVP parameters
+# VUMPS parameters
 #
 
-maxdim = 20 # Maximum bond dimension
+maxdim = 10 # Maximum bond dimension
 cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
-max_vumps_iters = 10 # Maximum number of iterations of the VUMPS/TDVP algorithm at a fixed bond dimension
+max_vumps_iters = 20 # Maximum number of iterations of the VUMPS algorithm at a fixed bond dimension
 tol = 1e-5 # Precision error tolerance for outer loop of VUMPS or TDVP
 outer_iters = 5 # Number of times to increase the bond dimension
-time_step = -Inf # -Inf corresponds to VUMPS, finite time_step corresponds to TDVP
+time_step = -Inf # -Inf corresponds to VUMPS
 solver_tol = (x -> x / 100) # Tolerance for the local solver (eigsolve in VUMPS and exponentiate in TDVP)
-multisite_update_alg = "parallel" # Choose between ["sequential", "parallel"]. Only parallel works with TDVP.
-conserve_qns = false
-N = 2 # Number of sites in the unit cell (1-site unit cell is currently broken)
+multisite_update_alg = "parallel" # Choose between ["sequential", "parallel"]
+conserve_qns = true
+N = 2 # Number of sites in the unit cell (1 site unit cell is currently broken)
 
 # Parameters of the transverse field Ising model
 model_params = (J=1.0, h=0.9)
@@ -109,3 +109,89 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 
 @show Sz1_finite, Sz2_finite
 @show Sz1_infinite, Sz2_infinite
+
+##############################################################################
+# Compute eigenspace of the transfer matrix
+#
+
+using Arpack
+using KrylovKit
+using LinearAlgebra
+
+T = TransferMatrix(ψ.AL)
+Tᵀ = transpose(T)
+vⁱᴿ = randomITensor(dag(input_inds(T)))
+vⁱᴸ = randomITensor(dag(input_inds(Tᵀ)))
+
+neigs = 10
+tol = 1e-10
+λ⃗ᴿ, v⃗ᴿ, right_info = eigsolve(T, vⁱᴿ, neigs, :LM; tol=tol)
+λ⃗ᴸ, v⃗ᴸ, left_info = eigsolve(Tᵀ, vⁱᴸ, neigs, :LM; tol=tol)
+
+@show norm(T(v⃗ᴿ[1]) - λ⃗ᴿ[1] * v⃗ᴿ[1])
+@show norm(Tᵀ(v⃗ᴸ[1]) - λ⃗ᴸ[1] * v⃗ᴸ[1])
+
+@show λ⃗ᴿ
+@show λ⃗ᴸ
+@show flux.(v⃗ᴿ)
+
+neigs = length(v⃗ᴿ)
+
+# Normalize the vectors
+N⃗ = [(translatecell(v⃗ᴸ[n], 1) * v⃗ᴿ[n])[] for n in 1:neigs]
+
+v⃗ᴿ ./= sqrt.(N⃗)
+v⃗ᴸ ./= sqrt.(N⃗)
+
+# Form a second starting vector orthogonal to v⃗ᴿ[1]
+# This doesn't work. TODO: project out v⃗ᴿ[1], v⃗ᴸ[1] from T
+#λ⃗ᴿ², v⃗ᴿ², right_info_2 = eigsolve(T, vⁱᴿ², neigs, :LM; tol=tol)
+
+# Projector onto the n-th eigenstate
+function proj(v⃗ᴸ, v⃗ᴿ, n)
+  Lⁿ = v⃗ᴸ[n]
+  Rⁿ = v⃗ᴿ[n]
+  return ITensorMap(
+    [translatecell(Lⁿ, 1), translatecell(Rⁿ, -1)]; input_inds=inds(Rⁿ), output_inds=inds(Lⁿ)
+  )
+end
+
+P⃗ = [proj(v⃗ᴸ, v⃗ᴿ, n) for n in 1:neigs]
+T⁻P = T - sum(P⃗)
+
+#vⁱᴿ² = vⁱᴿ - (translatecell(v⃗ᴸ[1], 1) * vⁱᴿ)[] / norm(v⃗ᴿ[1]) * v⃗ᴿ[1]
+#@show norm(dag(vⁱᴿ²) * v⃗ᴿ[1])
+
+λ⃗ᴾᴿ, v⃗ᴾᴿ, right_info = eigsolve(T⁻P, vⁱᴿ, neigs, :LM; tol=tol)
+@show λ⃗ᴾᴿ
+
+vⁱᴿ⁻ᵈᵃᵗᵃ = vec(array(vⁱᴿ))
+λ⃗ᴿᴬ, v⃗ᴿ⁻ᵈᵃᵗᵃ = Arpack.eigs(T; v0=vⁱᴿ⁻ᵈᵃᵗᵃ, nev=neigs)
+
+## XXX: this is giving an error about trying to set the element of the wrong QN block for:
+## maxdim = 5
+## cutoff = 1e-12
+## max_vumps_iters = 10
+## outer_iters = 10
+## model_params = (J=1.0, h=0.8)
+##
+## v⃗ᴿᴬ = [itensor(v⃗ᴿ⁻ᵈᵃᵗᵃ[:, n], input_inds(T); tol=1e-4) for n in 1:length(λ⃗ᴿᴬ)]
+## @show flux.(v⃗ᴿᴬ)
+
+@show λ⃗ᴿᴬ
+
+# Full eigendecomposition
+
+Tfull = prod(T)
+DV = eigen(Tfull, input_inds(T), output_inds(T))
+
+@show norm(Tfull * DV.V - DV.Vt * DV.D)
+
+d = diag(array(DV.D))
+
+p = sortperm(d; by=abs, rev=true)
+@show p[1:neigs]
+@show d[p[1:neigs]]
+
+println("Error if ED with Arpack")
+@show d[p[1:neigs]] - λ⃗ᴿᴬ
