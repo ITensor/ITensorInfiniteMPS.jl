@@ -94,8 +94,8 @@ using Random
     orthogonalize!(ψfinite, nfinite + 1)
     energy2_finite = energy(ψfinite[nfinite + 1], ψfinite[nfinite + 2], hnfinite2)
 
-    energy1_infinite = energy(ψ.AL[1], ψ.AL[2] * ψ.C[2], H[(1, 2)])
-    energy2_infinite = energy(ψ.AL[2], ψ.AL[3] * ψ.C[3], H[(2, 3)])
+    energy1_infinite = energy(ψ.AL[1], ψ.AL[2] * ψ.C[2], prod(H[(1, 2)]))
+    energy2_infinite = energy(ψ.AL[2], ψ.AL[3] * ψ.C[3], prod(H[(2, 3)]))
 
     orthogonalize!(ψfinite, nfinite)
     Sz1_finite = expect(ψfinite[nfinite], "Sz")

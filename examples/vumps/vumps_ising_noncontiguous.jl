@@ -31,7 +31,11 @@ model = Model("ising");
 H = InfiniteITensorSum(model, s; J=J, h=h);
 #to test the case where the range is larger than the unit cell size
 for x in 1:N
-  H.data[x] = H.data[x] * delta(prime(s[x + 3]), dag(s[x + 3]))
+  temp = MPO(3)
+  temp[1] = H[x][1]
+  temp[2] = H[x][2]
+  temp[3] = delta(prime(s[x + 3]), dag(s[x + 3]))
+  H.data[x] = temp
 end
 
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...));
@@ -45,39 +49,6 @@ for j in 1:outer_iters
   ψ_1 = subspace_expansion(ψ_0, H; subspace_expansion_kwargs...)
   println("Run VUMPS with new bond dimension")
   ψ_0 = vumps(H, ψ_1; vumps_kwargs...)
-end
-
-function ITensors.expect(ψ::InfiniteCanonicalMPS, o, n)
-  return (noprime(ψ.AL[n] * ψ.C[n] * op(o, s[n])) * dag(ψ.AL[n] * ψ.C[n]))[]
-end
-
-function ITensors.expect(ψ::InfiniteCanonicalMPS, h::ITensor)
-  l = linkinds(only, ψ.AL)
-  r = linkinds(only, ψ.AR)
-  s = siteinds(only, ψ)
-  δˢ(n) = δ(dag(s[n]), prime(s[n]))
-  δˡ(n) = δ(l[n], prime(dag(l[n])))
-  δʳ(n) = δ(dag(r[n]), prime(r[n]))
-  ψ′ = prime(dag(ψ))
-
-  ns = sort(findsites(ψ, h))
-  nrange = ns[end] - ns[1] + 1
-  idx = 2
-  temp_O = δˡ(ns[1] - 1) * ψ.AL[ns[1]] * h * ψ′.AL[ns[1]]
-  for n in (ns[1] + 1):(ns[1] + nrange - 1)
-    if n == ns[idx]
-      temp_O = temp_O * ψ.AL[n] * ψ′.AL[n]
-      idx += 1
-    else
-      temp_O = temp_O * ψ.AL[n] * δˢ(n) * ψ′.AL[n]
-    end
-  end
-  temp_O = temp_O * ψ.C[ns[end]] * δʳ(ns[end]) * ψ′.C[ns[end]]
-  return temp_O[]
-end
-
-function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteITensorSum)
-  return [expect(ψ, h[(j, j + 1)]) for j in 1:nsites(ψ)]
 end
 
 Sz = [expect(ψ_0, "Sz", n) for n in 1:N]

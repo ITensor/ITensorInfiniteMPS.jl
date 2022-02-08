@@ -30,39 +30,6 @@ using Random
   setcutoff!(sweeps, 1E-10)
   energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
 
-  function ITensors.expect(ψ::InfiniteCanonicalMPS, o, n)
-    return (noprime(ψ.AL[n] * ψ.C[n] * op(o, s[n])) * dag(ψ.AL[n] * ψ.C[n]))[]
-  end
-
-  function ITensors.expect(ψ::InfiniteCanonicalMPS, h::ITensor)
-    l = linkinds(ITensorInfiniteMPS.only, ψ.AL)
-    r = linkinds(ITensorInfiniteMPS.only, ψ.AR)
-    s = siteinds(ITensorInfiniteMPS.only, ψ)
-    δˢ(n) = ITensorInfiniteMPS.δ(dag(s[n]), prime(s[n]))
-    δˡ(n) = ITensorInfiniteMPS.δ(l[n], prime(dag(l[n])))
-    δʳ(n) = ITensorInfiniteMPS.δ(dag(r[n]), prime(r[n]))
-    ψ′ = prime(dag(ψ))
-
-    ns = sort(ITensorInfiniteMPS.findsites(ψ, h))
-    nrange = ns[end] - ns[1] + 1
-    idx = 2
-    temp_O = δˡ(ns[1] - 1) * ψ.AL[ns[1]] * h * ψ′.AL[ns[1]]
-    for n in (ns[1] + 1):(ns[1] + nrange - 1)
-      if n == ns[idx]
-        temp_O = temp_O * ψ.AL[n] * ψ′.AL[n]
-        idx += 1
-      else
-        temp_O = temp_O * ψ.AL[n] * δˢ(n) * ψ′.AL[n]
-      end
-    end
-    temp_O = temp_O * ψ.C[ns[end]] * δʳ(ns[end]) * ψ′.C[ns[end]]
-    return temp_O[]
-  end
-
-  function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteITensorSum)
-    return [expect(ψ, h[(j, j + 1)]) for j in 1:nsites(ψ)]
-  end
-
   function energy(ψ, h, n)
     ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
     return (noprime(ϕ * h) * dag(ϕ))[]

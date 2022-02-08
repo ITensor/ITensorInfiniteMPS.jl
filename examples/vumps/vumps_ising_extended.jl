@@ -44,39 +44,6 @@ for j in 1:outer_iters
   ψ_0 = vumps(H, ψ_1; vumps_kwargs...)
 end
 
-function ITensors.expect(ψ::InfiniteCanonicalMPS, o, n)
-  return (noprime(ψ.AL[n] * ψ.C[n] * op(o, s[n])) * dag(ψ.AL[n] * ψ.C[n]))[]
-end
-
-function ITensors.expect(ψ::InfiniteCanonicalMPS, h::ITensor)
-  l = linkinds(only, ψ.AL)
-  r = linkinds(only, ψ.AR)
-  s = siteinds(only, ψ)
-  δˢ(n) = δ(dag(s[n]), prime(s[n]))
-  δˡ(n) = δ(l[n], prime(dag(l[n])))
-  δʳ(n) = δ(dag(r[n]), prime(r[n]))
-  ψ′ = prime(dag(ψ))
-
-  ns = sort(findsites(ψ, h))
-  nrange = ns[end] - ns[1] + 1
-  idx = 2
-  temp_O = δˡ(ns[1] - 1) * ψ.AL[ns[1]] * h * ψ′.AL[ns[1]]
-  for n in (ns[1] + 1):(ns[1] + nrange - 1)
-    if n == ns[idx]
-      temp_O = temp_O * ψ.AL[n] * ψ′.AL[n]
-      idx += 1
-    else
-      temp_O = temp_O * ψ.AL[n] * δˢ(n) * ψ′.AL[n]
-    end
-  end
-  temp_O = temp_O * ψ.C[ns[end]] * δʳ(ns[end]) * ψ′.C[ns[end]]
-  return temp_O[]
-end
-
-function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteITensorSum)
-  return [expect(ψ, h[(j, j + 1)]) for j in 1:nsites(ψ)]
-end
-
 Sz = [expect(ψ_0, "Sz", n) for n in 1:N]
 energy_infinite = expect(ψ_0, H)
 
