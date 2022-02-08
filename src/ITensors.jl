@@ -72,6 +72,10 @@ function Base.startswith(tag::Tag, subtag::Tag)
 end
 
 function tag_starting_with(ts::TagSet, prefix)
+  x = findfirst(t -> startswith(t, Tag(prefix)), ts)
+  if isnothing(x) #in case the function is called one a link leg. Can be probably improved
+    return x
+  end
   return ts[findfirst(t -> startswith(t, Tag(prefix)), ts)]
 end
 

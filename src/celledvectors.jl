@@ -25,16 +25,22 @@ indextagprefix() = "n="
 # Determine the cell `n` from the tag `"c=n"`
 function getcell(ts::TagSet)
   celltag = tag_starting_with(ts, celltagprefix())
+  if isnothing(celltag) #dealing with link legs
+    return celltag
+  end
   return parse(Int, celltag[(length(celltagprefix()) + 1):end])
 end
 
 function getsite(ts::TagSet)
-  celltag = ITensorInfiniteMPS.tag_starting_with(ts, indextagprefix())
+  celltag = tag_starting_with(ts, indextagprefix())
   return parse(Int, celltag[(length(indextagprefix()) + 1):end])
 end
 
 function translatecell(ts::TagSet, n::Integer)
   ncell = getcell(ts)
+  if isnothing(ncell)
+    return ts
+  end
   return replacetags(ts, celltags(ncell) => celltags(ncell + n))
 end
 
@@ -49,6 +55,7 @@ function translatecell(is::Union{<:Tuple,<:Vector}, n::Integer)
 end
 
 translatecell(T::ITensor, n::Integer) = ITensors.setinds(T, translatecell(inds(T), n))
+translatecell(T::MPO, n::Integer) = translatecell.(T, n)
 
 struct CelledVector{T} <: AbstractVector{T}
   data::Vector{T}
