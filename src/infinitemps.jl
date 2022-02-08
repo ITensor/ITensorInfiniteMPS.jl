@@ -57,14 +57,24 @@ end
 
 ITensors.siteinds(f::typeof(only), ψ::InfiniteCanonicalMPS) = siteinds(f, ψ.AL)
 
-ITensorInfiniteMPS.getcell(i::Index) = ITensorInfiniteMPS.getcell(tags(i))
+getcell(i::Index) = ITensorInfiniteMPS.getcell(tags(i))
 getsite(i::Index) = getsite(tags(i))
+
+#Before, for a two site Hamiltonian, findsites(ψ, H[3]) would return [1, 2]
+#Appeared unsafe for index purpose
 function ITensors.findfirstsiteind(ψ::InfiniteMPS, i::Index)
   c = ITensorInfiniteMPS.getcell(i)
-  i1 = translatecell(i, -(c - 1))
-  n1 = findfirst(hascommoninds(i1), ψ[Cell(1)])
+  n1 = getsite(i)
   return (c - 1) * nsites(ψ) + n1
 end
+
+function ITensors.findsites(ψ::InfiniteMPS, T::MPO)
+  s = [noprime(filterinds(T[x]; plev=1)[1]) for x in 1:length(T)]
+  return sort([ITensors.findfirstsiteind(ψ, i) for i in s])
+end
+ITensors.findsites(ψ::InfiniteCanonicalMPS, T::MPO) = findsites(ψ.AL, T)
+
+#Kept for historical reason
 function ITensors.findsites(ψ::InfiniteMPS, T::ITensor)
   s = filterinds(T; plev=0)
   return sort([ITensors.findfirstsiteind(ψ, i) for i in s])
@@ -74,29 +84,50 @@ ITensors.findsites(ψ::InfiniteCanonicalMPS, T::ITensor) = findsites(ψ.AL, T)
 # For now, only represents nearest neighbor interactions
 # on a linear chain
 struct InfiniteITensorSum
-  data::CelledVector{ITensor}
+  data::CelledVector{MPO}
 end
 InfiniteITensorSum(N::Int) = InfiniteITensorSum(Vector{ITensor}(undef, N))
-InfiniteITensorSum(data::Vector{ITensor}) = InfiniteITensorSum(CelledVector(data))
+InfiniteITensorSum(data::Vector{MPO}) = InfiniteITensorSum(CelledVector(data))
+InfiniteITensorSum(data::Vector{ITensor}) = InfiniteITensorSum(CelledVector(MPO.(data)))
 function Base.getindex(l::InfiniteITensorSum, n1n2::Tuple{Int,Int})
   n1, n2 = n1n2
   @assert n2 == n1 + 1
   return l.data[n1]
 end
+function Base.getindex(l::InfiniteITensorSum, n1::Int)
+  return l.data[n1]
+end
 nsites(h::InfiniteITensorSum) = length(h.data)
 #Gives the range of the Hamiltonian. Useful for better optimized contraction in VUMPS
-nsites_support(h::InfiniteITensorSum) = order.(h.data) ÷ 2
-nsites_support(h::InfiniteITensorSum, n::Int64) = order(h.data[n]) ÷ 2
+nsites_support(h::InfiniteITensorSum) = length.(h.data)
+nsites_support(h::InfiniteITensorSum, n::Int64) = length(h.data[n])
 
 nrange(h::InfiniteITensorSum) = nrange.(h.data, ncell=nsites(h))
 nrange(h::InfiniteITensorSum, n::Int64) = nrange(h.data[n]; ncell=nsites(h))
-function nrange(h::ITensor; ncell=0)
+function nrange(h::MPO; ncell=1)
   ns = findsites(h; ncell=ncell)
   return ns[end] - ns[1] + 1
 end
 
-function ITensors.findfirstsiteind(h::ITensor, i::Index, ncell::Int64)
+ITensors.findsites(h::InfiniteITensorSum) = [findsites(h, n) for n in 1:nsites(h)]
+ITensors.findsites(h::InfiniteITensorSum, n::Int64) = findsites(h.data[n]; ncell=nsites(h))
+function ITensors.findfirstsiteind(i::Index, ncell::Int64)
   c = ITensorInfiniteMPS.getcell(i)
+  n1 = getsite(i)
+  return (c - 1) * ncell + n1
+end
+function ITensors.findsites(h::MPO; ncell::Int64=1)
+  s = [filterinds(h[x]; plev=1)[1] for x in 1:length(h)]
+  return sort([ITensors.findfirstsiteind(i, ncell) for i in s])
+end
+
+#Kept for historical reasons
+function nrange(h::ITensor; ncell=0)
+  ns = findsites(h; ncell=ncell)
+  return ns[end] - ns[1] + 1
+end
+function ITensors.findfirstsiteind(h::ITensor, i::Index, ncell::Int64)
+  c = getcell(i)
   n1 = getsite(i)
   return (c - 1) * ncell + n1
 end
@@ -104,8 +135,6 @@ function ITensors.findsites(h::ITensor; ncell::Int64=1)
   s = filterinds(h; plev=0)
   return sort([ITensors.findfirstsiteind(h, i, ncell) for i in s])
 end
-ITensors.findsites(h::InfiniteITensorSum) = [findsites(h, n) for n in 1:nsites(h)]
-ITensors.findsites(h::InfiniteITensorSum, n::Int64) = findsites(h.data[n]; ncell=nsites(h))
 
 ## HDF5 support for the InfiniteCanonicalMPS type
 

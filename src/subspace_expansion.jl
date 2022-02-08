@@ -45,48 +45,61 @@ function subspace_expansion(
   nL = uniqueinds(NL, ψ.AL[n1])
   nR = uniqueinds(NR, ψ.AR[n2])
   if range_H == 2
-    ψH2 = noprime(ψ.AL[n1] * H[(n1, n2)] * ψ.C[n1] * ψ.AR[n2])
+    ψH2 = noprime(ψ.AL[n1] * H[n1][1] * H[n1][2] * ψ.C[n1] * ψ.AR[n2])
   else   # Should be a better version now
     ψH2 =
-      H[(n1, n2)] * ψ.AR[n2 + range_H - 2] * ψ′.AR[n2 + range_H - 2] * δʳ(n2 + range_H - 2)
+      H[n1][end] * ψ.AR[n2 + range_H - 2] * ψ′.AR[n2 + range_H - 2] * δʳ(n2 + range_H - 2)
     common_sites = findsites(ψ, H[(n1, n2)])
     idx = length(common_sites) - 1
     for j in reverse(1:(range_H - 3))
       if n2 + j == common_sites[idx]
-        ψH2 = ψH2 * ψ.AR[n2 + j] * ψ′.AR[n2 + j]
+        ψH2 = ψH2 * ψ.AR[n2 + j] * ψ′.AR[n2 + j] * H[n1][idx]
         idx -= 1
       else
         ψH2 = ψH2 * ψ.AR[n2 + j] * δˢ(n2 + j) * ψ′.AR[n2 + j]
       end
     end
-    ψH2 = noprime(ψH2 * ψ.AL[n1] * ψ.C[n1] * ψ.AR[n2])
+    if common_sites[idx] == n2
+      ψH2 = ψH2 * ψ.AR[n2] * H[n1][idx]
+      idx -= 1
+    else
+      ψH2 = ψH2 * ψ.AR[n2] * δˢ(n2)
+    end
+    if common_sites[idx] == n1
+      ψH2 = ψH2 * ψ.AL[n1] * ψ.C[n1] * H[n1][idx]
+      idx -= 1
+    else
+      ψH2 = ψH2 * ψ.AL[n1] * ψ.C[n1] * δˢ(n1)
+    end
+
+    ψH2 = noprime(ψH2)
     for n in 1:(range_H - 2)
-      temp_H2 = H[(n1 - n, n2 - n)] * δʳ(n2 + range_H - 2 - n)
-      common_sites = findsites(ψ, H[(n1 - n, n2 - n)])
+      temp_H2 = δʳ(n2 + range_H - 2 - n)
+      common_sites = findsites(ψ, H[n1 - n])
       idx = length(common_sites)
       for j in (n2 + range_H - 2 - n):-1:(n2 + 1)
         if j == common_sites[idx]
-          temp_H2 = temp_H2 * ψ.AR[j] * ψ′.AR[j]
+          temp_H2 = temp_H2 * ψ.AR[j] * ψ′.AR[j] * H[n1 - n][idx]
           idx -= 1
         else
           temp_H2 = temp_H2 * ψ.AR[j] * ψ′.AR[j] * δˢ(j)
         end
       end
       if common_sites[idx] == n2
-        temp_H2 = temp_H2 * ψ.AR[n2]
+        temp_H2 = temp_H2 * ψ.AR[n2] * H[n1 - n][idx]
         idx -= 1
       else
         temp_H2 = temp_H2 * ψ.AR[n2] * δˢ(n2)
       end
       if common_sites[idx] == n1
-        temp_H2 = temp_H2 * ψ.AL[n1] * ψ.C[n1]
+        temp_H2 = temp_H2 * ψ.AL[n1] * ψ.C[n1] * H[n1 - n][idx]
         idx -= 1
       else
         temp_H2 = temp_H2 * ψ.AL[n1] * ψ.C[n1] * δˢ(n1)
       end
       for j in 1:n
         if n1 - j == common_sites[idx]
-          temp_H2 = temp_H2 * ψ.AL[n1 - j] * ψ′.AL[n1 - j]
+          temp_H2 = temp_H2 * ψ.AL[n1 - j] * ψ′.AL[n1 - j] * H[n1 - n][idx]
           idx -= 1
         else
           temp_H2 = temp_H2 * ψ.AL[n1 - j] * δˢ(n1 - j) * ψ′.AL[n1 - j]
