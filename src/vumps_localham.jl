@@ -404,7 +404,6 @@ function right_environment(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; t
   return Hᴿ, eᴿ
 end
 
-
 function tdvp_iteration(args...; multisite_update_alg="sequential", kwargs...)
   if multisite_update_alg == "sequential"
     return tdvp_iteration_sequential(args...; kwargs...)
@@ -467,8 +466,8 @@ function tdvp_iteration_sequential(
     δˡ(n) = δ(l[n], l′[n])
     δˢ(n) = δ(dag(s[n]), prime(s[n]))
 
-    Hᴸ, eᴸ = left_environment(∑h, ψ; tol = _solver_tol)
-    Hᴿ, eᴿ = right_environment(∑h, ψ; tol = _solver_tol)
+    Hᴸ, eᴸ = left_environment(∑h, ψ; tol=_solver_tol)
+    Hᴿ, eᴿ = right_environment(∑h, ψ; tol=_solver_tol)
 
     Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = solver(
       Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol
@@ -525,8 +524,8 @@ function tdvp_iteration_parallel(
   δʳ(n) = δ(dag(r[n]), prime(r[n]))
   δˡ(n) = δ(l[n], l′[n])
   δˢ(n) = δ(dag(s[n]), prime(s[n]))
-  Hᴸ, eᴸ = left_environment(∑h, ψ; tol = _solver_tol)
-  Hᴿ, eᴿ = right_environment(∑h, ψ; tol = _solver_tol)
+  Hᴸ, eᴸ = left_environment(∑h, ψ; tol=_solver_tol)
+  Hᴿ, eᴿ = right_environment(∑h, ψ; tol=_solver_tol)
 
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
