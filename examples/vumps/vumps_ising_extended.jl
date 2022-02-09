@@ -29,7 +29,7 @@ initstate(n) = "↑"
 ψ = InfMPS(s, initstate);
 
 model = Model("ising_extended");
-H = InfiniteITensorSum(model, s; J=J, J₂=J₂, h=h);
+H = InfiniteSum{MPO}(model, s; J=J, J₂=J₂, h=h);
 
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...));
 

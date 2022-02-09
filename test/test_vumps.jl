@@ -51,7 +51,7 @@ using Random
     ψ = InfMPS(s, initstate)
 
     # Form the Hamiltonian
-    H = InfiniteITensorSum(model, s; model_kwargs...)
+    H = InfiniteSum{MPO}(model, s; model_kwargs...)
 
     # Check translational invariance
     @test contract(ψ.AL[1:nsites]..., ψ.C[nsites]) ≈ contract(ψ.C[0], ψ.AR[1:nsites]...)

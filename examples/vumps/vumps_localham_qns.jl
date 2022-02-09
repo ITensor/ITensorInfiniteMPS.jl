@@ -31,7 +31,7 @@ energy_finite, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
 @show energy_finite / Nfinite
 
 # Form the Hamiltonian
-Σ∞h = InfiniteITensorSum(model, s; model_kwargs...)
+Σ∞h = InfiniteSum{MPO}(model, s; model_kwargs...)
 
 d = 1
 χ = [QN("SzParity", 1, 2) => d, QN("SzParity", 0, 2) => d]

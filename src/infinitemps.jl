@@ -83,34 +83,38 @@ ITensors.findsites(ψ::InfiniteCanonicalMPS, T::ITensor) = findsites(ψ.AL, T)
 
 # For now, only represents nearest neighbor interactions
 # on a linear chain
-struct InfiniteITensorSum
-  data::CelledVector{MPO}
+struct InfiniteSum{T}
+  data::CelledVector{T}
 end
-InfiniteITensorSum(N::Int) = InfiniteITensorSum(Vector{ITensor}(undef, N))
-InfiniteITensorSum(data::Vector{MPO}) = InfiniteITensorSum(CelledVector(data))
-InfiniteITensorSum(data::Vector{ITensor}) = InfiniteITensorSum(CelledVector(MPO.(data)))
-function Base.getindex(l::InfiniteITensorSum, n1n2::Tuple{Int,Int})
+InfiniteSum{T}(N::Int) where {T} = InfiniteSum{T}(Vector{T}(undef, N))
+InfiniteSum{T}(data::Vector{T}) where {T} = InfiniteSum{T}(CelledVector(data))
+
+# Automatically converts from ITensor to MPO.
+# XXX: check this conversion is correct.
+InfiniteSum{T}(data::Vector{ITensor}) where {T} = InfiniteSum{T}(CelledVector(T.(data)))
+
+function Base.getindex(l::InfiniteSum, n1n2::Tuple{Int,Int})
   n1, n2 = n1n2
   @assert n2 == n1 + 1
   return l.data[n1]
 end
-function Base.getindex(l::InfiniteITensorSum, n1::Int)
+function Base.getindex(l::InfiniteSum, n1::Int)
   return l.data[n1]
 end
-nsites(h::InfiniteITensorSum) = length(h.data)
+nsites(h::InfiniteSum) = length(h.data)
 #Gives the range of the Hamiltonian. Useful for better optimized contraction in VUMPS
-nsites_support(h::InfiniteITensorSum) = length.(h.data)
-nsites_support(h::InfiniteITensorSum, n::Int64) = length(h.data[n])
+nsites_support(h::InfiniteSum) = length.(h.data)
+nsites_support(h::InfiniteSum, n::Int64) = length(h.data[n])
 
-nrange(h::InfiniteITensorSum) = nrange.(h.data, ncell=nsites(h))
-nrange(h::InfiniteITensorSum, n::Int64) = nrange(h.data[n]; ncell=nsites(h))
+nrange(h::InfiniteSum) = nrange.(h.data, ncell=nsites(h))
+nrange(h::InfiniteSum, n::Int64) = nrange(h.data[n]; ncell=nsites(h))
 function nrange(h::MPO; ncell=1)
   ns = findsites(h; ncell=ncell)
   return ns[end] - ns[1] + 1
 end
 
-ITensors.findsites(h::InfiniteITensorSum) = [findsites(h, n) for n in 1:nsites(h)]
-ITensors.findsites(h::InfiniteITensorSum, n::Int64) = findsites(h.data[n]; ncell=nsites(h))
+ITensors.findsites(h::InfiniteSum) = [findsites(h, n) for n in 1:nsites(h)]
+ITensors.findsites(h::InfiniteSum, n::Int64) = findsites(h.data[n]; ncell=nsites(h))
 function ITensors.findfirstsiteind(i::Index, ncell::Int64)
   c = ITensorInfiniteMPS.getcell(i)
   n1 = getsite(i)

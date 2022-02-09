@@ -62,7 +62,7 @@ using Random
 
     space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsites)
     s = infsiteinds("S=1/2", nsites; space=space_)
-    H = InfiniteITensorSum(model, s; model_kwargs...)
+    H = InfiniteSum{MPO}(model, s; model_kwargs...)
     ψ = InfMPS(s, initstate)
 
     # Check translational invariance

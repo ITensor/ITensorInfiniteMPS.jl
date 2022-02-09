@@ -18,14 +18,14 @@ end
 ITensorInfiniteMPS.nrange(model::Model) = 2; #required to keep everything compatible with the current implementation for 2 band models
 
 # Create an infinite sum of Hamiltonian terms
-function InfiniteITensorSum(model::Model, s::Vector; kwargs...)
-  return InfiniteITensorSum(model, infsiteinds(s); kwargs...)
+function InfiniteSum{T}(model::Model, s::Vector; kwargs...) where {T}
+  return InfiniteSum{T}(model, infsiteinds(s); kwargs...)
 end
 
-function InfiniteITensorSum(model::Model, s::CelledVector; kwargs...)
+function InfiniteSum{MPO}(model::Model, s::CelledVector; kwargs...)
   N = length(s)
   mpos = [MPO(model, s, n; kwargs...) for n in 1:N] #slightly improved version. Note: the current implementation does not really allow for staggered potentials for example
-  return InfiniteITensorSum(mpos)
+  return InfiniteSum{MPO}(mpos)
 end
 
 # MPO building version
