@@ -27,7 +27,7 @@ initstate(n) = isodd(n) ? "↑" : "↓"
 model = Model("heisenberg")
 
 # Form the Hamiltonian
-H = InfiniteITensorSum(model, s)
+H = InfiniteSum{MPO}(model, s)
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))

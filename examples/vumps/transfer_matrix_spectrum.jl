@@ -39,7 +39,7 @@ initstate(n) = "↑"
 ψ = InfMPS(s, initstate)
 
 # Form the Hamiltonian
-H = InfiniteITensorSum(model, s; model_params...)
+H = InfiniteSum{MPO}(model, s; model_params...)
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))

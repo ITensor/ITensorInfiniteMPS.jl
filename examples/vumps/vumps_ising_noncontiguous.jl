@@ -28,7 +28,7 @@ initstate(n) = "↑"
 ψ = InfMPS(s, initstate);
 
 model = Model("ising");
-H = InfiniteITensorSum(model, s; J=J, h=h);
+H = InfiniteSum{MPO}(model, s; J=J, h=h);
 #to test the case where the range is larger than the unit cell size
 for x in 1:N
   temp = MPO(3)
