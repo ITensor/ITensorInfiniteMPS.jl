@@ -416,18 +416,6 @@ function tdvp_iteration(args...; multisite_update_alg="sequential", kwargs...)
   end
 end
 
-#TODO put these functions somewhere else
-function ortho_overlap(AC, C)
-  AL, _ = polar(AC * dag(C), uniqueinds(AC, C))
-  return noprime(AL)
-end
-
-function ortho_polar(AC, C)
-  UAC, _ = polar(AC, uniqueinds(AC, C))
-  UC, _ = polar(C, commoninds(C, AC))
-  return noprime(UAC) * noprime(dag(UC))
-end
-
 #In principle, could share even more code with vumps_mpo or with parallel
 function tdvp_iteration_sequential(
   solver::Function,
