@@ -45,10 +45,7 @@ function (A::AOᴸ)(x)
 end
 
 function apply_local_left_transfer_matrix(
-  Lstart::Vector{ITensor},
-  H::InfiniteMPOMatrix,
-  ψ::InfiniteCanonicalMPS,
-  n_1::Int64,
+  Lstart::Vector{ITensor}, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   dₕ = length(Lstart)
   ψ′ = dag(ψ)'
@@ -90,11 +87,7 @@ end
 
 #apply the left transfer matrix n1:n1+nsites(ψ)-1
 function apply_left_transfer_matrix(
-  Lstart::ITensor,
-  m::Int64,
-  H::InfiniteMPOMatrix,
-  ψ::InfiniteCanonicalMPS,
-  n_1::Int64,
+  Lstart::ITensor, m::Int64, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   Ltarget = apply_local_left_transfer_matrix(Lstart, m, H, ψ, n_1)
   for j in 1:(nsites(ψ) - 1)
@@ -214,10 +207,7 @@ function apply_local_right_transfer_matrix!(
 end
 
 function apply_local_right_transfer_matrix(
-  Lstart::Vector{ITensor},
-  H::InfiniteMPOMatrix,
-  ψ::InfiniteCanonicalMPS,
-  n_1::Int64,
+  Lstart::Vector{ITensor}, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   dₕ = length(Lstart)
   ψ′ = dag(ψ)'
@@ -260,11 +250,7 @@ end
 
 #apply the right transfer matrix n1:n1+nsites(ψ)-1
 function apply_right_transfer_matrix(
-  Lstart::ITensor,
-  m::Int64,
-  H::InfiniteMPOMatrix,
-  ψ::InfiniteCanonicalMPS,
-  n_1::Int64,
+  Lstart::ITensor, m::Int64, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   Ltarget = apply_local_right_transfer_matrix(Lstart, m, H, ψ, n_1)
   for j in 1:(nsites(ψ) - 1)
@@ -292,9 +278,7 @@ function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1
   Rs[1][1] = δʳ(0)
   localL = ψ.C[0] * δˡ(0) * dag(prime(ψ.C[0]))
   for n in 2:dₕ
-    temp_Rs = apply_right_transfer_matrix(
-      translatecell(Rs[1][n - 1], 1), n - 1, H, ψ, N
-    )
+    temp_Rs = apply_right_transfer_matrix(translatecell(Rs[1][n - 1], 1), n - 1, H, ψ, N)
     for j in n:dₕ
       if isassigned(temp_Rs, j)
         if isassigned(Rs[1], j)

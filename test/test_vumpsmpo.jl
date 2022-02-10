@@ -86,8 +86,6 @@ using Random
   end
 end
 
-
-
 @testset "vumpsmpo_extendedising" begin
   Random.seed!(1234)
 
@@ -122,21 +120,22 @@ end
   energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
   Szs_finite = expect(ψfinite, "Sz")
 
-
-    function energy(ψ, h, n)
-      ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
-      return (noprime(ϕ * h) * dag(ϕ))[]
-    end
+  function energy(ψ, h, n)
+    ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
+    return (noprime(ϕ * h) * dag(ϕ))[]
+  end
 
   nfinite = Nfinite ÷ 2
-  hnfinite = ITensor(model, sfinite[nfinite], sfinite[nfinite + 1], sfinite[nfinite + 2]; model_kwargs...)
+  hnfinite = ITensor(
+    model, sfinite[nfinite], sfinite[nfinite + 1], sfinite[nfinite + 2]; model_kwargs...
+  )
   orthogonalize!(ψfinite, nfinite)
   energy_finite = energy(ψfinite, hnfinite, nfinite)
 
   for multisite_update_alg in ["sequential"],
-      conserve_qns in [true],
-      nsites in [1, 2],
-      time_step in [-Inf]
+    conserve_qns in [true],
+    nsites in [1, 2],
+    time_step in [-Inf]
 
     vumps_kwargs = (
       multisite_update_alg=multisite_update_alg,
