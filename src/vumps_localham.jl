@@ -4,7 +4,7 @@
 #
 
 struct Hᶜ
-  ∑h::InfiniteITensorSum
+  ∑h::InfiniteSum{MPO}
   Hᴸ::InfiniteMPS
   Hᴿ::InfiniteMPS
   ψ::InfiniteCanonicalMPS
@@ -12,7 +12,7 @@ struct Hᶜ
 end
 
 struct Hᴬᶜ
-  ∑h::InfiniteITensorSum
+  ∑h::InfiniteSum{MPO}
   Hᴸ::InfiniteMPS
   Hᴿ::InfiniteMPS
   ψ::InfiniteCanonicalMPS
@@ -243,7 +243,7 @@ function left_environment(hᴸ, 𝕙ᴸ, ψ; tol=1e-15)
   return Hᴸ
 end
 
-function left_environment(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; tol=1e-15)
+function left_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=1e-15)
   Nsites = nsites(ψ)
   range_∑h = nrange(∑h, 1)
   ψᴴ = dag(ψ)
@@ -353,7 +353,7 @@ function right_environment(hᴿ, 𝕙ᴿ, ψ; tol=1e-15)
   return Hᴿ
 end
 
-function right_environment(∑h::InfiniteITensorSum, ψ::InfiniteCanonicalMPS; tol=1e-15)
+function right_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=1e-15)
   Nsites = nsites(ψ)
   range_∑h = nrange(∑h, 1)
   ψᴴ = dag(ψ)
@@ -419,7 +419,7 @@ end
 #In principle, could share even more code with vumps_mpo or with parallel
 function tdvp_iteration_sequential(
   solver::Function,
-  ∑h::InfiniteITensorSum,
+  ∑h::InfiniteSum,
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
@@ -488,7 +488,7 @@ end
 
 function tdvp_iteration_parallel(
   solver::Function,
-  ∑h::InfiniteITensorSum,
+  ∑h::InfiniteSum,
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),

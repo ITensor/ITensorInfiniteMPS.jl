@@ -146,6 +146,6 @@ function ITensors.expect(ψ::InfiniteCanonicalMPS, h::MPO)
   return temp_O[]
 end
 
-function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteITensorSum)
+function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteSum)
   return [expect(ψ, h[j]) for j in 1:nsites(ψ)]
 end

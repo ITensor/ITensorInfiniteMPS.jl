@@ -60,7 +60,7 @@ end
 
 s¹ = siteinds(ψ∞, Cell(1))
 
-Σ∞h = InfiniteITensorSum(model, s¹; J=J, h=h)
+Σ∞h = InfiniteSum{MPO}(model, s¹; J=J, h=h)
 
 ψ∞_opt = vumps(Σ∞h, ψ∞)
 

@@ -36,7 +36,7 @@ model = Model"hubbard"()
 @show model, model_params
 
 # Form the Hamiltonian
-H = InfiniteITensorSum(model, s; model_params...)
+H = InfiniteSum{MPO}(model, s; model_params...)
 
 # Check translational invariance
 println("\nCheck translational invariance of initial infinite MPS")
