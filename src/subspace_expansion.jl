@@ -3,8 +3,10 @@ function replaceind_indval(IV::Tuple, iĩ::Pair)
   return ntuple(n -> first(IV[n]) == i ? ĩ => last(IV[n]) : IV[n], length(IV))
 end
 
+#TODO implement the nullspace generation for InfiniteSum{ITensor}? 
+
 function generate_twobody_nullspace(
-  ψ::InfiniteCanonicalMPS, H::InfiniteITensorSum, b::Tuple{Int,Int}; atol=1e-2
+  ψ::InfiniteCanonicalMPS, H::InfiniteSum{MPO}, b::Tuple{Int,Int}; atol=1e-2
 )
   n1, n2 = b
   lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])

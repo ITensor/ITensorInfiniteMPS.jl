@@ -77,7 +77,7 @@ using Random
       contract(ψ.AL[1:nsites]..., ψ.C[nsites]) - contract(ψ.C[0], ψ.AR[1:nsites]...)
     ) ≈ 0 atol = 1e-5
 
-    H = InfiniteITensorSum(model, s; model_kwargs...)
+    H = InfiniteSum{MPO}(model, s; model_kwargs...)
     energy_infinite = expect(ψ, H)
     Szs_infinite = [expect(ψ, "Sz", n) for n in 1:nsites]
 
@@ -162,7 +162,7 @@ end
       contract(ψ.AL[1:nsites]..., ψ.C[nsites]) - contract(ψ.C[0], ψ.AR[1:nsites]...)
     ) ≈ 0 atol = 1e-5
 
-    H = InfiniteITensorSum(model, s; model_kwargs...)
+    H = InfiniteSum{MPO}(model, s; model_kwargs...)
     energy_infinite = expect(ψ, H)
     Szs_infinite = [expect(ψ, "Sz", n) for n in 1:nsites]
 

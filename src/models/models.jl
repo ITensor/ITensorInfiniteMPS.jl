@@ -28,6 +28,12 @@ function InfiniteSum{MPO}(model::Model, s::CelledVector; kwargs...)
   return InfiniteSum{MPO}(mpos)
 end
 
+function InfiniteSum{ITensor}(model::Model, s::CelledVector; kwargs...)
+  N = length(s)
+  itensors = [ITensor(model, s, n; kwargs...) for n in 1:N] #slightly improved version. Note: the current implementation does not really allow for staggered potentials for example
+  return InfiniteSum{ITensor}(itensors)
+end
+
 # MPO building version
 function ITensors.MPO(model::Model, s::CelledVector, n::Int64; kwargs...)
   n1, n2 = 1, 2
@@ -46,7 +52,7 @@ op(::OpName"Zero", ::SiteType, s::Index) = ITensor(s', dag(s))
 
 function InfiniteMPOMatrix(model::Model, s::CelledVector; kwargs...)
   N = length(s)
-  temp_H = InfiniteITensorSum(model, s; kwargs...)
+  temp_H = InfiniteSum{MPO}(model, s; kwargs...)
   range_H = nrange(temp_H)[1]
   ls = CelledVector([Index(1, "Link,c=1,n=$n") for n in 1:N])
   mpos = [Matrix{ITensor}(undef, 1, 1) for i in 1:N]

@@ -88,10 +88,31 @@ struct InfiniteSum{T}
 end
 InfiniteSum{T}(N::Int) where {T} = InfiniteSum{T}(Vector{T}(undef, N))
 InfiniteSum{T}(data::Vector{T}) where {T} = InfiniteSum{T}(CelledVector(data))
-
 # Automatically converts from ITensor to MPO.
 # XXX: check this conversion is correct.
-InfiniteSum{T}(data::Vector{ITensor}) where {T} = InfiniteSum{T}(CelledVector(T.(data)))
+#InfiniteSum{T}(data::Vector{ITensor}) where {T} = InfiniteSum{T}(CelledVector(T.(data)))
+#This crashed for me when T is ITensor
+function InfiniteSum{MPO}(data::Vector{ITensor})
+  N = length(data)
+  temp_inds = [filterinds(data[n]; plev=0) for n in 1:N]
+  return InfiniteSum{MPO}([
+    MPO(
+      data[n],
+      [(temp_inds[n][j], dag(prime(temp_inds[n][j]))) for j in 1:length(temp_inds[n])],
+    ) for n in 1:N
+  ])
+end
+
+function InfiniteSum{MPO}(infsum::InfiniteSum{ITensor})
+  N = nsites(infsum)
+  temp_inds = [filterinds(infsum[n]; plev=0) for n in 1:N]
+  return InfiniteSum{MPO}([
+    MPO(
+      infsum[n],
+      [(temp_inds[n][j], dag(prime(temp_inds[n][j]))) for j in 1:length(temp_inds[n])],
+    ) for n in 1:N
+  ])
+end
 
 function Base.getindex(l::InfiniteSum, n1n2::Tuple{Int,Int})
   n1, n2 = n1n2
