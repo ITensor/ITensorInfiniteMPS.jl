@@ -56,6 +56,7 @@ end
 
 translatecell(T::ITensor, n::Integer) = ITensors.setinds(T, translatecell(inds(T), n))
 translatecell(T::MPO, n::Integer) = translatecell.(T, n)
+translatecell(T::Matrix{ITensor}, n::Integer) = translatecell.(T, n)
 
 struct CelledVector{T} <: AbstractVector{T}
   data::Vector{T}

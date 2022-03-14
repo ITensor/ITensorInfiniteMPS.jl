@@ -3,20 +3,11 @@ function replaceind_indval(IV::Tuple, iĩ::Pair)
   return ntuple(n -> first(IV[n]) == i ? ĩ => last(IV[n]) : IV[n], length(IV))
 end
 
-# atol controls the tolerance cutoff for determining which eigenvectors are in the null
-# space of the isometric MPS tensors. Setting to 1e-2 since we only want to keep
-# the eigenvectors corresponding to eigenvalues of approximately 1.
-function subspace_expansion(
-  ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxdim, cutoff, atol=1e-2, kwargs...
+#TODO implement the nullspace generation for InfiniteSum{ITensor}? 
+
+function generate_twobody_nullspace(
+  ψ::InfiniteCanonicalMPS, H::InfiniteSum{MPO}, b::Tuple{Int,Int}; atol=1e-2
 )
-  range_H = nrange(H, 1)
-  @assert range_H > 1 "Not defined for purely local Hamiltonians"
-
-  if range_H > 2
-    ψᴴ = dag(ψ)
-    ψ′ = prime(ψᴴ)
-  end
-
   n1, n2 = b
   lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
   rⁿ¹ = commoninds(ψ.AR[n2], ψ.C[n1])
@@ -27,23 +18,14 @@ function subspace_expansion(
   δˢ(n) = δ(dag(s[n]), prime(s[n]))
   δˡ(n) = δ(l[n], dag(prime(l[n])))
 
-  dˡ = dim(lⁿ¹)
-  dʳ = dim(rⁿ¹)
-  @assert dˡ == dʳ
-  if dˡ ≥ maxdim
-    println(
-      "Current bond dimension at bond $b is $dˡ while desired maximum dimension is $maxdim, skipping bond dimension increase",
-    )
-    return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
+  range_H = nrange(H, 1)
+  @assert range_H > 1 "Not defined for purely local Hamiltonians"
+
+  if range_H > 2
+    ψᴴ = dag(ψ)
+    ψ′ = prime(ψᴴ)
   end
-  maxdim -= dˡ
 
-  # Returns `NL` such that `norm(ψ.AL[n1] * NL) ≈ 0`
-  NL = nullspace(ψ.AL[n1], lⁿ¹; atol=atol)
-  NR = nullspace(ψ.AR[n2], rⁿ¹; atol=atol)
-
-  nL = uniqueinds(NL, ψ.AL[n1])
-  nR = uniqueinds(NR, ψ.AR[n2])
   if range_H == 2
     ψH2 = noprime(ψ.AL[n1] * H[n1][1] * H[n1][2] * ψ.C[n1] * ψ.AR[n2])
   else   # Should be a better version now
@@ -108,7 +90,84 @@ function subspace_expansion(
       ψH2 = ψH2 + noprime(temp_H2 * δˡ(n1 - n - 1))
     end
   end
-  ψHN2 = ψH2 * NL * NR
+  return ψH2
+end
+
+function generate_twobody_nullspace(
+  ψ::InfiniteCanonicalMPS, H::InfiniteMPOMatrix, b::Tuple{Int,Int}; atol=1e-2
+)
+  n_1, n_2 = b
+  L, _ = left_environment(H, ψ)
+  R, _ = right_environment(H, ψ)
+
+  dₕ = length(L[n_1 - 1])
+  temp_L = similar(L[n_1 - 1])
+  for i in 1:dₕ
+    non_empty_idx = dₕ
+    while isempty(H[n_1][non_empty_idx, i]) && non_empty_idx >= i
+      non_empty_idx -= 1
+    end
+    @assert non_empty_idx != i - 1 "Empty MPO"
+    temp_L[i] = L[n_1 - 1][non_empty_idx] * ψ.AL[n_1] * H[n_1][non_empty_idx, i] * ψ.C[n_1]
+    for j in reverse(i:(non_empty_idx - 1))
+      if !isempty(H[n_1][j, i])
+        temp_L[i] += L[n_1 - 1][j] * H[n_1][j, i] * ψ.AL[n_1] * ψ.C[n_1]
+      end
+    end
+  end
+  temp_R = similar(R[n_1 + 2])
+  for i in 1:dₕ
+    non_empty_idx = 1
+    while isempty(H[n_1 + 1][i, non_empty_idx]) && non_empty_idx <= i
+      non_empty_idx += 1
+    end
+    @assert non_empty_idx != i + 1 "Empty MPO"
+    temp_R[i] = H[n_1 + 1][i, non_empty_idx] * ψ.AR[n_1 + 1] * R[n_1 + 2][non_empty_idx]
+    for j in (non_empty_idx + 1):i
+      if !isempty(H[n_1 + 1][i, j])
+        temp_R[i] += H[n_1 + 1][i, j] * ψ.AR[n_1 + 1] * R[n_1 + 2][j]
+      end
+    end
+  end
+  ψH2 = temp_L[1] * temp_R[1]
+  for j in 2:dₕ
+    ψH2 += temp_L[j] * temp_R[j]
+  end
+  return noprime(ψH2)
+end
+# atol controls the tolerance cutoff for determining which eigenvectors are in the null
+# space of the isometric MPS tensors. Setting to 1e-2 since we only want to keep
+# the eigenvectors corresponding to eigenvalues of approximately 1.
+function subspace_expansion(
+  ψ::InfiniteCanonicalMPS, H, b::Tuple{Int,Int}; maxdim, cutoff, atol=1e-2, kwargs...
+)
+  n1, n2 = b
+  lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
+  rⁿ¹ = commoninds(ψ.AR[n2], ψ.C[n1])
+  l = linkinds(only, ψ.AL)
+  r = linkinds(only, ψ.AR)
+  s = siteinds(only, ψ)
+  δʳ(n) = δ(dag(r[n]), prime(r[n]))
+  δˢ(n) = δ(dag(s[n]), prime(s[n]))
+  δˡ(n) = δ(l[n], dag(prime(l[n])))
+
+  dˡ = dim(lⁿ¹)
+  dʳ = dim(rⁿ¹)
+  @assert dˡ == dʳ
+  if dˡ ≥ maxdim
+    println(
+      "Current bond dimension at bond $b is $dˡ while desired maximum dimension is $maxdim, skipping bond dimension increase",
+    )
+    return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
+  end
+  maxdim -= dˡ
+
+  NL = nullspace(ψ.AL[n1], lⁿ¹; atol=atol)
+  NR = nullspace(ψ.AR[n2], rⁿ¹; atol=atol)
+  nL = uniqueinds(NL, ψ.AL[n1])
+  nR = uniqueinds(NR, ψ.AR[n2])
+
+  ψHN2 = generate_twobody_nullspace(ψ, H, b; atol=atol) * NL * NR
 
   #Added due to crash during testing
   if norm(ψHN2.tensor) < 1e-12
