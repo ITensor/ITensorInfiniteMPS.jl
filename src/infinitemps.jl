@@ -12,6 +12,7 @@ mutable struct InfiniteMPS <: AbstractInfiniteMPS
   reverse::Bool
 end
 
+translater(ψ::InfiniteMPS) = ψ.data.translater
 #
 # InfiniteCanonicalMPS
 #
@@ -29,6 +30,7 @@ end
 # TODO: check if `isempty(ψ.AL)`, if so use `ψ.AR`
 nsites(ψ::InfiniteCanonicalMPS) = nsites(ψ.AL)
 isreversed(ψ::InfiniteCanonicalMPS) = isreversed(ψ.AL)
+translater(ψ::InfiniteCanonicalMPS) = translater(ψ.AL)
 #ITensors.data(ψ::InfiniteCanonicalMPS) = data(ψ.AL)
 ITensors.data(ψ::InfiniteCanonicalMPS) = ψ.AL.data
 
@@ -88,6 +90,10 @@ struct InfiniteSum{T}
 end
 InfiniteSum{T}(N::Int) where {T} = InfiniteSum{T}(Vector{T}(undef, N))
 InfiniteSum{T}(data::Vector{T}) where {T} = InfiniteSum{T}(CelledVector(data))
+function InfiniteSum{T}(data::Vector{T}, translater::Function) where {T}
+  return InfiniteSum{T}(CelledVector(data, translater))
+end
+translater(h::InfiniteSum{T}) where {T} = translater(h.data)
 # Automatically converts from ITensor to MPO.
 # XXX: check this conversion is correct.
 #InfiniteSum{T}(data::Vector{ITensor}) where {T} = InfiniteSum{T}(CelledVector(T.(data)))
@@ -103,15 +109,32 @@ function InfiniteSum{MPO}(data::Vector{ITensor})
   ])
 end
 
+function InfiniteSum{MPO}(data::Vector{ITensor}, translater::Function)
+  N = length(data)
+  temp_inds = [filterinds(data[n]; plev=0) for n in 1:N]
+  return InfiniteSum{MPO}(
+    [
+      MPO(
+        data[n],
+        [(temp_inds[n][j], dag(prime(temp_inds[n][j]))) for j in 1:length(temp_inds[n])],
+      ) for n in 1:N
+    ],
+    translater,
+  )
+end
+
 function InfiniteSum{MPO}(infsum::InfiniteSum{ITensor})
   N = nsites(infsum)
   temp_inds = [filterinds(infsum[n]; plev=0) for n in 1:N]
-  return InfiniteSum{MPO}([
-    MPO(
-      infsum[n],
-      [(temp_inds[n][j], dag(prime(temp_inds[n][j]))) for j in 1:length(temp_inds[n])],
-    ) for n in 1:N
-  ])
+  return InfiniteSum{MPO}(
+    [
+      MPO(
+        infsum[n],
+        [(temp_inds[n][j], dag(prime(temp_inds[n][j]))) for j in 1:length(temp_inds[n])],
+      ) for n in 1:N
+    ],
+    translater(infsum),
+  )
 end
 
 function Base.getindex(l::InfiniteSum, n1n2::Tuple{Int,Int})

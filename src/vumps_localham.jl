@@ -217,7 +217,7 @@ function (A::Aᴸ)(x)
   r = linkinds(only, ψ.AR)
   r′ = linkinds(only, ψ′.AR)
 
-  xT = translatecell(x, -1)
+  xT = translatecell(translater(ψ), x, -1)
   for k in (n - N + 1):n
     xT = xT * ψ.AL[k] * ψ̃.AL[k]
   end
@@ -235,7 +235,7 @@ function left_environment(hᴸ, 𝕙ᴸ, ψ; tol=1e-15)
   Aᴺ = Aᴸ(ψ, N)
   Hᴸᴺ¹, info = linsolve(Aᴺ, 𝕙ᴸ[N], 1, -1; tol=tol)
   # Get the rest of the environments in the unit cell
-  Hᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
+  Hᴸ = InfiniteMPS(Vector{ITensor}(undef, N), translater(ψ))
   Hᴸ[N] = Hᴸᴺ¹
   for n in 1:(N - 1)
     Hᴸ[n] = Hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
@@ -281,7 +281,7 @@ function left_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=
       end
     end
   end
-  hᴸ = InfiniteMPS(hᴸ)
+  hᴸ = InfiniteMPS(hᴸ, translater(ψ))
   eᴸ = [(hᴸ[k] * ψ.C[k] * δʳ(k) * ψ′.C[k])[] for k in 1:Nsites]
   for k in 1:Nsites
     # TODO: remove `denseblocks` once BlockSparse + DiagBlockSparse is supported
@@ -330,7 +330,7 @@ function (A::Aᴿ)(x)
   for k in reverse(1:N)
     xT = xT * ψ.AR[k] * ψ̃.AR[k]
   end
-  xT = translatecell(xT, 1)
+  xT = translatecell(translater(ψ), xT, 1)
   δˡ = δ(l[n], l′[n])
   δʳ = δ(r[n], r′[n])
   xR = x * ψ.C[n] * ψ′.C[n] * δˡ * denseblocks(dag(δʳ))
@@ -345,7 +345,7 @@ function right_environment(hᴿ, 𝕙ᴿ, ψ; tol=1e-15)
   A = Aᴿ(hᴿ, ψ, N)
   Hᴿᴺ¹, info = linsolve(A, 𝕙ᴿ[N], 1, -1; tol=tol)
   # Get the rest of the environments in the unit cell
-  Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
+  Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N), translater(ψ))
   Hᴿ[N] = Hᴿᴺ¹
   for n in reverse(1:(N - 1))
     Hᴿ[n] = Hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
@@ -383,7 +383,7 @@ function right_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol
       end
     end
   end
-  hᴿ = InfiniteMPS(hᴿ)
+  hᴿ = InfiniteMPS(hᴿ, translater(ψ))
   eᴿ = [(hᴿ[k] * ψ.C[k] * δˡ(k) * ψ′.C[k])[] for k in 1:Nsites]
   for k in 1:Nsites
     hᴿ[k] -= eᴿ[k] * denseblocks(δ(inds(hᴿ[k])))
@@ -432,10 +432,10 @@ function tdvp_iteration_sequential(
   _solver_tol = solver_tol(ϵᵖʳᵉˢ)
 
   ψ = copy(ψ)
-  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
   eᴸ = Vector{Float64}(undef, Nsites)
   eᴿ = Vector{Float64}(undef, Nsites)
 
@@ -515,8 +515,8 @@ function tdvp_iteration_parallel(
   Hᴸ, eᴸ = left_environment(∑h, ψ; tol=_solver_tol)
   Hᴿ, eᴿ = right_environment(∑h, ψ; tol=_solver_tol)
 
-  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
   for n in 1:Nsites
     Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol)
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
@@ -527,8 +527,8 @@ function tdvp_iteration_parallel(
     Ãᶜ[n] = Avecsₙ
   end
 
-  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
   for n in 1:Nsites
     Ãᴸ[n] = ortho_polar(Ãᶜ[n], C̃[n])
     Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n - 1])
