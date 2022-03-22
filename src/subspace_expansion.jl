@@ -3,7 +3,7 @@ function replaceind_indval(IV::Tuple, iĩ::Pair)
   return ntuple(n -> first(IV[n]) == i ? ĩ => last(IV[n]) : IV[n], length(IV))
 end
 
-#TODO implement the nullspace generation for InfiniteSum{ITensor}? 
+#TODO implement the nullspace generation for InfiniteSum{ITensor}?
 
 function generate_twobody_nullspace(
   ψ::InfiniteCanonicalMPS, H::InfiniteSum{MPO}, b::Tuple{Int,Int}; atol=1e-2
@@ -18,7 +18,8 @@ function generate_twobody_nullspace(
   δˢ(n) = δ(dag(s[n]), prime(s[n]))
   δˡ(n) = δ(l[n], dag(prime(l[n])))
 
-  range_H = nrange(H, 1)
+  range_H = nrange(ψ, H[1])
+
   @assert range_H > 1 "Not defined for purely local Hamiltonians"
 
   if range_H > 2

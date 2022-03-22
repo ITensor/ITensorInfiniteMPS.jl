@@ -25,13 +25,13 @@ end
 function InfiniteSum{MPO}(model::Model, s::CelledVector; kwargs...)
   N = length(s)
   mpos = [MPO(model, s, n; kwargs...) for n in 1:N] #slightly improved version. Note: the current implementation does not really allow for staggered potentials for example
-  return InfiniteSum{MPO}(mpos)
+  return InfiniteSum{MPO}(mpos, translater(s))
 end
 
 function InfiniteSum{ITensor}(model::Model, s::CelledVector; kwargs...)
   N = length(s)
   itensors = [ITensor(model, s, n; kwargs...) for n in 1:N] #slightly improved version. Note: the current implementation does not really allow for staggered potentials for example
-  return InfiniteSum{ITensor}(itensors)
+  return InfiniteSum{ITensor}(itensors, translater(s))
 end
 
 # MPO building version
@@ -51,10 +51,14 @@ import ITensors: op
 op(::OpName"Zero", ::SiteType, s::Index) = ITensor(s', dag(s))
 
 function InfiniteMPOMatrix(model::Model, s::CelledVector; kwargs...)
+  return InfiniteMPOMatrix(model, s, translater(s); kwargs...)
+end
+
+function InfiniteMPOMatrix(model::Model, s::CelledVector, translater::Function; kwargs...)
   N = length(s)
   temp_H = InfiniteSum{MPO}(model, s; kwargs...)
   range_H = nrange(temp_H)[1]
-  ls = CelledVector([Index(1, "Link,c=1,n=$n") for n in 1:N])
+  ls = CelledVector([Index(1, "Link,c=1,n=$n") for n in 1:N], translater)
   mpos = [Matrix{ITensor}(undef, 1, 1) for i in 1:N]
   for j in 1:N
     Hmat = fill(op("Zero", s[j]), range_H + 1, range_H + 1)
@@ -73,5 +77,5 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector; kwargs...)
     #mpos[j] += dense(Hmat) * setelt(ls[j-1] => total_dim) * setelt(ls[j] => total_dim)
   end
   #return mpos
-  return InfiniteMPOMatrix(mpos)
+  return InfiniteMPOMatrix(mpos, translater)
 end
