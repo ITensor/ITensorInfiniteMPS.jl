@@ -67,9 +67,44 @@ getsite(i::Index) = getsite(tags(i))
 function ITensors.findfirstsiteind(ψ::InfiniteMPS, i::Index)
   c = ITensorInfiniteMPS.getcell(i)
   n1 = getsite(i)
-  return (c - 1) * nsites(ψ) + n1
+  if translater(ψ) == translatecell
+    return (c - 1) * nsites(ψ) + n1
+  else
+    s = siteinds(only, ψ)
+    n = nsites(ψ)
+    j = 1
+    index = 0
+    while c > ITensorInfiniteMPS.getcell(s[j]) && index < 1000
+      j += n
+      index += 1
+    end
+    while c < ITensorInfiniteMPS.getcell(s[j]) && index < 1000
+      j -= n
+      index += 1
+    end
+    if index == 1000 || c != ITensorInfiniteMPS.getcell(s[j])
+      error("Index not found")
+    end
+    for k in 1:n
+      if getsite(s[j]) == n1
+        return j
+      end
+      j += 1
+    end
+    error("Index not found")
+    return 0
+  end
+end
+function ITensors.findfirstsiteind(ψ::InfiniteCanonicalMPS, i::Index)
+  return ITensors.findfirstsiteind(ψ.AL, i)
 end
 
+function ITensors.findsites(ψ::InfiniteCanonicalMPS, is::Union{<:Tuple,<:Vector})
+  return sort([ITensors.findfirstsiteind(ψ, i) for i in is])
+end
+function ITensors.findsites(ψ::InfiniteMPS, is::Union{<:Tuple,<:Vector})
+  return sort([ITensors.findfirstsiteind(ψ, i) for i in is])
+end
 function ITensors.findsites(ψ::InfiniteMPS, T::MPO)
   s = [noprime(filterinds(T[x]; plev=1)[1]) for x in 1:length(T)]
   return sort([ITensors.findfirstsiteind(ψ, i) for i in s])
@@ -152,6 +187,7 @@ nsites_support(h::InfiniteSum, n::Int64) = length(h.data[n])
 
 nrange(h::InfiniteSum) = nrange.(h.data, ncell=nsites(h))
 nrange(h::InfiniteSum, n::Int64) = nrange(h.data[n]; ncell=nsites(h))
+
 function nrange(h::MPO; ncell=1)
   ns = findsites(h; ncell=ncell)
   return ns[end] - ns[1] + 1
@@ -159,6 +195,10 @@ end
 
 ITensors.findsites(h::InfiniteSum) = [findsites(h, n) for n in 1:nsites(h)]
 ITensors.findsites(h::InfiniteSum, n::Int64) = findsites(h.data[n]; ncell=nsites(h))
+#ITensors.findsites(h::InfiniteSum, is::Union{<:Tuple,<:Vector}) = [findsites(h.data[n], is) for n in 1:nsites(h)]
+#ITensors.findsites(h::InfiniteSum, i::Index) = [findsites(h.data[n], i) for n in 1:nsites(h)]
+#TODO improve the findsites routines for Infinite Sum
+
 function ITensors.findfirstsiteind(i::Index, ncell::Int64)
   c = ITensorInfiniteMPS.getcell(i)
   n1 = getsite(i)
@@ -174,6 +214,15 @@ function nrange(h::ITensor; ncell=0)
   ns = findsites(h; ncell=ncell)
   return ns[end] - ns[1] + 1
 end
+function nrange(ψ::InfiniteCanonicalMPS, h::ITensor)
+  ns = findsites(ψ, h)
+  return ns[end] - ns[1] + 1
+end
+function nrange(ψ::InfiniteCanonicalMPS, h::MPO)
+  ns = findsites(ψ, h)
+  return ns[end] - ns[1] + 1
+end
+
 function ITensors.findfirstsiteind(h::ITensor, i::Index, ncell::Int64)
   c = getcell(i)
   n1 = getsite(i)

@@ -178,12 +178,12 @@ end
 # MPS from an InfiniteMPS
 function ITensors.prime(::typeof(linkinds), ψ::AbstractInfiniteMPS)
   ψextended′ = prime(linkinds, ψ[0:(nsites(ψ) + 1)])
-  return typeof(ψ)(ψextended′[2:(end - 1)]; reverse=ψ.reverse)
+  return typeof(ψ)(ψextended′[2:(end - 1)], translater(ψ); reverse=ψ.reverse)
 end
 
 function ITensors.dag(ψ::AbstractInfiniteMPS)
   ψdag = dag(ψ[1:nsites(ψ)])
-  return typeof(ψ)(ψdag; reverse=ψ.reverse)
+  return typeof(ψ)(ψdag, translater(ψ); reverse=ψ.reverse)
 end
 
 ITensors.linkinds(ψ::AbstractInfiniteMPS, n1n2) = linkinds(ψ, Pair(n1n2...))

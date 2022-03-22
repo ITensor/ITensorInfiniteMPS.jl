@@ -27,7 +27,10 @@ function Base.:*(H::Hᶜ, v::ITensor)
   ψ = H.ψ
   ψ′ = dag(ψ)'
   Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
+  #range_∑h = nrange(∑h, 1)
+  a = findsites(ψ, ∑h[1])
+  range_∑h = a[end] - a[1] + 1
+
   n = H.n
   l = linkinds(only, ψ.AL)
   l′ = linkinds(only, ψ′.AL)
@@ -104,7 +107,7 @@ function Base.:*(H::Hᴬᶜ, v::ITensor)
   ψ = H.ψ
   ψ′ = dag(ψ)'
   Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
+  range_∑h = nrange(ψ, ∑h[1])
   n = H.n
   l = linkinds(only, ψ.AL)
   l′ = linkinds(only, ψ′.AL)
@@ -245,7 +248,7 @@ end
 
 function left_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=1e-15)
   Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
+  range_∑h = nrange(ψ, ∑h[1])
   ψᴴ = dag(ψ)
   ψ′ = ψᴴ'
   ψ̃ = prime(linkinds, ψᴴ)
@@ -355,7 +358,7 @@ end
 
 function right_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=1e-15)
   Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
+  range_∑h = nrange(ψ, ∑h[1])
   ψᴴ = dag(ψ)
   ψ′ = ψᴴ'
   ψ̃ = prime(linkinds, ψᴴ)
@@ -427,7 +430,7 @@ function tdvp_iteration_sequential(
   solver_tol=(x -> x / 100),
 )
   Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
+  range_∑h = nrange(ψ, ∑h[1])
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
   _solver_tol = solver_tol(ϵᵖʳᵉˢ)
 
@@ -496,7 +499,7 @@ function tdvp_iteration_parallel(
   solver_tol=(x -> x / 100),
 )
   Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
+  range_∑h = nrange(ψ, ∑h[1])
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
   _solver_tol = solver_tol(ϵᵖʳᵉˢ)
   ψᴴ = dag(ψ)
