@@ -18,7 +18,7 @@ Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 [compat]
 Compat = "3"
 HDF5 = "0.15, 0.16"
-ITensors = "0.2"
+ITensors = "0.2, 0.3"
 Infinities = "0.1"
 IterTools = "1"
 KrylovKit = "0.5"
