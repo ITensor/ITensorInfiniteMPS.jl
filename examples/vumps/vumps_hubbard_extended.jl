@@ -75,6 +75,10 @@ function expect_two_site(ψ::InfiniteCanonicalMPS, h::ITensor, n1n2)
   return (noprime(ϕ * h) * dag(ϕ))[]
 end
 
+function expect_two_site(ψ::InfiniteCanonicalMPS, h::MPO, n1n2)
+  return expect_two_site(ψ, prod(h), n1n2)
+end
+
 function expect_two_site(ψ::MPS, h::ITensor, n1n2)
   n1, n2 = n1n2
   ψ = orthogonalize(ψ, n1)

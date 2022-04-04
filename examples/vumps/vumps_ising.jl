@@ -83,7 +83,7 @@ energy_finite_total, ψ_finite = @time dmrg(H_finite, ψ_finite, sweeps)
 
 function energy_local(ψ1, ψ2, h)
   ϕ = ψ1 * ψ2
-  return (noprime(ϕ * h) * dag(ϕ))[]
+  return (noprime(ϕ * prod(h)) * dag(ϕ))[]
 end
 
 function ITensors.expect(ψ, o)

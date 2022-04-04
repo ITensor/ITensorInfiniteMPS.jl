@@ -56,7 +56,7 @@ randn!.(ψ)
 
 function energy(ψ1, ψ2, h)
   ϕ = ψ1 * ψ2
-  return (noprime(ϕ * h) * dag(ϕ))[]
+  return (noprime(ϕ * prod(h)) * dag(ϕ))[]
 end
 
 function expect(ψ, o)
