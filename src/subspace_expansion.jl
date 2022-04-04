@@ -158,6 +158,8 @@ function subspace_expansion(
     println(
       "Current bond dimension at bond $b is $dˡ while desired maximum dimension is $maxdim, skipping bond dimension increase",
     )
+    flush(stdout)
+    flush(stderr)
     return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
   end
   maxdim -= dˡ
@@ -174,6 +176,8 @@ function subspace_expansion(
     println(
       "Impossible to do a subspace expansion, probably due to conservation constraints"
     )
+    flush(stdout)
+    flush(stderr)
     return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
   end
 

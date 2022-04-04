@@ -555,8 +555,11 @@ function tdvp(
   N = nsites(ψ)
   (ϵᴸ!) = fill(tol, nsites(ψ))
   (ϵᴿ!) = fill(tol, nsites(ψ))
-  outputlevel > 0 &&
+  if outputlevel > 0
     println("Running VUMPS with multisite_update_alg = $multisite_update_alg")
+    flush(stdout)
+    flush(stderr)
+  end
   for iter in 1:maxiter
     ψ, (eᴸ, eᴿ) = tdvp_iteration(
       solver,
@@ -570,13 +573,19 @@ function tdvp(
     )
     ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
     maxdimψ = maxlinkdim(ψ[0:(N + 1)])
-    outputlevel > 0 && println(
-      "VUMPS iteration $iter (out of maximum $maxiter). Bond dimension = $maxdimψ, energy = $((eᴸ, eᴿ)), ϵᵖʳᵉˢ = $ϵᵖʳᵉˢ, tol = $tol",
-    )
+    if outputlevel > 0
+      println(
+        "VUMPS iteration $iter (out of maximum $maxiter). Bond dimension = $maxdimψ, energy = $((eᴸ, eᴿ)), ϵᵖʳᵉˢ = $ϵᵖʳᵉˢ, tol = $tol",
+      )
+      flush(stdout)
+      flush(stderr)
+    end
     if ϵᵖʳᵉˢ < tol
       println(
         "Precision error $ϵᵖʳᵉˢ reached tolerance $tol, stopping VUMPS after $iter iterations (of a maximum $maxiter).",
       )
+      flush(stdout)
+      flush(stderr)
       break
     end
   end
@@ -599,16 +608,22 @@ function vumps(
 )
   @assert isinf(time_step) && time_step < 0
   println("Using VUMPS solver with time step $time_step")
+  flush(stdout)
+  flush(stderr)
   return tdvp(vumps_solver, args...; time_step=time_step, solver_tol=solver_tol, kwargs...)
 end
 
 function tdvp(args...; time_step, solver_tol=(x -> x / 100), kwargs...)
   solver = if !isinf(time_step)
     println("Using TDVP solver with time step $time_step")
+    flush(stdout)
+    flush(stderr)
     tdvp_solver
   elseif time_step < 0
     # Call VUMPS instead
     println("Using VUMPS solver with time step $time_step")
+    flush(stdout)
+    flush(stderr)
     vumps_solver
   else
     error("Time step $time_step not supported.")

@@ -146,6 +146,8 @@ function left_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1e
         Ls[1][n], info = linsolve(A, Ls[1][n], 1, -1; tol=tol)
       else
         println("Not implemented")
+        flush(stdout)
+        flush(stderr)
       end
     end
   end
@@ -300,6 +302,8 @@ function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1
         Rs[1][n], info = linsolve(A, Rs[1][n], 1, -1; tol=tol)
       else
         println("Not yet implemented")
+        flush(stdout)
+        flush(stderr)
       end
     end
   end
