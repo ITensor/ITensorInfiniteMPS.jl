@@ -22,7 +22,7 @@ h = 1.5
 model = Model(:ising)
 
 # Form the Hamiltonian
-Σ∞h = InfiniteSum{MPO}(model, s; J=J, h=h)
+Σ∞h = InfiniteSum{ITensor}(model, s; J=J, h=h)
 
 χ = 6
 ψ = InfiniteMPS(s; space=χ)

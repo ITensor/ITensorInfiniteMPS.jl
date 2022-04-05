@@ -9,7 +9,7 @@ maxdim = 30 # Maximum bond dimension
 cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
 outer_iters = 5 # Number of times to increase the bond dimension
-localham_type = ITensor
+localham_type = ITensor # or MPO
 
 model_params = (t=1.0, U=10.0, V=0.0)
 
@@ -18,6 +18,9 @@ model_params = (t=1.0, U=10.0, V=0.0)
 #
 
 N = 2 # Unit cell size
+
+@show N
+@show localham_type
 
 function electron_space_shift(q̃nf, q̃sz)
   return [
@@ -53,9 +56,9 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 # a larger bond dimension)
 
 println("\nRun VUMPS on initial product state, unit cell size $N")
-ψ = vumps(H, ψ; vumps_kwargs...)
+ψ = @time vumps(H, ψ; vumps_kwargs...)
 
-for _ in 1:outer_iters
+@time for _ in 1:outer_iters
   println("\nIncrease bond dimension")
   global ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
   println("Run VUMPS with new bond dimension")

@@ -15,7 +15,7 @@ solver_tol = (x -> x / 100) # Tolerance for the local solver (eigsolve in VUMPS 
 multisite_update_alg = "parallel" # Choose between ["sequential", "parallel"]. Only parallel works with TDVP.
 conserve_qns = true # Whether or not to conserve spin parity
 nsite = 2 # Number of sites in the unit cell
-localham_type = MPO # Can choose `ITensor` or `MPO`
+localham_type = ITensor # Can choose `ITensor` or `MPO`
 
 # Parameters of the transverse field Ising model
 model_params = (J=1.0, h=0.9)
