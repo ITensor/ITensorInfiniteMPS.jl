@@ -1,8 +1,3 @@
-
-#
-# VUMPS code
-#
-
 #Assume all local Hamiltonians have the same nrange
 function Base.:*(H::Hᶜ{MPO}, v::ITensor)
   ∑h = H.∑h
@@ -227,22 +222,6 @@ function left_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=
   Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=tol)
 
   return Hᴸ, eᴸ
-end
-
-# TODO Generate all environments, why? Only one is needed in the sequential version
-function right_environment(hᴿ, 𝕙ᴿ, ψ; tol=1e-15)
-  ψ̃ = prime(linkinds, dag(ψ))
-  N = nsites(ψ)
-
-  A = Aᴿ(hᴿ, ψ, N)
-  Hᴿᴺ¹, info = linsolve(A, 𝕙ᴿ[N], 1, -1; tol=tol)
-  # Get the rest of the environments in the unit cell
-  Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
-  Hᴿ[N] = Hᴿᴺ¹
-  for n in reverse(1:(N - 1))
-    Hᴿ[n] = Hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
-  end
-  return Hᴿ
 end
 
 function right_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=1e-15)
