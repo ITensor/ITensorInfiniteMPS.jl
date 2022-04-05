@@ -24,51 +24,51 @@ function Base.:*(H::Hᶜ{MPO}, v::ITensor)
   Hᶜᴿv = v * δˡ(n) * Hᴿ[n]
   #We now start building terms where C overlap with the local Hamiltonian
   # We start with the tensor AL[n] - v - AR[n+1] ... AR[n + range_∑h - 1]
-  Hᶜʰv = v * ψ.AL[n] * δˡ(n - 1) * ψ′.AL[n] * ∑h[n][1] #left extremity
+  Hᶜʰv = v * ψ.AL[n] * δˡ(n - 1) * ∑h[n][1] * ψ′.AL[n] #left extremity
   common_sites = findsites(ψ, ∑h[n])
   idx = 2 #list the sites Σh, we start at 2 because n is already taken into account
   for k in 1:(range_∑h - 2)
     if n + k == common_sites[idx]
-      Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * ψ′.AR[n + k] * ∑h[n][idx]
+      Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
       idx += 1
     else
-      Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * ψ′.AR[n + k] * δˢ(n + k)
+      Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * δˢ(n + k) * ψ′.AR[n + k]
     end
   end
   Hᶜʰv =
     Hᶜʰv *
     ψ.AR[n + range_∑h - 1] *
     δʳ(n + range_∑h - 1) *
-    ψ′.AR[n + range_∑h - 1] *
-    ∑h[n][end]    #right most extremity
+    ∑h[n][end] *
+    ψ′.AR[n + range_∑h - 1] #right most extremity
   #Now we are building contributions of the form AL[n - j] ... AL[n] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
   for j in 1:(range_∑h - 2)
-    temp_Hᶜʰv = ψ.AL[n - j] * δˡ(n - 1 - j) * ψ′.AL[n - j] * ∑h[n - j][1]
+    temp_Hᶜʰv = ψ.AL[n - j] * δˡ(n - 1 - j) * ∑h[n - j][1] * ψ′.AL[n - j]
     common_sites = findsites(ψ, ∑h[n - j])
     idx = 2
     for k in 1:j
       if n - j + k == common_sites[idx]
-        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AL[n - j + k] * ψ′.AL[n - j + k] * ∑h[n - j][idx]
+        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AL[n - j + k] * ∑h[n - j][idx] * ψ′.AL[n - j + k]
         idx += 1
       else
-        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AL[n - j + k] * ψ′.AL[n - j + k] * δˢ(n - j + k)
+        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AL[n - j + k] * δˢ(n - j + k) * ψ′.AL[n - j + k]
       end
     end
     # Finished the AL part
     temp_Hᶜʰv = temp_Hᶜʰv * v
     for k in (j + 1):(range_∑h - 2)
       if n - j + k == common_sites[idx]
-        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AR[n - j + k] * ψ′.AR[n - j + k] * ∑h[n - j][idx]
+        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AR[n - j + k] * ∑h[n - j][idx] * ψ′.AR[n - j + k]
         idx += 1
       else
-        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AR[n - j + k] * ψ′.AR[n - j + k] * δˢ(n - j + k)
+        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AR[n - j + k] * δˢ(n - j + k) * ψ′.AR[n - j + k]
       end
     end
     temp_Hᶜʰv =
       temp_Hᶜʰv *
-      ∑h[n - j][end] *
       ψ.AR[n - j + range_∑h - 1] *
       δʳ(n - j + range_∑h - 1) *
+      ∑h[n - j][end] *
       ψ′.AR[n - j + range_∑h - 1]
     Hᶜʰv = Hᶜʰv + temp_Hᶜʰv
   end
@@ -107,34 +107,34 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
   idx = 2 #list the sites Σh, we start at 2 because n is already taken into account
   for k in 1:(range_∑h - 2)
     if n + k == common_sites[idx]
-      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * ψ′.AR[n + k] * ∑h[n][idx]
+      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
       idx += 1
     else
-      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * ψ′.AR[n + k] * δˢ(n + k)
+      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * δˢ(n + k) * ψ′.AR[n + k]
     end
   end
   Hᴬᶜʰv =
     Hᴬᶜʰv *
-    ∑h[n][end] *
     ψ.AR[n + range_∑h - 1] *
-    ψ′.AR[n + range_∑h - 1] *
-    δʳ(n + range_∑h - 1) #rightmost extremity
+    δʳ(n + range_∑h - 1) *
+    ∑h[n][end] *
+    ψ′.AR[n + range_∑h - 1] #rightmost extremity
   #Now we are building contributions of the form AL[n - j] ... AL[n-1] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
   for j in 1:(range_∑h - 1)
-    temp_Hᴬᶜʰv = ψ.AL[n - j] * δˡ(n - j - 1) * ψ′.AL[n - j] * ∑h[n - j][1]
+    temp_Hᴬᶜʰv = ψ.AL[n - j] * δˡ(n - j - 1) * ∑h[n - j][1] * ψ′.AL[n - j]
     common_sites = findsites(ψ, ∑h[n - j])
     idx = 2
     for k in 1:(j - 1)
       if n - j + k == common_sites[idx]
-        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AL[n - j + k] * ψ′.AL[n - j + k] * ∑h[n - j][idx]
+        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AL[n - j + k] * ∑h[n - j][idx] * ψ′.AL[n - j + k]
         idx += 1
       else
-        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AL[n - j + k] * ψ′.AL[n - j + k] * δˢ(n - j + k)
+        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AL[n - j + k] * δˢ(n - j + k) * ψ′.AL[n - j + k]
       end
     end
     #Finished with AL, treating the center AC = v
     if j == range_∑h - 1
-      temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * δʳ(n - j + range_∑h - 1) * ∑h[n - j][end]
+      temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * ∑h[n - j][end] * δʳ(n - j + range_∑h - 1)
     else
       if n == common_sites[idx] #need to check whether we need to branch v
         temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * ∑h[n - j][idx]
@@ -144,18 +144,18 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
       end
       for k in (j + 1):(range_∑h - 2)
         if n + k - j == common_sites[idx]
-          temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * ψ′.AR[n + k - j] * ∑h[n - j][idx]
+          temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * ∑h[n - j][idx] * ψ′.AR[n + k - j]
           idx += 1
         else
-          temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * ψ′.AR[n + k - j] * δˢ(n + k - j)
+          temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * δˢ(n + k - j) * ψ′.AR[n + k - j]
         end
       end
       temp_Hᴬᶜʰv =
         temp_Hᴬᶜʰv *
-        ∑h[n - j][end] *
         ψ.AR[n + range_∑h - 1 - j] *
-        ψ′.AR[n + range_∑h - 1 - j] *
-        δʳ(n - j + range_∑h - 1)
+        δʳ(n - j + range_∑h - 1) *
+        ∑h[n - j][end] *
+        ψ′.AR[n + range_∑h - 1 - j]
     end
     Hᴬᶜʰv = Hᴬᶜʰv + temp_Hᴬᶜʰv
   end
@@ -192,12 +192,12 @@ function left_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=
         hᴸ[k] =
           hᴸ[k] *
           ψ.AL[k - range_∑h + j] *
-          ψ′.AL[k - range_∑h + j] *
-          ∑h[(k - range_∑h + 1, k - range_∑h + 2)][idx]
+          ∑h[(k - range_∑h + 1, k - range_∑h + 2)][idx] *
+          ψ′.AL[k - range_∑h + j]
         idx += 1
       else
         hᴸ[k] =
-          hᴸ[k] * ψ.AL[k - range_∑h + j] * ψ′.AL[k - range_∑h + j] * δˢ(k - range_∑h + j)
+          hᴸ[k] * ψ.AL[k - range_∑h + j] * δˢ(k - range_∑h + j) * ψ′.AL[k - range_∑h + j]
       end
     end
   end
@@ -242,15 +242,15 @@ function right_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol
 
   hᴿ = Vector{ITensor}(undef, Nsites)
   for k in 1:Nsites
-    hᴿ[k] = ψ.AR[k + range_∑h] * ∑h[k + 1][end] * ψ′.AR[k + range_∑h] * δʳ(k + range_∑h)
+    hᴿ[k] = ψ.AR[k + range_∑h] * δʳ(k + range_∑h) * ∑h[k + 1][end] * ψ′.AR[k + range_∑h]
     common_sites = findsites(ψ, ∑h[k + 1])
     idx = length(common_sites) - 1
     for j in (range_∑h - 1):-1:1
       if k + j == common_sites[idx]
-        hᴿ[k] = hᴿ[k] * ψ.AR[k + j] * ψ′.AR[k + j] * ∑h[k + 1][idx]
+        hᴿ[k] = hᴿ[k] * ψ.AR[k + j] * ∑h[k + 1][idx] * ψ′.AR[k + j]
         idx -= 1
       else
-        hᴿ[k] = hᴿ[k] * ψ.AR[k + j] * ψ′.AR[k + j] * δˢ(k + j)
+        hᴿ[k] = hᴿ[k] * ψ.AR[k + j] * δˢ(k + j) * ψ′.AR[k + j]
       end
     end
   end
