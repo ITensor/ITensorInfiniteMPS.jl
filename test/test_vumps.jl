@@ -36,7 +36,10 @@ using Random
   setcutoff!(sweeps, 1E-10)
   energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
 
-  @testset "VUMPS/TDVP with: multisite_update_alg = $multisite_update_alg, conserve_qns = $conserve_qns, nsites = $nsites, time_step = $time_step, localham_type = $localham_type" for multisite_update_alg in ["sequential", "parallel"],
+  @testset "VUMPS/TDVP with: multisite_update_alg = $multisite_update_alg, conserve_qns = $conserve_qns, nsites = $nsites, time_step = $time_step, localham_type = $localham_type" for multisite_update_alg in
+                                                                                                                                                                                       [
+      "sequential", "parallel"
+    ],
     conserve_qns in [true, false],
     nsites in [1, 2, 3, 4],
     time_step in [-Inf, -0.5],
