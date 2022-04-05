@@ -36,10 +36,21 @@ using Random
   setcutoff!(sweeps, 1E-10)
   energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
 
-  for multisite_update_alg in ["sequential", "parallel"],
+  @testset "VUMPS/TDVP with: multisite_update_alg = $multisite_update_alg, conserve_qns = $conserve_qns, nsites = $nsites, time_step = $time_step, localham_type = $localham_type" for multisite_update_alg in
+                                                                                                                                                                                       [
+      "sequential", "parallel"
+    ],
     conserve_qns in [true, false],
     nsites in [1, 2, 3, 4],
-    time_step in [-Inf, -0.5]
+    time_step in [-Inf, -0.5],
+    localham_type in [ITensor, MPO]
+
+    # ITensor VUMPS currently broken for unit cells > 2
+    if (localham_type == ITensor) && (nsites > 2)
+      continue
+    end
+
+    @show localham_type
 
     #if conserve_qns
     # Flux density is inconsistent for odd unit cells
@@ -51,7 +62,7 @@ using Random
     ψ = InfMPS(s, initstate)
 
     # Form the Hamiltonian
-    H = InfiniteSum{MPO}(model, s; model_kwargs...)
+    H = InfiniteSum{localham_type}(model, s; model_kwargs...)
 
     # Check translational invariance
     @test contract(ψ.AL[1:nsites]..., ψ.C[nsites]) ≈ contract(ψ.C[0], ψ.AR[1:nsites]...)
@@ -68,17 +79,19 @@ using Random
     # Alternate steps of running VUMPS and increasing the bond dimension
     for _ in 1:outer_iters
       ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
-      ψ = tdvp(H, ψ; vumps_kwargs...)
+      ψ = @time tdvp(H, ψ; vumps_kwargs...)
     end
 
     # Check translational invariance
     ## @test contract(ψ.AL[1:nsites]..., ψ.C[nsites]) ≈ contract(ψ.C[0], ψ.AR[1:nsites]...) rtol =
     ##   1e-6
 
-    function energy(ψ1, ψ2, h)
+    function energy(ψ1, ψ2, h::ITensor)
       ϕ = ψ1 * ψ2
       return (noprime(ϕ * h) * dag(ϕ))[]
     end
+
+    energy(ψ1, ψ2, h::MPO) = energy(ψ1, ψ2, prod(h))
 
     function expect(ψ, o)
       return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
@@ -94,8 +107,8 @@ using Random
     orthogonalize!(ψfinite, nfinite + 1)
     energy2_finite = energy(ψfinite[nfinite + 1], ψfinite[nfinite + 2], hnfinite2)
 
-    energy1_infinite = energy(ψ.AL[1], ψ.AL[2] * ψ.C[2], prod(H[(1, 2)]))
-    energy2_infinite = energy(ψ.AL[2], ψ.AL[3] * ψ.C[3], prod(H[(2, 3)]))
+    energy1_infinite = energy(ψ.AL[1], ψ.AL[2] * ψ.C[2], H[(1, 2)])
+    energy2_infinite = energy(ψ.AL[2], ψ.AL[3] * ψ.C[3], H[(2, 3)])
 
     orthogonalize!(ψfinite, nfinite)
     Sz1_finite = expect(ψfinite[nfinite], "Sz")

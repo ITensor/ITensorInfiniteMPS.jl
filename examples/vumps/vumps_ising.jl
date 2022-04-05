@@ -15,6 +15,7 @@ solver_tol = (x -> x / 100) # Tolerance for the local solver (eigsolve in VUMPS 
 multisite_update_alg = "parallel" # Choose between ["sequential", "parallel"]. Only parallel works with TDVP.
 conserve_qns = true # Whether or not to conserve spin parity
 nsite = 2 # Number of sites in the unit cell
+localham_type = MPO # Can choose `ITensor` or `MPO`
 
 # Parameters of the transverse field Ising model
 model_params = (J=1.0, h=0.9)
@@ -42,7 +43,7 @@ initstate(n) = "↑"
 ψ = InfMPS(s, initstate)
 
 # Form the Hamiltonian
-H = InfiniteSum{MPO}(model, s; model_params...)
+H = InfiniteSum{localham_type}(model, s; model_params...)
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:nsite]..., ψ.C[nsite]) - contract(ψ.C[0], ψ.AR[1:nsite]...))
@@ -81,10 +82,12 @@ setcutoff!(sweeps, cutoff)
 energy_finite_total, ψ_finite = @time dmrg(H_finite, ψ_finite, sweeps)
 @show energy_finite_total / nsite_finite
 
-function energy_local(ψ1, ψ2, h)
+function energy_local(ψ1, ψ2, h::ITensor)
   ϕ = ψ1 * ψ2
-  return (noprime(ϕ * prod(h)) * dag(ϕ))[]
+  return (noprime(ϕ * h) * dag(ϕ))[]
 end
+
+energy_local(ψ1, ψ2, h::MPO) = energy_local(ψ1, ψ2, prod(h))
 
 function ITensors.expect(ψ, o)
   return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
