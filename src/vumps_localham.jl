@@ -3,108 +3,51 @@
 # VUMPS code
 #
 
-struct Hᶜ
-  ∑h::InfiniteSum{MPO}
+struct Hᶜ{T}
+  ∑h::InfiniteSum{T}
   Hᴸ::InfiniteMPS
   Hᴿ::InfiniteMPS
   ψ::InfiniteCanonicalMPS
   n::Int
 end
 
-struct Hᴬᶜ
-  ∑h::InfiniteSum{MPO}
+struct Hᴬᶜ{T}
+  ∑h::InfiniteSum{T}
   Hᴸ::InfiniteMPS
   Hᴿ::InfiniteMPS
   ψ::InfiniteCanonicalMPS
   n::Int
 end
 
-#Assume all local Hamiltonians have the same nrange
-function Base.:*(H::Hᶜ, v::ITensor)
+function Base.:*(H::Hᶜ{ITensor}, v::ITensor)
   ∑h = H.∑h
   Hᴸ = H.Hᴸ
   Hᴿ = H.Hᴿ
   ψ = H.ψ
   ψ′ = dag(ψ)'
-  Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
   n = H.n
   l = linkinds(only, ψ.AL)
   l′ = linkinds(only, ψ′.AL)
   r = linkinds(only, ψ.AR)
   r′ = linkinds(only, ψ′.AR)
-  s = siteinds(only, ψ)
-  s′ = siteinds(only, ψ′)
-  δˢ(n) = δ(dag(s[n]), prime(s[n]))
-  δʳ(n) = δ(dag(r[n]), prime(r[n]))
-  δˡ(n) = δ(l[n], l′[n])
-
-  #Build the contribution of the left environment
-  Hᶜᴸv = v * Hᴸ[n] * δʳ(n)
-  #Build the contribution of the right environment
-  Hᶜᴿv = v * δˡ(n) * Hᴿ[n]
-  #We now start building terms where C overlap with the local Hamiltonian
-  # We start with the tensor AL[n] - v - AR[n+1] ... AR[n + range_∑h - 1]
-  Hᶜʰv = v * ψ.AL[n] * δˡ(n - 1) * ψ′.AL[n] * ∑h[n][1] #left extremity
-  common_sites = findsites(ψ, ∑h[n])
-  idx = 2 #list the sites Σh, we start at 2 because n is already taken into account
-  for k in 1:(range_∑h - 2)
-    if n + k == common_sites[idx]
-      Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * ψ′.AR[n + k] * ∑h[n][idx]
-      idx += 1
-    else
-      Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * ψ′.AR[n + k] * δˢ(n + k)
-    end
-  end
+  δˡ = δ(l[n], l′[n])
+  δˡ⁻¹ = δ(l[n - 1], l′[n - 1])
+  δʳ = δ(r[n], r′[n])
+  δʳ⁺¹ = δ(r[n + 1], r′[n + 1])
+  Hᶜᴸv = v * Hᴸ[n] * dag(δʳ)
+  Hᶜᴿv = v * δˡ * Hᴿ[n]
   Hᶜʰv =
-    Hᶜʰv *
-    ψ.AR[n + range_∑h - 1] *
-    δʳ(n + range_∑h - 1) *
-    ψ′.AR[n + range_∑h - 1] *
-    ∑h[n][end]    #right most extremity
-  #Now we are building contributions of the form AL[n - j] ... AL[n] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
-  for j in 1:(range_∑h - 2)
-    temp_Hᶜʰv = ψ.AL[n - j] * δˡ(n - 1 - j) * ψ′.AL[n - j] * ∑h[n - j][1]
-    common_sites = findsites(ψ, ∑h[n - j])
-    idx = 2
-    for k in 1:j
-      if n - j + k == common_sites[idx]
-        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AL[n - j + k] * ψ′.AL[n - j + k] * ∑h[n - j][idx]
-        idx += 1
-      else
-        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AL[n - j + k] * ψ′.AL[n - j + k] * δˢ(n - j + k)
-      end
-    end
-    # Finished the AL part
-    temp_Hᶜʰv = temp_Hᶜʰv * v
-    for k in (j + 1):(range_∑h - 2)
-      if n - j + k == common_sites[idx]
-        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AR[n - j + k] * ψ′.AR[n - j + k] * ∑h[n - j][idx]
-        idx += 1
-      else
-        temp_Hᶜʰv = temp_Hᶜʰv * ψ.AR[n - j + k] * ψ′.AR[n - j + k] * δˢ(n - j + k)
-      end
-    end
-    temp_Hᶜʰv =
-      temp_Hᶜʰv *
-      ∑h[n - j][end] *
-      ψ.AR[n - j + range_∑h - 1] *
-      δʳ(n - j + range_∑h - 1) *
-      ψ′.AR[n - j + range_∑h - 1]
-    Hᶜʰv = Hᶜʰv + temp_Hᶜʰv
-  end
+    v * ψ.AL[n] * δˡ⁻¹ * ψ′.AL[n] * ∑h[(n, n + 1)] * ψ.AR[n + 1] * dag(δʳ⁺¹) * ψ′.AR[n + 1]
   Hᶜv = Hᶜᴸv + Hᶜʰv + Hᶜᴿv
-  return Hᶜv * dag(δˡ(n)) * dag(δʳ(n))
+  return Hᶜv * dag(δˡ) * δʳ
 end
 
-function Base.:*(H::Hᴬᶜ, v::ITensor)
+function Base.:*(H::Hᴬᶜ{ITensor}, v::ITensor)
   ∑h = H.∑h
   Hᴸ = H.Hᴸ
   Hᴿ = H.Hᴿ
   ψ = H.ψ
   ψ′ = dag(ψ)'
-  Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
   n = H.n
   l = linkinds(only, ψ.AL)
   l′ = linkinds(only, ψ′.AL)
@@ -113,75 +56,16 @@ function Base.:*(H::Hᴬᶜ, v::ITensor)
   s = siteinds(only, ψ)
   s′ = siteinds(only, ψ′)
 
-  δˢ(n) = δ(dag(s[n]), prime(s[n]))
-  δʳ(n) = δ(dag(r[n]), prime(r[n]))
+  δˢ(n) = δ(s[n], s′[n])
   δˡ(n) = δ(l[n], l′[n])
+  δʳ(n) = δ(r[n], r′[n])
 
-  #Contribution of the left environment
-  Hᴬᶜᴸv = v * Hᴸ[n - 1] * δˢ(n) * δʳ(n)
-  #Contribution of the right environment
-  Hᴬᶜᴿv = v * δˡ(n - 1) * δˢ(n) * Hᴿ[n]
-  #We now start building terms where AC overlap with the local Hamiltonian
-  # We start with the tensor v - AR[n+1] ... AR[n + range_∑h - 1]
-  Hᴬᶜʰv = v * δˡ(n - 1) * ∑h[n][1]
-  common_sites = findsites(ψ, ∑h[n])
-  idx = 2 #list the sites Σh, we start at 2 because n is already taken into account
-  for k in 1:(range_∑h - 2)
-    if n + k == common_sites[idx]
-      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * ψ′.AR[n + k] * ∑h[n][idx]
-      idx += 1
-    else
-      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * ψ′.AR[n + k] * δˢ(n + k)
-    end
-  end
-  Hᴬᶜʰv =
-    Hᴬᶜʰv *
-    ∑h[n][end] *
-    ψ.AR[n + range_∑h - 1] *
-    ψ′.AR[n + range_∑h - 1] *
-    δʳ(n + range_∑h - 1) #rightmost extremity
-  #Now we are building contributions of the form AL[n - j] ... AL[n-1] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
-  for j in 1:(range_∑h - 1)
-    temp_Hᴬᶜʰv = ψ.AL[n - j] * δˡ(n - j - 1) * ψ′.AL[n - j] * ∑h[n - j][1]
-    common_sites = findsites(ψ, ∑h[n - j])
-    idx = 2
-    for k in 1:(j - 1)
-      if n - j + k == common_sites[idx]
-        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AL[n - j + k] * ψ′.AL[n - j + k] * ∑h[n - j][idx]
-        idx += 1
-      else
-        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AL[n - j + k] * ψ′.AL[n - j + k] * δˢ(n - j + k)
-      end
-    end
-    #Finished with AL, treating the center AC = v
-    if j == range_∑h - 1
-      temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * δʳ(n - j + range_∑h - 1) * ∑h[n - j][end]
-    else
-      if n == common_sites[idx] #need to check whether we need to branch v
-        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * ∑h[n - j][idx]
-        idx += 1
-      else
-        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * δˢ(n)
-      end
-      for k in (j + 1):(range_∑h - 2)
-        if n + k - j == common_sites[idx]
-          temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * ψ′.AR[n + k - j] * ∑h[n - j][idx]
-          idx += 1
-        else
-          temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * ψ′.AR[n + k - j] * δˢ(n + k - j)
-        end
-      end
-      temp_Hᴬᶜʰv =
-        temp_Hᴬᶜʰv *
-        ∑h[n - j][end] *
-        ψ.AR[n + range_∑h - 1 - j] *
-        ψ′.AR[n + range_∑h - 1 - j] *
-        δʳ(n - j + range_∑h - 1)
-    end
-    Hᴬᶜʰv = Hᴬᶜʰv + temp_Hᴬᶜʰv
-  end
-  Hᴬᶜv = Hᴬᶜᴸv + Hᴬᶜʰv + Hᴬᶜᴿv
-  return Hᴬᶜv * dag(δˡ(n - 1)) * dag(δˢ(n)) * dag(δʳ(n))
+  Hᴬᶜᴸv = v * Hᴸ[n - 1] * dag(δˢ(n)) * dag(δʳ(n))
+  Hᴬᶜᴿv = v * δˡ(n - 1) * dag(δˢ(n)) * Hᴿ[n]
+  Hᴬᶜʰ¹v = v * ψ.AL[n - 1] * δˡ(n - 2) * ψ′.AL[n - 1] * ∑h[(n - 1, n)] * dag(δʳ(n))
+  Hᴬᶜʰ²v = v * δˡ(n - 1) * ψ.AR[n + 1] * dag(δʳ(n + 1)) * ψ′.AR[n + 1] * ∑h[(n, n + 1)]
+  Hᴬᶜv = Hᴬᶜᴸv + Hᴬᶜʰ¹v + Hᴬᶜʰ²v + Hᴬᶜᴿv
+  return Hᴬᶜv * dag(δˡ(n - 1)) * δˢ(n) * δʳ(n)
 end
 
 function (H::Hᶜ)(v)
@@ -227,7 +111,6 @@ function (A::Aᴸ)(x)
   return xT - xR
 end
 
-# TODO Generate all environments, why? Only one is needed in the sequential version
 function left_environment(hᴸ, 𝕙ᴸ, ψ; tol=1e-15)
   ψ̃ = prime(linkinds, dag(ψ))
   N = nsites(ψ)
@@ -243,66 +126,6 @@ function left_environment(hᴸ, 𝕙ᴸ, ψ; tol=1e-15)
   return Hᴸ
 end
 
-function left_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=1e-15)
-  Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
-  ψᴴ = dag(ψ)
-  ψ′ = ψᴴ'
-  ψ̃ = prime(linkinds, ψᴴ)
-
-  l = linkinds(only, ψ.AL)
-  l′ = linkinds(only, ψ′.AL)
-  r = linkinds(only, ψ.AR)
-  r′ = linkinds(only, ψ′.AR)
-  s = siteinds(only, ψ)
-  δʳ(n) = δ(dag(r[n]), prime(r[n]))
-  δˡ(n) = δ(l[n], l′[n])
-  δˢ(n) = δ(dag(s[n]), prime(s[n]))
-  hᴸ = Vector{ITensor}(undef, Nsites)
-  for k in 1:Nsites
-    hᴸ[k] =
-      δˡ(k - range_∑h) *
-      ψ.AL[k - range_∑h + 1] *
-      ∑h[(k - range_∑h + 1, k - range_∑h + 2)][1] *
-      ψ′.AL[k - range_∑h + 1]
-    common_sites = findsites(ψ, ∑h[(k - range_∑h + 1, k - range_∑h + 2)])
-    idx = 2
-    for j in 2:range_∑h
-      if k - range_∑h + j == common_sites[idx]
-        hᴸ[k] =
-          hᴸ[k] *
-          ψ.AL[k - range_∑h + j] *
-          ψ′.AL[k - range_∑h + j] *
-          ∑h[(k - range_∑h + 1, k - range_∑h + 2)][idx]
-        idx += 1
-      else
-        hᴸ[k] =
-          hᴸ[k] * ψ.AL[k - range_∑h + j] * ψ′.AL[k - range_∑h + j] * δˢ(k - range_∑h + j)
-      end
-    end
-  end
-  hᴸ = InfiniteMPS(hᴸ)
-  eᴸ = [(hᴸ[k] * ψ.C[k] * δʳ(k) * ψ′.C[k])[] for k in 1:Nsites]
-  for k in 1:Nsites
-    # TODO: remove `denseblocks` once BlockSparse + DiagBlockSparse is supported
-    hᴸ[k] -= eᴸ[k] * denseblocks(δ(inds(hᴸ[k])))
-  end
-
-  𝕙ᴸ = copy(hᴸ)
-  # TODO restrict to the useful ones only?
-  for n in 1:Nsites
-    for k in 1:(Nsites - 1)
-      temp = copy(hᴸ[n - k])
-      for kp in reverse(0:(k - 1))
-        temp = temp * ψ.AL[n - kp] * ψ̃.AL[n - kp]
-      end
-      𝕙ᴸ[n] = temp + 𝕙ᴸ[n]
-    end
-  end
-  Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=tol)
-
-  return Hᴸ, eᴸ
-end
 # Struct for use in linear system solver
 struct Aᴿ
   hᴿ::InfiniteMPS
@@ -337,13 +160,14 @@ function (A::Aᴿ)(x)
   return xT - xR
 end
 
-# TODO Generate all environments, why? Only one is needed in the sequential version
-function right_environment(hᴿ, 𝕙ᴿ, ψ; tol=1e-15)
+function right_environment(hᴿ, ψ; tol=1e-15)
   ψ̃ = prime(linkinds, dag(ψ))
-  N = nsites(ψ)
+  # XXX: replace with `nsites`
+  #N = nsites(ψ)
+  N = length(ψ)
 
   A = Aᴿ(hᴿ, ψ, N)
-  Hᴿᴺ¹, info = linsolve(A, 𝕙ᴿ[N], 1, -1; tol=tol)
+  Hᴿᴺ¹, info = linsolve(A, hᴿ[N], 1, -1; tol=tol)
   # Get the rest of the environments in the unit cell
   Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
   Hᴿ[N] = Hᴿᴺ¹
@@ -351,57 +175,6 @@ function right_environment(hᴿ, 𝕙ᴿ, ψ; tol=1e-15)
     Hᴿ[n] = Hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
   end
   return Hᴿ
-end
-
-function right_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=1e-15)
-  Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
-  ψᴴ = dag(ψ)
-  ψ′ = ψᴴ'
-  ψ̃ = prime(linkinds, ψᴴ)
-
-  l = linkinds(only, ψ.AL)
-  l′ = linkinds(only, ψ′.AL)
-  r = linkinds(only, ψ.AR)
-  r′ = linkinds(only, ψ′.AR)
-  s = siteinds(only, ψ)
-  δʳ(n) = δ(dag(r[n]), prime(r[n]))
-  δˡ(n) = δ(l[n], l′[n])
-  δˢ(n) = δ(dag(s[n]), prime(s[n]))
-
-  hᴿ = Vector{ITensor}(undef, Nsites)
-  for k in 1:Nsites
-    hᴿ[k] = ψ.AR[k + range_∑h] * ∑h[k + 1][end] * ψ′.AR[k + range_∑h] * δʳ(k + range_∑h)
-    common_sites = findsites(ψ, ∑h[k + 1])
-    idx = length(common_sites) - 1
-    for j in (range_∑h - 1):-1:1
-      if k + j == common_sites[idx]
-        hᴿ[k] = hᴿ[k] * ψ.AR[k + j] * ψ′.AR[k + j] * ∑h[k + 1][idx]
-        idx -= 1
-      else
-        hᴿ[k] = hᴿ[k] * ψ.AR[k + j] * ψ′.AR[k + j] * δˢ(k + j)
-      end
-    end
-  end
-  hᴿ = InfiniteMPS(hᴿ)
-  eᴿ = [(hᴿ[k] * ψ.C[k] * δˡ(k) * ψ′.C[k])[] for k in 1:Nsites]
-  for k in 1:Nsites
-    hᴿ[k] -= eᴿ[k] * denseblocks(δ(inds(hᴿ[k])))
-  end
-
-  𝕙ᴿ = copy(hᴿ)
-  #TODO restrict to the useful ones only
-  for n in 1:Nsites
-    for k in 1:(Nsites - 1)
-      temp = copy(hᴿ[n + k])
-      for kp in reverse(1:k)
-        temp = temp * ψ.AR[n + kp] * ψ̃.AR[n + kp]
-      end
-      𝕙ᴿ[n] = temp + 𝕙ᴿ[n]
-    end
-  end
-  Hᴿ = right_environment(hᴿ, 𝕙ᴿ, ψ; tol=tol)
-  return Hᴿ, eᴿ
 end
 
 function tdvp_iteration(args...; multisite_update_alg="sequential", kwargs...)
@@ -416,10 +189,9 @@ function tdvp_iteration(args...; multisite_update_alg="sequential", kwargs...)
   end
 end
 
-#In principle, could share even more code with vumps_mpo or with parallel
 function tdvp_iteration_sequential(
   solver::Function,
-  ∑h::InfiniteSum,
+  ∑h::InfiniteSum{ITensor},
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
@@ -427,9 +199,18 @@ function tdvp_iteration_sequential(
   solver_tol=(x -> x / 100),
 )
   Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
   _solver_tol = solver_tol(ϵᵖʳᵉˢ)
+  ψᴴ = dag(ψ)
+  ψ′ = ψᴴ'
+  # XXX: make this prime the center sites
+  ψ̃ = prime(linkinds, ψᴴ)
+
+  # TODO: replace with linkinds(ψ)
+  l = CelledVector([commoninds(ψ.AL[n], ψ.AL[n + 1]) for n in 1:Nsites])
+  l′ = CelledVector([commoninds(ψ′.AL[n], ψ′.AL[n + 1]) for n in 1:Nsites])
+  r = CelledVector([commoninds(ψ.AR[n], ψ.AR[n + 1]) for n in 1:Nsites])
+  r′ = CelledVector([commoninds(ψ′.AR[n], ψ′.AR[n + 1]) for n in 1:Nsites])
 
   ψ = copy(ψ)
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
@@ -438,24 +219,54 @@ function tdvp_iteration_sequential(
   Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   eᴸ = Vector{Float64}(undef, Nsites)
   eᴿ = Vector{Float64}(undef, Nsites)
-
   for n in 1:Nsites
-    ψᴴ = dag(ψ)
-    ψ′ = ψᴴ'
-    # XXX: make this prime the center sites
-    ψ̃ = prime(linkinds, ψᴴ)
+    hᴸ = InfiniteMPS([
+      δ(only(l[k - 2]), only(l′[k - 2])) *
+      ψ.AL[k - 1] *
+      ψ.AL[k] *
+      ∑h[(k - 1, k)] *
+      ψ′.AL[k - 1] *
+      ψ′.AL[k] for k in 1:Nsites
+    ])
+    hᴿ = InfiniteMPS([
+      δ(only(dag(r[k + 2])), only(dag(r′[k + 2]))) *
+      ψ.AR[k + 2] *
+      ψ.AR[k + 1] *
+      ∑h[(k + 1, k + 2)] *
+      ψ′.AR[k + 2] *
+      ψ′.AR[k + 1] for k in 1:Nsites
+    ])
+    eᴸ = [
+      (hᴸ[k] * ψ.C[k] * δ(only(dag(r[k])), only(dag(r′[k]))) * ψ′.C[k])[] for k in 1:Nsites
+    ]
+    eᴿ = [(hᴿ[k] * ψ.C[k] * δ(only(l[k]), only(l′[k])) * ψ′.C[k])[] for k in 1:Nsites]
+    for k in 1:Nsites
+      # TODO: remove `denseblocks` once BlockSparse + DiagBlockSparse is supported
+      hᴸ[k] -= eᴸ[k] * denseblocks(δ(inds(hᴸ[k])))
+      hᴿ[k] -= eᴿ[k] * denseblocks(δ(inds(hᴿ[k])))
+    end
 
-    l = linkinds(only, ψ.AL)
-    l′ = linkinds(only, ψ′.AL)
-    r = linkinds(only, ψ.AR)
-    r′ = linkinds(only, ψ′.AR)
-    s = siteinds(only, ψ)
-    δʳ(n) = δ(dag(r[n]), prime(r[n]))
-    δˡ(n) = δ(l[n], l′[n])
-    δˢ(n) = δ(dag(s[n]), prime(s[n]))
+    function left_environment_cell(ψ, ψ̃, hᴸ, n)
+      Nsites = nsites(ψ)
+      𝕙ᴸ = copy(hᴸ)
+      for k in reverse((n - Nsites + 2):n)
+        𝕙ᴸ[k] = 𝕙ᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + 𝕙ᴸ[k]
+      end
+      return 𝕙ᴸ[n]
+    end
 
-    Hᴸ, eᴸ = left_environment(∑h, ψ; tol=_solver_tol)
-    Hᴿ, eᴿ = right_environment(∑h, ψ; tol=_solver_tol)
+    #for k in 2:Nsites
+    #  hᴸ[k] = hᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + hᴸ[k]
+    #end
+    𝕙ᴸ = copy(hᴸ)
+    for k in 1:Nsites
+      𝕙ᴸ[k] = left_environment_cell(ψ, ψ̃, hᴸ, k)
+    end
+    Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=_solver_tol)
+    for k in 2:Nsites
+      hᴿ[k] = hᴿ[k + 1] * ψ.AR[k + 1] * ψ̃.AR[k + 1] + hᴿ[k]
+    end
+    Hᴿ = right_environment(hᴿ, ψ; tol=_solver_tol)
 
     Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = solver(
       Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol
@@ -469,16 +280,37 @@ function tdvp_iteration_sequential(
     C̃[n] = Cvecsₙ
     Ãᶜ[n] = Avecsₙ
 
+    function ortho_overlap(AC, C)
+      AL, _ = polar(AC * dag(C), uniqueinds(AC, C))
+      return noprime(AL)
+    end
+
+    function ortho_polar(AC, C)
+      UAC, _ = polar(AC, uniqueinds(AC, C))
+      UC, _ = polar(C, commoninds(C, AC))
+      return noprime(UAC) * noprime(dag(UC))
+    end
+
     Ãᴸ[n] = ortho_polar(Ãᶜ[n], C̃[n])
     Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n - 1])
+
     # Update state for next iteration
     #ψ = InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ)
     ψ.AL[n] = Ãᴸ[n]
     ψ.AR[n] = Ãᴿ[n]
     ψ.C[n - 1] = C̃[n - 1]
     ψ.C[n] = C̃[n]
-  end
+    ψᴴ = dag(ψ)
+    ψ′ = ψᴴ'
+    # XXX: make this prime the center sites
+    ψ̃ = prime(linkinds, ψᴴ)
 
+    # TODO: replace with linkinds(ψ)
+    l = CelledVector([commoninds(ψ.AL[n], ψ.AL[n + 1]) for n in 1:Nsites])
+    l′ = CelledVector([commoninds(ψ′.AL[n], ψ′.AL[n + 1]) for n in 1:Nsites])
+    r = CelledVector([commoninds(ψ.AR[n], ψ.AR[n + 1]) for n in 1:Nsites])
+    r′ = CelledVector([commoninds(ψ′.AR[n], ψ′.AR[n + 1]) for n in 1:Nsites])
+  end
   for n in 1:Nsites
     ϵᴸ![n] = norm(Ãᶜ[n] - Ãᴸ[n] * C̃[n])
     ϵᴿ![n] = norm(Ãᶜ[n] - C̃[n - 1] * Ãᴿ[n])
@@ -488,7 +320,7 @@ end
 
 function tdvp_iteration_parallel(
   solver::Function,
-  ∑h::InfiniteSum,
+  ∑h::InfiniteSum{ITensor},
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
@@ -496,7 +328,6 @@ function tdvp_iteration_parallel(
   solver_tol=(x -> x / 100),
 )
   Nsites = nsites(ψ)
-  range_∑h = nrange(∑h, 1)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
   _solver_tol = solver_tol(ϵᵖʳᵉˢ)
   ψᴴ = dag(ψ)
@@ -504,16 +335,67 @@ function tdvp_iteration_parallel(
   # XXX: make this prime the center sites
   ψ̃ = prime(linkinds, ψᴴ)
 
-  l = linkinds(only, ψ.AL)
-  l′ = linkinds(only, ψ′.AL)
-  r = linkinds(only, ψ.AR)
-  r′ = linkinds(only, ψ′.AR)
-  s = siteinds(only, ψ)
-  δʳ(n) = δ(dag(r[n]), prime(r[n]))
-  δˡ(n) = δ(l[n], l′[n])
-  δˢ(n) = δ(dag(s[n]), prime(s[n]))
-  Hᴸ, eᴸ = left_environment(∑h, ψ; tol=_solver_tol)
-  Hᴿ, eᴿ = right_environment(∑h, ψ; tol=_solver_tol)
+  # TODO: replace with linkinds(ψ)
+  l = CelledVector([commoninds(ψ.AL[n], ψ.AL[n + 1]) for n in 1:Nsites])
+  l′ = CelledVector([commoninds(ψ′.AL[n], ψ′.AL[n + 1]) for n in 1:Nsites])
+  r = CelledVector([commoninds(ψ.AR[n], ψ.AR[n + 1]) for n in 1:Nsites])
+  r′ = CelledVector([commoninds(ψ′.AR[n], ψ′.AR[n + 1]) for n in 1:Nsites])
+
+  hᴸ = InfiniteMPS([
+    δ(only(l[n - 2]), only(l′[n - 2])) *
+    ψ.AL[n - 1] *
+    ψ.AL[n] *
+    ∑h[(n - 1, n)] *
+    ψ′.AL[n - 1] *
+    ψ′.AL[n] for n in 1:Nsites
+  ])
+
+  hᴿ = InfiniteMPS([
+    δ(only(dag(r[n + 2])), only(dag(r′[n + 2]))) *
+    ψ.AR[n + 2] *
+    ψ.AR[n + 1] *
+    ∑h[(n + 1, n + 2)] *
+    ψ′.AR[n + 2] *
+    ψ′.AR[n + 1] for n in 1:Nsites
+  ])
+
+  eᴸ = [
+    (hᴸ[n] * ψ.C[n] * δ(only(dag(r[n])), only(dag(r′[n]))) * ψ′.C[n])[] for n in 1:Nsites
+  ]
+  eᴿ = [(hᴿ[n] * ψ.C[n] * δ(only(l[n]), only(l′[n])) * ψ′.C[n])[] for n in 1:Nsites]
+
+  for n in 1:Nsites
+    # TODO: use these instead, for now can't subtract
+    # BlockSparse and DiagBlockSparse tensors
+    #hᴸ[n] -= eᴸ[n] * δ(inds(hᴸ[n]))
+    #hᴿ[n] -= eᴿ[n] * δ(inds(hᴿ[n]))
+    hᴸ[n] -= eᴸ[n] * denseblocks(δ(inds(hᴸ[n])))
+    hᴿ[n] -= eᴿ[n] * denseblocks(δ(inds(hᴿ[n])))
+  end
+
+  # Sum the Hamiltonian terms in the unit cell
+  function left_environment_cell(ψ, ψ̃, hᴸ, n)
+    Nsites = nsites(ψ)
+    𝕙ᴸ = copy(hᴸ)
+    for k in reverse((n - Nsites + 2):n)
+      𝕙ᴸ[k] = 𝕙ᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + 𝕙ᴸ[k]
+    end
+    return 𝕙ᴸ[n]
+  end
+
+  #for k in 2:Nsites
+  #  hᴸ[k] = hᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + hᴸ[k]
+  #end
+  𝕙ᴸ = copy(hᴸ)
+  for k in 1:Nsites
+    𝕙ᴸ[k] = left_environment_cell(ψ, ψ̃, hᴸ, k)
+  end
+  Hᴸ = left_environment(hᴸ, 𝕙ᴸ, ψ; tol=_solver_tol)
+
+  for n in 2:Nsites
+    hᴿ[n] = hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
+  end
+  Hᴿ = right_environment(hᴿ, ψ; tol=_solver_tol)
 
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
@@ -525,6 +407,17 @@ function tdvp_iteration_parallel(
 
     C̃[n] = Cvecsₙ
     Ãᶜ[n] = Avecsₙ
+  end
+
+  function ortho_overlap(AC, C)
+    AL, _ = polar(AC * dag(C), uniqueinds(AC, C))
+    return noprime(AL)
+  end
+
+  function ortho_polar(AC, C)
+    UAC, _ = polar(AC, uniqueinds(AC, C))
+    UC, _ = polar(C, commoninds(C, AC))
+    return noprime(UAC) * noprime(dag(UC))
   end
 
   Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
@@ -630,66 +523,3 @@ function tdvp(args...; time_step, solver_tol=(x -> x / 100), kwargs...)
   end
   return tdvp(solver, args...; time_step=time_step, solver_tol=solver_tol, kwargs...)
 end
-
-##################################################################
-# Old functionality, only used for testing
-
-## function left_environment_recursive(hᴸ, ψ; niter=10)
-##   ψ̃ = prime(linkinds, dag(ψ))
-##   # XXX: replace with `nsites`
-##   #N = nsites(ψ)
-##   N = length(ψ)
-##   Hᴸᴺ¹ = hᴸ[N]
-##   for _ in 1:niter
-##     Hᴸᴺ¹ = translatecell(Hᴸᴺ¹, -1)
-##     for n in 1:N
-##       Hᴸᴺ¹ = Hᴸᴺ¹ * ψ.AL[n] * ψ̃.AL[n]
-##     end
-##     # Loop over the Hamiltonian terms in the unit cell
-##     for n in 1:N
-##       hᴸⁿ = hᴸ[n]
-##       for k in (n + 1):N
-##         hᴸⁿ = hᴸⁿ * ψ.AL[k] * ψ̃.AL[k]
-##       end
-##       Hᴸᴺ¹ += hᴸⁿ
-##     end
-##   end
-##   # Get the rest of the environments in the unit cell
-##   Hᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
-##   Hᴸ[N] = Hᴸᴺ¹
-##   Hᴸᴺ¹ = translatecell(Hᴸᴺ¹, -1)
-##   for n in 1:(N - 1)
-##     Hᴸ[n] = Hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
-##   end
-##   return Hᴸ
-## end
-##
-## function right_environment_recursive(hᴿ, ψ; niter=10)
-##   ψ̃ = prime(linkinds, dag(ψ))
-##   # XXX: replace with `nsites`
-##   #N = nsites(ψ)
-##   N = length(ψ)
-##   Hᴿᴺ¹ = hᴿ[0]
-##   for _ in 1:niter
-##     Hᴿᴺ¹ = translatecell(Hᴿᴺ¹, 1)
-##     for n in reverse(1:N)
-##       Hᴿᴺ¹ = Hᴿᴺ¹ * ψ.AR[n] * ψ̃.AR[n]
-##     end
-##     # Loop over the Hamiltonian terms in the unit cell
-##     for n in reverse(0:(N - 1))
-##       hᴿⁿ = hᴿ[n]
-##       for k in reverse(1:n)
-##         hᴿⁿ = hᴿⁿ * ψ.AR[k] * ψ̃.AR[k]
-##       end
-##       Hᴿᴺ¹ += hᴿⁿ
-##     end
-##   end
-##   Hᴿᴺ¹ = translatecell(Hᴿᴺ¹, 1)
-##   # Get the rest of the environments in the unit cell
-##   Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
-##   Hᴿ[N] = Hᴿᴺ¹
-##   for n in reverse(1:(N - 1))
-##     Hᴿ[n] = Hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
-##   end
-##   return Hᴿ
-## end

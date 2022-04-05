@@ -45,6 +45,7 @@ include("infinitemps_approx.jl")
 include("nullspace.jl")
 include("subspace_expansion.jl")
 include("vumps_localham.jl")
+include("vumps_nonlocalham.jl")
 include("vumps_mpo.jl")
 
 export Cell,

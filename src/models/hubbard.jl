@@ -34,6 +34,10 @@ function ITensors.MPO(::Model"hubbard", s; t, U, V)
   return MPO(opsum, s)
 end
 
+function ITensors.ITensor(model::Model"hubbard", s; kwargs...)
+  return prod(MPO(model, s; kwargs...))
+end
+
 """
 @article{PhysRevB.6.930,
   title = {Magnetic Susceptibility at Zero Temperature for the One-Dimensional Hubbard Model},
