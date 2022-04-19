@@ -22,9 +22,9 @@ function (A::AOᴸ)(x)
   δʳ(n) = δ(dag(r[n]), prime(r[n]))
   xT = translatecell(translator(ψ), x, -1)
   for j in (2 - N):1
-    xT = xT * H[j][n, n] * ψ.AL[j] * ψ′.AL[j]
+    xT = xT * ψ.AL[j] * H[j][n, n] * ψ′.AL[j]
   end
-  xR = x * ψ.C[1] * ψ′.C[1] * δʳ(1) * denseblocks(δˡ(1))
+  xR = x * ψ.C[1] * δʳ(1) * ψ′.C[1] * denseblocks(δˡ(1))
   return xT - xR
 end
 
@@ -40,9 +40,9 @@ function apply_local_left_transfer_matrix(
     for k in reverse(j:dₕ)
       if !isempty(H[n_1][k, j]) && isassigned(Lstart, k) && !isempty(Lstart[k])
         if isassigned(Ltarget, j) && init
-          Ltarget[j] += Lstart[k] * ψ.AL[n_1] * ψ′.AL[n_1] * H[n_1][k, j]
+          Ltarget[j] += Lstart[k] * ψ.AL[n_1] * H[n_1][k, j] * ψ′.AL[n_1]
         else
-          Ltarget[j] = Lstart[k] * ψ.AL[n_1] * ψ′.AL[n_1] * H[n_1][k, j]
+          Ltarget[j] = Lstart[k] * ψ.AL[n_1] * H[n_1][k, j] * ψ′.AL[n_1]
           init = true
         end
       end
@@ -63,7 +63,7 @@ function apply_local_left_transfer_matrix(
   Ltarget = Vector{ITensor}(undef, size(H[n_1])[1])
   for j in 1:m
     if !isempty(H[n_1][m, j])
-      Ltarget[j] = Lstart * ψ.AL[n_1] * dag(prime(ψ.AL[n_1])) * H[n_1][m, j]
+      Ltarget[j] = Lstart * ψ.AL[n_1]  * H[n_1][m, j] * dag(prime(ψ.AL[n_1]))
     end
   end
   return Ltarget
@@ -167,7 +167,7 @@ function (A::AOᴿ)(x)
   for j in reverse(1:N)
     xT = xT * ψ.AR[j] * H[j][n, n] * ψ′.AR[j]
   end
-  xR = x * ψ.C[0] * ψ′.C[0] * δˡ(0) * denseblocks(δʳ(0))
+  xR = x * ψ.C[0] * (ψ′.C[0] * δˡ(0) * denseblocks(δʳ(0)) )
   return xT - xR
 end
 
@@ -182,9 +182,9 @@ function apply_local_right_transfer_matrix!(
     for k in reverse(1:j)
       if !isempty(H[n_1][j, k]) && isassigned(Lstart, k) && !isempty(Lstart[k])
         if isassigned(Lstart, j) && init
-          Lstart[j] += Lstart[k] * ψ.AR[n_1] * ψ′.AR[n_1] * H[n_1][j, k]
+          Lstart[j] += Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
         else
-          Lstart[j] = Lstart[k] * ψ.AR[n_1] * ψ′.AR[n_1] * H[n_1][j, k]
+          Lstart[j] = Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
           init = true
         end
       end
@@ -203,9 +203,9 @@ function apply_local_right_transfer_matrix(
     for k in reverse(1:j)
       if !isempty(H[n_1][j, k]) && isassigned(Lstart, k) && !isempty(Lstart[k])
         if isassigned(Ltarget, j) && init
-          Ltarget[j] += Lstart[k] * ψ.AR[n_1] * ψ′.AR[n_1] * H[n_1][j, k]
+          Ltarget[j] += Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
         else
-          Ltarget[j] = Lstart[k] * ψ.AR[n_1] * ψ′.AR[n_1] * H[n_1][j, k]
+          Ltarget[j] = Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
           init = true
         end
       end
@@ -228,7 +228,7 @@ function apply_local_right_transfer_matrix(
   Ltarget = Vector{ITensor}(undef, dₕ)
   for j in m:dₕ
     if !isempty(H[n_1][j, m])
-      Ltarget[j] = Lstart * ψ.AR[n_1] * ψ′ * H[n_1][j, m] #TODO optimize
+      Ltarget[j] = Lstart * ψ.AR[n_1]  * H[n_1][j, m] * ψ′ #TODO optimize
     end
   end
   return Ltarget

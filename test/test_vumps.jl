@@ -126,7 +126,7 @@ using Random
   end
 end
 
-@testset "vumps_ising_translater" begin
+@testset "vumps_ising_translator" begin
   Random.seed!(1234)
 
   model = Model"ising"()
@@ -140,7 +140,8 @@ end
     end
   end
 
-  temp_translatecell(i::Index, n::Integer) = translatecell(i, 2n)
+  #Not a correct and valid Hamiltonian #nned to think about a good test (or just import Laughlin 13)
+  temp_translatecell(i::Index, n::Integer) = ITensorInfiniteMPS.translatecelltags(i, n)
 
   # VUMPS arguments
   cutoff = 1e-8
@@ -168,7 +169,7 @@ end
   for nsite in 1:3
     space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsite)
     s_bis = infsiteinds("S=1/2", nsite; space=space_)
-    s = infsiteinds("S=1/2", nsite; space=space_, translater=temp_translatecell)
+    s = infsiteinds("S=1/2", nsite; space=space_, translator=temp_translatecell)
     ψ = InfMPS(s, initstate)
 
     # Form the Hamiltonian
@@ -232,9 +233,9 @@ end
     @test Sz1_finite ≈ Sz2_finite rtol = 1e-5
     @test Sz1_infinite ≈ Sz2_infinite rtol = 1e-5
 
-    @test tags(s[nsite + 1]) == tags(s_bis[1 + 2nsite])
-    @test ITensorInfiniteMPS.translater(ψ) == temp_translatecell
-    @test ITensorInfiniteMPS.translater(s) == temp_translatecell
-    @test ITensorInfiniteMPS.translater(H) == temp_translatecell
+    #@test tags(s[nsite + 1]) == tags(s_bis[1 + nsite])
+    @test ITensorInfiniteMPS.translator(ψ) == temp_translatecell
+    @test ITensorInfiniteMPS.translator(s) == temp_translatecell
+    @test ITensorInfiniteMPS.translator(H) == temp_translatecell
   end
 end
