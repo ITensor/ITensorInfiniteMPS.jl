@@ -133,11 +133,6 @@ ITensors.noncommoninds(is::IndexSet) = is
 
 using ITensors.NDTensors
 
-function LinearAlgebra.ishermitian(T::ITensor, pairs=0 => 1; kwargs...)
-  Tᴴ = swapprime(dag(T), pairs)
-  return isapprox(Tᴴ, T; kwargs...)
-end
-
 # Helpful for making sure the ITensor doesn't contract
 ITensors.sim(A::ITensor) = ITensors.setinds(A, sim(inds(A)))
 

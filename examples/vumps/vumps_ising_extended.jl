@@ -41,7 +41,7 @@ for j in 1:outer_iters
   println("\nIncrease bond dimension")
   ψ_1 = subspace_expansion(ψ_0, H; subspace_expansion_kwargs...)
   println("Run VUMPS with new bond dimension")
-  ψ_0 = vumps(H, ψ_1; vumps_kwargs...)
+  global ψ_0 = vumps(H, ψ_1; vumps_kwargs...)
 end
 
 Sz = [expect(ψ_0, "Sz", n) for n in 1:N]

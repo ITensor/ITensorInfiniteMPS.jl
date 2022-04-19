@@ -9,6 +9,7 @@ maxdim = 30 # Maximum bond dimension
 cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
 outer_iters = 5 # Number of times to increase the bond dimension
+localham_type = ITensor # or MPO
 
 model_params = (t=1.0, U=10.0, V=0.0)
 
@@ -17,6 +18,9 @@ model_params = (t=1.0, U=10.0, V=0.0)
 #
 
 N = 2 # Unit cell size
+
+@show N
+@show localham_type
 
 function electron_space_shift(q̃nf, q̃sz)
   return [
@@ -36,7 +40,7 @@ model = Model"hubbard"()
 @show model, model_params
 
 # Form the Hamiltonian
-H = InfiniteSum{MPO}(model, s; model_params...)
+H = InfiniteSum{localham_type}(model, s; model_params...)
 
 # Check translational invariance
 println("\nCheck translational invariance of initial infinite MPS")
@@ -52,13 +56,13 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 # a larger bond dimension)
 
 println("\nRun VUMPS on initial product state, unit cell size $N")
-ψ = vumps(H, ψ; vumps_kwargs...)
+ψ = @time vumps(H, ψ; vumps_kwargs...)
 
-for _ in 1:outer_iters
+@time for _ in 1:outer_iters
   println("\nIncrease bond dimension")
   global ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
   println("Run VUMPS with new bond dimension")
-  global ψ = vumps(H, ψ; vumps_kwargs...)
+  global ψ = @time vumps(H, ψ; vumps_kwargs...)
 end
 
 # Check translational invariance
@@ -73,6 +77,10 @@ function expect_two_site(ψ::InfiniteCanonicalMPS, h::ITensor, n1n2)
   n1, n2 = n1n2
   ϕ = ψ.AL[n1] * ψ.AL[n2] * ψ.C[n2]
   return (noprime(ϕ * h) * dag(ϕ))[]
+end
+
+function expect_two_site(ψ::InfiniteCanonicalMPS, h::MPO, n1n2)
+  return expect_two_site(ψ, prod(h), n1n2)
 end
 
 function expect_two_site(ψ::MPS, h::ITensor, n1n2)

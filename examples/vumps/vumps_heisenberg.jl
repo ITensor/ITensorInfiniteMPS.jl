@@ -57,6 +57,10 @@ function expect_two_site(ψ::InfiniteCanonicalMPS, h::ITensor, n1n2)
   return (noprime(ϕ * h) * dag(ϕ))[]
 end
 
+function expect_two_site(ψ::InfiniteCanonicalMPS, h::MPO, n1n2)
+  return expect_two_site(ψ, prod(h), n1n2)
+end
+
 Sz = [expect(ψ, "Sz", n) for n in 1:N]
 
 bs = [(1, 2), (2, 3)]

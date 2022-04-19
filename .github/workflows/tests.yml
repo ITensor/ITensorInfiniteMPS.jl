@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         version:
-          - '1.3'
+          - '1.6'
           - '1'
         os:
           - ubuntu-latest
@@ -24,8 +24,8 @@ jobs:
           # MacOS not available on x86
           - {os: 'macOS-latest', arch: 'x86'}
           # Only test all os on the latest release
-          - {version: '1.3', os: 'windows-latest'}
-          - {version: '1.3', os: 'macOS-latest'}
+          - {version: '1.6', os: 'windows-latest'}
+          - {version: '1.6', os: 'macOS-latest'}
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest

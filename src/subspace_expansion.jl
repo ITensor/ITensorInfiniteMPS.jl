@@ -3,8 +3,6 @@ function replaceind_indval(IV::Tuple, iĩ::Pair)
   return ntuple(n -> first(IV[n]) == i ? ĩ => last(IV[n]) : IV[n], length(IV))
 end
 
-#TODO implement the nullspace generation for InfiniteSum{ITensor}? 
-
 function generate_twobody_nullspace(
   ψ::InfiniteCanonicalMPS, H::InfiniteSum{MPO}, b::Tuple{Int,Int}; atol=1e-2
 )
@@ -94,6 +92,28 @@ function generate_twobody_nullspace(
 end
 
 function generate_twobody_nullspace(
+  ψ::InfiniteCanonicalMPS, H::InfiniteSum{ITensor}, b::Tuple{Int,Int}; atol=1e-2
+)
+  n1, n2 = b
+  lⁿ¹ = commoninds(ψ.AL[n1], ψ.C[n1])
+  rⁿ¹ = commoninds(ψ.AR[n2], ψ.C[n1])
+  l = linkinds(only, ψ.AL)
+  r = linkinds(only, ψ.AR)
+  s = siteinds(only, ψ)
+  δʳ(n) = δ(dag(r[n]), prime(r[n]))
+  δˢ(n) = δ(dag(s[n]), prime(s[n]))
+  δˡ(n) = δ(l[n], dag(prime(l[n])))
+
+  range_H = nrange(H, 1)
+  @assert range_H == 2 "Subspace expansion for InfiniteSum{ITensor} currently only works for 2-local Hamiltonians"
+
+  if range_H == 2
+    ψH2 = noprime(ψ.AL[n1] * H[n1] * ψ.C[n1] * ψ.AR[n2])
+  end
+  return ψH2
+end
+
+function generate_twobody_nullspace(
   ψ::InfiniteCanonicalMPS, H::InfiniteMPOMatrix, b::Tuple{Int,Int}; atol=1e-2
 )
   n_1, n_2 = b
@@ -158,6 +178,8 @@ function subspace_expansion(
     println(
       "Current bond dimension at bond $b is $dˡ while desired maximum dimension is $maxdim, skipping bond dimension increase",
     )
+    flush(stdout)
+    flush(stderr)
     return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
   end
   maxdim -= dˡ
@@ -174,6 +196,8 @@ function subspace_expansion(
     println(
       "Impossible to do a subspace expansion, probably due to conservation constraints"
     )
+    flush(stdout)
+    flush(stderr)
     return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
   end
 
