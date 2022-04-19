@@ -63,7 +63,7 @@ function apply_local_left_transfer_matrix(
   Ltarget = Vector{ITensor}(undef, size(H[n_1])[1])
   for j in 1:m
     if !isempty(H[n_1][m, j])
-      Ltarget[j] = Lstart * ψ.AL[n_1]  * H[n_1][m, j] * dag(prime(ψ.AL[n_1]))
+      Ltarget[j] = Lstart * ψ.AL[n_1] * H[n_1][m, j] * dag(prime(ψ.AL[n_1]))
     end
   end
   return Ltarget
@@ -167,7 +167,7 @@ function (A::AOᴿ)(x)
   for j in reverse(1:N)
     xT = xT * ψ.AR[j] * H[j][n, n] * ψ′.AR[j]
   end
-  xR = x * ψ.C[0] * (ψ′.C[0] * δˡ(0) * denseblocks(δʳ(0)) )
+  xR = x * ψ.C[0] * (ψ′.C[0] * δˡ(0) * denseblocks(δʳ(0)))
   return xT - xR
 end
 
@@ -228,7 +228,7 @@ function apply_local_right_transfer_matrix(
   Ltarget = Vector{ITensor}(undef, dₕ)
   for j in m:dₕ
     if !isempty(H[n_1][j, m])
-      Ltarget[j] = Lstart * ψ.AR[n_1]  * H[n_1][j, m] * ψ′ #TODO optimize
+      Ltarget[j] = Lstart * ψ.AR[n_1] * H[n_1][j, m] * ψ′ #TODO optimize
     end
   end
   return Ltarget

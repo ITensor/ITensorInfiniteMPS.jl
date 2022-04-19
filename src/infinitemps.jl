@@ -68,7 +68,7 @@ function ITensors.findfirstsiteind(ψ::InfiniteMPS, i::Index)
   c = ITensorInfiniteMPS.getcell(i)
   n1 = getsite(i)
   # if translator(ψ) == translatecelltags
-    return (c - 1) * nsites(ψ) + n1
+  return (c - 1) * nsites(ψ) + n1
   # else
   #   s = siteinds(only, ψ)
   #   n = nsites(ψ)
