@@ -27,6 +27,8 @@ function Base.:*(H::Hᴬᶜ{ITensor}, v::ITensor)
   Hᴿ = H.Hᴿ
   ψ = H.ψ
   ψ′ = dag(ψ)'
+  Nsites = nsites(ψ)
+  range_∑h = nrange(ψ, ∑h[1])
   n = H.n
   l = linkinds(only, ψ.AL)
   l′ = linkinds(only, ψ′.AL)
@@ -71,10 +73,10 @@ function tdvp_iteration_sequential(
   r′ = CelledVector([commoninds(ψ′.AR[n], ψ′.AR[n + 1]) for n in 1:Nsites])
 
   ψ = copy(ψ)
-  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
   eᴸ = Vector{Float64}(undef, Nsites)
   eᴿ = Vector{Float64}(undef, Nsites)
   for n in 1:Nsites
@@ -186,6 +188,7 @@ function tdvp_iteration_parallel(
   solver_tol=(x -> x / 100),
 )
   Nsites = nsites(ψ)
+  range_∑h = nrange(ψ, ∑h[1])
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
   _solver_tol = solver_tol(ϵᵖʳᵉˢ)
   ψᴴ = dag(ψ)
@@ -255,8 +258,8 @@ function tdvp_iteration_parallel(
   end
   Hᴿ = right_environment(hᴿ, ψ; tol=_solver_tol)
 
-  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
   for n in 1:Nsites
     Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol)
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
@@ -267,19 +270,8 @@ function tdvp_iteration_parallel(
     Ãᶜ[n] = Avecsₙ
   end
 
-  function ortho_overlap(AC, C)
-    AL, _ = polar(AC * dag(C), uniqueinds(AC, C))
-    return noprime(AL)
-  end
-
-  function ortho_polar(AC, C)
-    UAC, _ = polar(AC, uniqueinds(AC, C))
-    UC, _ = polar(C, commoninds(C, AC))
-    return noprime(UAC) * noprime(dag(UC))
-  end
-
-  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
-  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
+  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
   for n in 1:Nsites
     Ãᴸ[n] = ortho_polar(Ãᶜ[n], C̃[n])
     Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n - 1])

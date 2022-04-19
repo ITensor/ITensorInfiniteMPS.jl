@@ -36,6 +36,9 @@ function getsite(ts::TagSet)
   return parse(Int, celltag[(length(indextagprefix()) + 1):end])
 end
 
+##Translation operators
+
+#Default translate cell
 function translatecell(ts::TagSet, n::Integer)
   ncell = getcell(ts)
   if isnothing(ncell)
@@ -50,23 +53,49 @@ function translatecell(i::Index, n::Integer)
   return replacetags(i, ts => translated_ts)
 end
 
-function translatecell(is::Union{<:Tuple,<:Vector}, n::Integer)
-  return translatecell.(is, n)
+#Transfer the functional properties
+#translatecell(translater, T::ITensor, n::Integer) = translater(T, n)
+function translatecell(translater::Function, T::ITensor, n::Integer)
+  return ITensors.setinds(T, translatecell(translater, inds(T), n))
+end
+translatecell(translater::Function, T::MPO, n::Integer) = translatecell.(translater, T, n)
+function translatecell(translater::Function, T::Matrix{ITensor}, n::Integer)
+  return translatecell.(translater, T, n)
+end
+translatecell(translater::Function, i::Index, n::Integer) = translater(i, n)
+function translatecell(translater::Function, is::Union{<:Tuple,<:Vector}, n::Integer)
+  return translatecell.(translater, is, n)
 end
 
-translatecell(T::ITensor, n::Integer) = ITensors.setinds(T, translatecell(inds(T), n))
-translatecell(T::MPO, n::Integer) = translatecell.(T, n)
-translatecell(T::Matrix{ITensor}, n::Integer) = translatecell.(T, n)
+#Default behavior
+#translatecell(T::ITensor, n::Integer) = ITensors.setinds(T, translatecell(inds(T), n))
+#translatecell(T::MPO, n::Integer) = translatecell.(T, n)
+#translatecell(T::Matrix{ITensor}, n::Integer) = translatecell.(T, n)
 
-struct CelledVector{T} <: AbstractVector{T}
+struct CelledVector{T,F} <: AbstractVector{T}
   data::Vector{T}
+  translater::F
 end
 ITensors.data(cv::CelledVector) = cv.data
+translater(cv::CelledVector) = cv.translater
 
+Base.copy(m::CelledVector) = typeof(m)(copy(m.data), m.translater) #needed to carry the translater when copying
+Base.deepcopy(m::CelledVector) = typeof(m)(deepcopy(m.data), m.translater) #needed to carry the translater when copying
 Base.convert(::Type{CelledVector{T}}, v::Vector) where {T} = CelledVector{T}(v)
 
 function CelledVector{T}(::UndefInitializer, n::Integer) where {T}
   return CelledVector(Vector{T}(undef, n))
+end
+
+function CelledVector{T}(::UndefInitializer, n::Integer, translater::Function) where {T}
+  return CelledVector(Vector{T}(undef, n), translater::Function)
+end
+CelledVector(v::AbstractVector) = CelledVector(v, translatecell)
+function CelledVector{T}(v::Vector{T}) where {T}
+  return CelledVector(v, translatecell)
+end
+function CelledVector{T}(v::Vector{T}, translater::Function) where {T}
+  return CelledVector(v, translater)
 end
 
 """
@@ -105,12 +134,12 @@ _getindex_cell1(cv::CelledVector, n::Int) = ITensors.data(cv)[n]
 _setindex_cell1!(cv::CelledVector, val, n::Int) = (ITensors.data(cv)[n] = val)
 
 # Fallback
-translatecell(x, ::Integer) = x
+#translatecell(x, ::Integer) = x # I think this is useless now
 
 function getindex(cv::CelledVector, n::Int)
   cellₙ = cell(cv, n)
   siteₙ = cellindex(cv, n)
-  return translatecell(_getindex_cell1(cv, siteₙ), cellₙ - 1)
+  return translatecell(cv.translater, _getindex_cell1(cv, siteₙ), cellₙ - 1)
 end
 
 # Do we need this definition? Maybe uses generic Julia fallback
@@ -137,44 +166,8 @@ getindex(cv::CelledVector, c::Cell) = cv[eachindex(cv, c)]
 function setindex!(cv::CelledVector, T, n::Int)
   cellₙ = cell(cv, n)
   siteₙ = cellindex(cv, n)
-  _setindex_cell1!(cv, translatecell(T, -(cellₙ - 1)), siteₙ)
+  _setindex_cell1!(cv, translatecell(cv.translater, T, -(cellₙ - 1)), siteₙ)
   return cv
 end
 
 celltags(cell) = TagSet("c=$cell")
-
-#
-# TODO: This version accepts a more general translation function between
-# unit cells
-#
-
-#struct CelledVector{T, F, FINV} <: AbstractVector{T}
-#  data::Vector{T}
-#  f::F
-#end
-#
-#CelledVector(v::AbstractVector) = CelledVector(v, identity)
-#
-#cell_length(cv::CelledVector) = length(cv.data)
-#
-## Determine which cell the index is in
-#cell(cv::CelledVector, n::Integer) = fld1(n, cell_length(cv))
-#
-## Determine the index in the cell where the index sits
-#cell_index(cv::CelledVector, n::Integer) = mod1(n, cell_length(cv))
-#
-## Return the cell and the cell index
-#cell_and_cell_index(cv::CelledVector, n::Integer) = fldmod1(n, cell_length(cv))
-#
-#function getindex(cv::CelledVector, n::Integer)
-#  cellₙ, cell_indexₙ = cell_and_cell_index(cv, n)
-#  return cv.f(cv.data[cell_indexₙ], cellₙ)
-#end
-#
-#function setindex!(cv::CelledVector, val, n::Integer)
-#  cellₙ, cell_indexₙ = cell_and_cell_index(cv, n)
-#  # XXX: is this offset generally correct?
-#  # It seems to be for "linear" functions.
-#  cv.data[cell_indexₙ] = cv.f(val, -cellₙ + 2)
-#  return cv
-#end

@@ -20,7 +20,7 @@ function (A::AOᴸ)(x)
   r′ = linkinds(only, ψ′.AR)
   δˡ(n) = δ(l[n], l′[n])
   δʳ(n) = δ(dag(r[n]), prime(r[n]))
-  xT = translatecell(x, -1)
+  xT = translatecell(translater(ψ), x, -1)
   for j in (2 - N):1
     xT = xT * H[j][n, n] * ψ.AL[j] * ψ′.AL[j]
   end
@@ -107,7 +107,7 @@ function left_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1e
   localR = ψ.C[1] * δʳ(1) * ψ′.C[1] #to revise
   for n in reverse(1:(dₕ - 1))
     temp_Ls = apply_left_transfer_matrix(
-      translatecell(Ls[1][n + 1], -1), n + 1, H, ψ, 2 - N
+      translatecell(translater(ψ), Ls[1][n + 1], -1), n + 1, H, ψ, 2 - N
     )
     for j in 1:n
       if isassigned(temp_Ls, j)
@@ -138,7 +138,7 @@ function left_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1e
   for n in 2:N
     Ls[n] = apply_local_left_transfer_matrix(Ls[n - 1], H, ψ, n)
   end
-  return CelledVector(Ls), eₗ[1]
+  return CelledVector(Ls, translater(ψ)), eₗ[1]
 end
 
 # Struct for use in linear system solver
@@ -163,7 +163,7 @@ function (A::AOᴿ)(x)
   r′ = linkinds(only, ψ′.AR)
   δˡ(n) = δ(l[n], l′[n])
   δʳ(n) = δ(dag(r[n]), prime(r[n]))
-  xT = translatecell(x, 1)
+  xT = translatecell(translater(ψ), x, 1)
   for j in reverse(1:N)
     xT = xT * ψ.AR[j] * H[j][n, n] * ψ′.AR[j]
   end
@@ -264,7 +264,9 @@ function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1
   Rs[1][1] = δʳ(0)
   localL = ψ.C[0] * δˡ(0) * dag(prime(ψ.C[0]))
   for n in 2:dₕ
-    temp_Rs = apply_right_transfer_matrix(translatecell(Rs[1][n - 1], 1), n - 1, H, ψ, N)
+    temp_Rs = apply_right_transfer_matrix(
+      translatecell(translater(ψ), Rs[1][n - 1], 1), n - 1, H, ψ, N
+    )
     for j in n:dₕ
       if isassigned(temp_Rs, j)
         if isassigned(Rs[1], j)
@@ -292,12 +294,14 @@ function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1
     end
   end
   if N > 1
-    Rs[N] = apply_local_right_transfer_matrix(translatecell(Rs[1], 1), H, ψ, N)
+    Rs[N] = apply_local_right_transfer_matrix(
+      translatecell(translater(ψ), Rs[1], 1), H, ψ, N
+    )
     for n in reverse(2:(N - 1))
       Rs[n] = apply_local_right_transfer_matrix(Rs[n + 1], H, ψ, n)
     end
   end
-  return CelledVector(Rs), eᵣ[1]
+  return CelledVector(Rs, translater(ψ)), eᵣ[1]
 end
 
 function vumps(H::InfiniteMPOMatrix, ψ::InfiniteMPS; kwargs...)
@@ -356,10 +360,10 @@ function tdvp_iteration_sequential(
   _solver_tol = solver_tol(ϵᵖʳᵉˢ)
   N = nsites(ψ)
 
-  C̃ = InfiniteMPS(Vector{ITensor}(undef, N))
-  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, N))
-  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
-  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
+  C̃ = InfiniteMPS(Vector{ITensor}(undef, N), translater(ψ))
+  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, N), translater(ψ))
+  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, N), translater(ψ))
+  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, N), translater(ψ))
 
   eL = zeros(N)
   eR = zeros(N)
@@ -417,10 +421,10 @@ function tdvp_iteration_parallel(
   _solver_tol = solver_tol(ϵᵖʳᵉˢ)
   N = nsites(ψ)
 
-  C̃ = InfiniteMPS(Vector{ITensor}(undef, N))
-  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, N))
-  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
-  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
+  C̃ = InfiniteMPS(Vector{ITensor}(undef, N), translater(ψ))
+  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, N), translater(ψ))
+  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, N), translater(ψ))
+  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, N), translater(ψ))
 
   eL = zeros(1)
   eR = zeros(1)

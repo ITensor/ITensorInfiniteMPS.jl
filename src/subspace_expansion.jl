@@ -16,7 +16,8 @@ function generate_twobody_nullspace(
   δˢ(n) = δ(dag(s[n]), prime(s[n]))
   δˡ(n) = δ(l[n], dag(prime(l[n])))
 
-  range_H = nrange(H, 1)
+  range_H = nrange(ψ, H[1])
+
   @assert range_H > 1 "Not defined for purely local Hamiltonians"
 
   if range_H > 2
