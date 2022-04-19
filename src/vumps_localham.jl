@@ -73,10 +73,10 @@ function tdvp_iteration_sequential(
   r′ = CelledVector([commoninds(ψ′.AR[n], ψ′.AR[n + 1]) for n in 1:Nsites])
 
   ψ = copy(ψ)
-  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
-  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
-  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
-  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
+  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
+  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
+  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
   eᴸ = Vector{Float64}(undef, Nsites)
   eᴿ = Vector{Float64}(undef, Nsites)
   for n in 1:Nsites
@@ -258,8 +258,8 @@ function tdvp_iteration_parallel(
   end
   Hᴿ = right_environment(hᴿ, ψ; tol=_solver_tol)
 
-  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
-  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
+  Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
   for n in 1:Nsites
     Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol)
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
@@ -270,8 +270,8 @@ function tdvp_iteration_parallel(
     Ãᶜ[n] = Avecsₙ
   end
 
-  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
-  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translater(ψ))
+  Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
+  Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
   for n in 1:Nsites
     Ãᴸ[n] = ortho_polar(Ãᶜ[n], C̃[n])
     Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n - 1])

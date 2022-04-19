@@ -39,7 +39,7 @@ end
 ##Translation operators
 
 #Default translate cell
-function translatecell(ts::TagSet, n::Integer)
+function translatecelltags(ts::TagSet, n::Integer)
   ncell = getcell(ts)
   if isnothing(ncell)
     return ts
@@ -47,24 +47,24 @@ function translatecell(ts::TagSet, n::Integer)
   return replacetags(ts, celltags(ncell) => celltags(ncell + n))
 end
 
-function translatecell(i::Index, n::Integer)
+function translatecelltags(i::Index, n::Integer)
   ts = tags(i)
-  translated_ts = translatecell(ts, n)
+  translated_ts = translatecelltags(ts, n)
   return replacetags(i, ts => translated_ts)
 end
 
 #Transfer the functional properties
-#translatecell(translater, T::ITensor, n::Integer) = translater(T, n)
-function translatecell(translater::Function, T::ITensor, n::Integer)
-  return ITensors.setinds(T, translatecell(translater, inds(T), n))
+#translatecell(translator, T::ITensor, n::Integer) = translator(T, n)
+function translatecell(translator::Function, T::ITensor, n::Integer)
+  return ITensors.setinds(T, translatecell(translator, inds(T), n))
 end
-translatecell(translater::Function, T::MPO, n::Integer) = translatecell.(translater, T, n)
-function translatecell(translater::Function, T::Matrix{ITensor}, n::Integer)
-  return translatecell.(translater, T, n)
+translatecell(translator::Function, T::MPO, n::Integer) = translatecell.(translator, T, n)
+function translatecell(translator::Function, T::Matrix{ITensor}, n::Integer)
+  return translatecell.(translator, T, n)
 end
-translatecell(translater::Function, i::Index, n::Integer) = translater(i, n)
-function translatecell(translater::Function, is::Union{<:Tuple,<:Vector}, n::Integer)
-  return translatecell.(translater, is, n)
+translatecell(translator::Function, i::Index, n::Integer) = translator(i, n)
+function translatecell(translator::Function, is::Union{<:Tuple,<:Vector}, n::Integer)
+  return translatecell.(translator, is, n)
 end
 
 #Default behavior
@@ -74,28 +74,28 @@ end
 
 struct CelledVector{T,F} <: AbstractVector{T}
   data::Vector{T}
-  translater::F
+  translator::F
 end
 ITensors.data(cv::CelledVector) = cv.data
-translater(cv::CelledVector) = cv.translater
+translator(cv::CelledVector) = cv.translator
 
-Base.copy(m::CelledVector) = typeof(m)(copy(m.data), m.translater) #needed to carry the translater when copying
-Base.deepcopy(m::CelledVector) = typeof(m)(deepcopy(m.data), m.translater) #needed to carry the translater when copying
+Base.copy(m::CelledVector) = typeof(m)(copy(m.data), m.translator) #needed to carry the translator when copying
+Base.deepcopy(m::CelledVector) = typeof(m)(deepcopy(m.data), m.translator) #needed to carry the translator when copying
 Base.convert(::Type{CelledVector{T}}, v::Vector) where {T} = CelledVector{T}(v)
 
 function CelledVector{T}(::UndefInitializer, n::Integer) where {T}
   return CelledVector(Vector{T}(undef, n))
 end
 
-function CelledVector{T}(::UndefInitializer, n::Integer, translater::Function) where {T}
-  return CelledVector(Vector{T}(undef, n), translater::Function)
+function CelledVector{T}(::UndefInitializer, n::Integer, translator::Function) where {T}
+  return CelledVector(Vector{T}(undef, n), translator::Function)
 end
-CelledVector(v::AbstractVector) = CelledVector(v, translatecell)
+CelledVector(v::AbstractVector) = CelledVector(v, translatecelltags)
 function CelledVector{T}(v::Vector{T}) where {T}
-  return CelledVector(v, translatecell)
+  return CelledVector(v, translatecelltags)
 end
-function CelledVector{T}(v::Vector{T}, translater::Function) where {T}
-  return CelledVector(v, translater)
+function CelledVector{T}(v::Vector{T}, translator::Function) where {T}
+  return CelledVector(v, translator)
 end
 
 """
@@ -139,7 +139,7 @@ _setindex_cell1!(cv::CelledVector, val, n::Int) = (ITensors.data(cv)[n] = val)
 function getindex(cv::CelledVector, n::Int)
   cellₙ = cell(cv, n)
   siteₙ = cellindex(cv, n)
-  return translatecell(cv.translater, _getindex_cell1(cv, siteₙ), cellₙ - 1)
+  return translatecell(cv.translator, _getindex_cell1(cv, siteₙ), cellₙ - 1)
 end
 
 # Do we need this definition? Maybe uses generic Julia fallback
@@ -166,7 +166,7 @@ getindex(cv::CelledVector, c::Cell) = cv[eachindex(cv, c)]
 function setindex!(cv::CelledVector, T, n::Int)
   cellₙ = cell(cv, n)
   siteₙ = cellindex(cv, n)
-  _setindex_cell1!(cv, translatecell(cv.translater, T, -(cellₙ - 1)), siteₙ)
+  _setindex_cell1!(cv, translatecell(cv.translator, T, -(cellₙ - 1)), siteₙ)
   return cv
 end
 

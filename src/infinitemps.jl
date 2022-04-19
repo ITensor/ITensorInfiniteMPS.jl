@@ -12,7 +12,7 @@ mutable struct InfiniteMPS <: AbstractInfiniteMPS
   reverse::Bool
 end
 
-translater(ψ::InfiniteMPS) = ψ.data.translater
+translator(ψ::InfiniteMPS) = ψ.data.translator
 #
 # InfiniteCanonicalMPS
 #
@@ -30,7 +30,7 @@ end
 # TODO: check if `isempty(ψ.AL)`, if so use `ψ.AR`
 nsites(ψ::InfiniteCanonicalMPS) = nsites(ψ.AL)
 isreversed(ψ::InfiniteCanonicalMPS) = isreversed(ψ.AL)
-translater(ψ::InfiniteCanonicalMPS) = translater(ψ.AL)
+translator(ψ::InfiniteCanonicalMPS) = translator(ψ.AL)
 #ITensors.data(ψ::InfiniteCanonicalMPS) = data(ψ.AL)
 ITensors.data(ψ::InfiniteCanonicalMPS) = ψ.AL.data
 
@@ -67,33 +67,33 @@ getsite(i::Index) = getsite(tags(i))
 function ITensors.findfirstsiteind(ψ::InfiniteMPS, i::Index)
   c = ITensorInfiniteMPS.getcell(i)
   n1 = getsite(i)
-  if translater(ψ) == translatecell
+  # if translator(ψ) == translatecelltags
     return (c - 1) * nsites(ψ) + n1
-  else
-    s = siteinds(only, ψ)
-    n = nsites(ψ)
-    j = 1
-    index = 0
-    while c > ITensorInfiniteMPS.getcell(s[j]) && index < 1000
-      j += n
-      index += 1
-    end
-    while c < ITensorInfiniteMPS.getcell(s[j]) && index < 1000
-      j -= n
-      index += 1
-    end
-    if index == 1000 || c != ITensorInfiniteMPS.getcell(s[j])
-      error("Index not found")
-    end
-    for k in 1:n
-      if getsite(s[j]) == n1
-        return j
-      end
-      j += 1
-    end
-    error("Index not found")
-    return 0
-  end
+  # else
+  #   s = siteinds(only, ψ)
+  #   n = nsites(ψ)
+  #   j = 1
+  #   index = 0
+  #   while c > ITensorInfiniteMPS.getcell(s[j]) && index < 1000
+  #     j += n
+  #     index += 1
+  #   end
+  #   while c < ITensorInfiniteMPS.getcell(s[j]) && index < 1000
+  #     j -= n
+  #     index += 1
+  #   end
+  #   if index == 1000 || c != ITensorInfiniteMPS.getcell(s[j])
+  #     error("Index not found")
+  #   end
+  #   for k in 1:n
+  #     if getsite(s[j]) == n1
+  #       return j
+  #     end
+  #     j += 1
+  #   end
+  #   error("Index not found")
+  #   return 0
+  # end
 end
 function ITensors.findfirstsiteind(ψ::InfiniteCanonicalMPS, i::Index)
   return ITensors.findfirstsiteind(ψ.AL, i)
@@ -125,10 +125,10 @@ struct InfiniteSum{T}
 end
 InfiniteSum{T}(N::Int) where {T} = InfiniteSum{T}(Vector{T}(undef, N))
 InfiniteSum{T}(data::Vector{T}) where {T} = InfiniteSum{T}(CelledVector(data))
-function InfiniteSum{T}(data::Vector{T}, translater::Function) where {T}
-  return InfiniteSum{T}(CelledVector(data, translater))
+function InfiniteSum{T}(data::Vector{T}, translator::Function) where {T}
+  return InfiniteSum{T}(CelledVector(data, translator))
 end
-translater(h::InfiniteSum{T}) where {T} = translater(h.data)
+translator(h::InfiniteSum{T}) where {T} = translator(h.data)
 # Automatically converts from ITensor to MPO.
 # XXX: check this conversion is correct.
 #InfiniteSum{T}(data::Vector{ITensor}) where {T} = InfiniteSum{T}(CelledVector(T.(data)))
@@ -144,7 +144,7 @@ function InfiniteSum{MPO}(data::Vector{ITensor})
   ])
 end
 
-function InfiniteSum{MPO}(data::Vector{ITensor}, translater::Function)
+function InfiniteSum{MPO}(data::Vector{ITensor}, translator::Function)
   N = length(data)
   temp_inds = [filterinds(data[n]; plev=0) for n in 1:N]
   return InfiniteSum{MPO}(
@@ -154,7 +154,7 @@ function InfiniteSum{MPO}(data::Vector{ITensor}, translater::Function)
         [(temp_inds[n][j], dag(prime(temp_inds[n][j]))) for j in 1:length(temp_inds[n])],
       ) for n in 1:N
     ],
-    translater,
+    translator,
   )
 end
 
@@ -168,7 +168,7 @@ function InfiniteSum{MPO}(infsum::InfiniteSum{ITensor})
         [(temp_inds[n][j], dag(prime(temp_inds[n][j]))) for j in 1:length(temp_inds[n])],
       ) for n in 1:N
     ],
-    translater(infsum),
+    translator(infsum),
   )
 end
 

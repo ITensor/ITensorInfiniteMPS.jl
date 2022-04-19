@@ -19,4 +19,4 @@ end
 
 # TODO? Instead of having a big quasi empty ITensor, store only the non zero blocks
 
-translater(mpo::InfiniteMPO) = mpo.data.translater
+translator(mpo::InfiniteMPO) = mpo.data.translator

@@ -6,7 +6,7 @@ mutable struct InfiniteMPOMatrix <: AbstractInfiniteMPS
   reverse::Bool
 end
 
-translater(mpo::InfiniteMPOMatrix) = mpo.data.translater
+translator(mpo::InfiniteMPOMatrix) = mpo.data.translator
 
 # TODO better printing?
 function Base.show(io::IO, M::InfiniteMPOMatrix)
@@ -39,8 +39,8 @@ function InfiniteMPOMatrix(arrMat::Vector{Matrix{ITensor}})
   return InfiniteMPOMatrix(arrMat, 0, size(arrMat)[1], false)
 end
 
-function InfiniteMPOMatrix(data::Vector{Matrix{ITensor}}, translater::Function)
-  return InfiniteMPOMatrix(CelledVector(data, translater), 0, size(data)[1], false)
+function InfiniteMPOMatrix(data::Vector{Matrix{ITensor}}, translator::Function)
+  return InfiniteMPOMatrix(CelledVector(data, translator), 0, size(data)[1], false)
 end
 
 #nrange(H::InfiniteMPOMatrix) = [size(H[j])[1] - 1 for j in 1:nsites(H)]
