@@ -206,7 +206,7 @@ function subspace_expansion(
   if dim(S) == 0 #Crash before reaching this point
     return (ψ.AL[n1], ψ.AL[n2]), ψ.C[n1], (ψ.AR[n1], ψ.AR[n2])
   end
-  @show S[end, end]
+  #@show S[end, end]
   NL *= dag(U)
   NR *= dag(V)
 

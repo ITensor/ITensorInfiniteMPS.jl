@@ -3,7 +3,8 @@ using ITensorInfiniteMPS
 using Test
 using Random
 
-@testset "vumpsmpo_ising" begin
+#Ref time is 21.6s with negligible compilation time
+@time @testset "vumpsmpo_ising" begin
   Random.seed!(1234)
 
   model = Model"ising"()
@@ -47,7 +48,10 @@ using Random
   orthogonalize!(ψfinite, nfinite)
   energy_finite = energy(ψfinite, hnfinite, nfinite)
 
-  for multisite_update_alg in ["sequential", "parallel"],
+  @testset "VUMPS/TDVP with: multisite_update_alg = $multisite_update_alg, conserve_qns = $conserve_qns, nsites = $nsites" for multisite_update_alg in
+                                                                                                                               [
+      "sequential", "parallel"
+    ],
     conserve_qns in [true, false],
     nsites in [1, 2],
     time_step in [-Inf]
@@ -69,13 +73,15 @@ using Random
     # Alternate steps of running VUMPS and increasing the bond dimension
     ψ = tdvp(Hmpo, ψ; vumps_kwargs...)
     for _ in 1:outer_iters
-      ψ = subspace_expansion(ψ, Hmpo; subspace_expansion_kwargs...)
-      ψ = tdvp(Hmpo, ψ; vumps_kwargs...)
+      println("Subspace expansion")
+      ψ = @time subspace_expansion(ψ, Hmpo; subspace_expansion_kwargs...)
+      println("TDVP")
+      ψ = @time tdvp(Hmpo, ψ; vumps_kwargs...)
     end
 
     @test norm(
       contract(ψ.AL[1:nsites]..., ψ.C[nsites]) - contract(ψ.C[0], ψ.AR[1:nsites]...)
-    ) ≈ 0 atol = 1e-2
+    ) ≈ 0 atol = 1e-5
     #@test contract(ψ.AL[1:nsites]..., ψ.C[nsites]) ≈ contract(ψ.C[0], ψ.AR[1:nsites]...)
 
     H = InfiniteSum{MPO}(model, s; model_kwargs...)
@@ -218,7 +224,7 @@ end
   orthogonalize!(ψfinite, nfinite)
   energy_finite = energy(ψfinite, hnfinite, nfinite)
 
-  temp_translatecell(i::Index, n::Integer) = translatecell(i, 2n)
+  temp_translatecell(i::Index, n::Integer) = ITensorInfiniteMPS.translatecelltags(i, n)
 
   for multisite_update_alg in ["sequential"],
     conserve_qns in [true],
