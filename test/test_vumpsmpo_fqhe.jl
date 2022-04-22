@@ -85,7 +85,7 @@ using Random
     )
     ψ = InfMPS(s, initstate)
 
-    Hmpo = InfiniteMPOMatrix(model, s, fermion_momentum_translator; model_kwargs...)
+    Hmpo = InfiniteMPOMatrix(model, s; model_kwargs...)
     # Alternate steps of running VUMPS and increasing the bond dimension
     ψ = tdvp(Hmpo, ψ; vumps_kwargs...)
     for _ in 1:outer_iters
