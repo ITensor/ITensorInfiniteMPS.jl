@@ -18,3 +18,5 @@ end
 ## getindex(l::InfiniteSumLocalOps, n::Integer) = ITensors.data(l)[n]
 
 # TODO? Instead of having a big quasi empty ITensor, store only the non zero blocks
+
+translator(mpo::InfiniteMPO) = mpo.data.translator

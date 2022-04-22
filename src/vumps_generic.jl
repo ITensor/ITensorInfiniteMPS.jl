@@ -47,7 +47,7 @@ function (A::Aᴸ)(x)
   r = linkinds(only, ψ.AR)
   r′ = linkinds(only, ψ′.AR)
 
-  xT = translatecell(x, -1)
+  xT = translatecell(translator(ψ), x, -1)
   for k in (n - N + 1):n
     xT = xT * ψ.AL[k] * ψ̃.AL[k]
   end
@@ -99,7 +99,7 @@ function (A::Aᴿ)(x)
   for k in reverse(1:N)
     xT = xT * ψ.AR[k] * ψ̃.AR[k]
   end
-  xT = translatecell(xT, 1)
+  xT = translatecell(translator(ψ), xT, 1)
   δˡ = δ(l[n], l′[n])
   δʳ = δ(r[n], r′[n])
   xR = x * ψ.C[n] * ψ′.C[n] * δˡ * denseblocks(dag(δʳ))

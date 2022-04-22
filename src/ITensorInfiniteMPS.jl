@@ -35,6 +35,7 @@ include("infinitecanonicalmps.jl")
 include("infinitempomatrix.jl")
 include("transfermatrix.jl")
 include("models/models.jl")
+include("models/fqhe13.jl")
 include("models/ising.jl")
 include("models/ising_extended.jl")
 include("models/heisenberg.jl")
@@ -73,6 +74,7 @@ export Cell,
   reference,
   subspace_expansion,
   translatecell,
+  translator,
   tdvp,
   vumps,
   ⊕,

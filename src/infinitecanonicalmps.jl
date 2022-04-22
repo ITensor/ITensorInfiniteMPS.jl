@@ -26,23 +26,35 @@ function __siteinds(site_tag, N::Int, space)
 end
 
 infsiteinds(s::Vector{<:Index}) = CelledVector(addtags(s, celltags(1)))
-function infsiteinds(site_tag, N::Int; space=nothing, kwargs...)
+function infsiteinds(s::Vector{<:Index}, translator)
+  return CelledVector(addtags(s, celltags(1)), translator)
+end
+
+function infsiteinds(site_tag, N::Int; space=nothing, translator=nothing, kwargs...)
   if !isnothing(space)
     s = _siteinds(site_tag, N; space=space)
   else
     # TODO: add a shift option
     s = siteinds(site_tag, N; kwargs...)
   end
-  return infsiteinds(s)
+  if !isnothing(translator)
+    return infsiteinds(s, translator)
+  else
+    return infsiteinds(s)
+  end
 end
 
 function ITensors.linkinds(ψ::InfiniteMPS)
   N = nsites(ψ)
-  return CelledVector([linkinds(ψ, (n, n + 1)) for n in 1:N])
+  return CelledVector([linkinds(ψ, (n, n + 1)) for n in 1:N], translator(ψ))
 end
 
 function InfMPS(s::Vector, f::Function)
   return InfMPS(infsiteinds(s), f)
+end
+
+function InfMPS(s::Vector, f::Function, translator::Function)
+  return InfMPS(infsiteinds(s, translator), f)
 end
 
 function indval(iv::Pair)
@@ -56,7 +68,7 @@ end
 function insert_linkinds!(A; left_dir=ITensors.Out)
   # TODO: use `celllength` here
   N = nsites(A)
-  l = CelledVector{indtype(A)}(undef, N)
+  l = CelledVector{indtype(A)}(undef, N, translator(A))
   n = N
   s = siteind(A, 1)
   dim = if hasqns(s)
@@ -89,7 +101,8 @@ end
 
 function UniformMPS(s::CelledVector, f::Function; left_dir=ITensors.Out)
   sᶜ¹ = s[Cell(1)]
-  A = InfiniteMPS([ITensor(sⁿ) for sⁿ in sᶜ¹])
+  A = InfiniteMPS([ITensor(sⁿ) for sⁿ in sᶜ¹], translator(s))
+  #A.data.translator = translator(s)
   N = length(sᶜ¹)
   for n in 1:N
     Aⁿ = A[n]
@@ -105,7 +118,7 @@ function InfMPS(s::CelledVector, f::Function)
   N = length(s)
   ψL = UniformMPS(s, f; left_dir=ITensors.Out)
   ψR = UniformMPS(s, f; left_dir=ITensors.In)
-  ψC = InfiniteMPS(N)
+  ψC = InfiniteMPS(N, translator(s))
   l = linkinds(ψL)
   r = linkinds(ψR)
   for n in 1:N

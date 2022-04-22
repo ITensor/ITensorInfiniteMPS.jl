@@ -16,15 +16,33 @@ function (T::Type{MPST})(
   return MPST(data, llim, rlim, false)
 end
 
+function (T::Type{MPST})(
+  data::CelledVector{<:ITensor,F}, llim, rlim
+) where {MPST<:AbstractInfiniteMPS,F}
+  return MPST(data, llim, rlim, false)
+end
+
 # TODO: use InfiniteMPS(data, -∞, ∞) when AbstractMPS
 # is written more generically
 function (T::Type{MPST})(data::Vector{<:ITensor}) where {MPST<:AbstractInfiniteMPS}
   return MPST(data, 0, length(data) + 1)
 end
 
+function (T::Type{MPST})(
+  data::Vector{<:ITensor}, translator::Function
+) where {MPST<:AbstractInfiniteMPS}
+  return MPST(CelledVector(data, translator), 0, length(data) + 1)
+end
+
 # TODO: better way to determine left and right limits
 function (T::Type{MPST})(ψ::MPS; reverse::Bool=false) where {MPST<:AbstractInfiniteMPS}
   return MPST(ITensors.data(ψ), ψ.llim, ψ.rlim, reverse)
+end
+
+function (T::Type{MPST})(
+  ψ::MPS, translator::Function; reverse::Bool=false
+) where {MPST<:AbstractInfiniteMPS}
+  return MPST(CelledVector(ITensors.data(ψ), translator), ψ.llim, ψ.rlim, reverse)
 end
 
 # TODO: better way to determine left and right limits
@@ -36,6 +54,12 @@ end
 
 function (T::Type{MPST})(N::Integer; reverse::Bool=false) where {MPST<:AbstractInfiniteMPS}
   return MPST(MPS(N); reverse=reverse)
+end
+
+function (T::Type{MPST})(
+  N::Integer, translator::Function; reverse::Bool=false
+) where {MPST<:AbstractInfiniteMPS}
+  return MPST(MPS(N), translator; reverse=reverse)
 end
 
 function Base.reverse(ψ::MPST) where {MPST<:AbstractInfiniteMPS}
@@ -94,13 +118,13 @@ _setindex_cell1!(ψ::AbstractInfiniteMPS, val, n::Integer) = (ITensors.data(ψ)[
 function getindex(ψ::AbstractInfiniteMPS, n::Integer)
   cellₙ = cell(ψ, n)
   siteₙ = cellsite(ψ, n)
-  return translatecell(_getindex_cell1(ψ, siteₙ), cellₙ - 1)
+  return translatecell(translator(ψ), _getindex_cell1(ψ, siteₙ), cellₙ - 1)
 end
 
 function setindex!(ψ::AbstractInfiniteMPS, T::ITensor, n::Int)
   cellₙ = cell(ψ, n)
   siteₙ = cellsite(ψ, n)
-  _setindex_cell1!(ψ, translatecell(T, -(cellₙ - 1)), siteₙ)
+  _setindex_cell1!(ψ, translatecell(translator(ψ), T, -(cellₙ - 1)), siteₙ)
   return ψ
 end
 
@@ -154,12 +178,12 @@ end
 # MPS from an InfiniteMPS
 function ITensors.prime(::typeof(linkinds), ψ::AbstractInfiniteMPS)
   ψextended′ = prime(linkinds, ψ[0:(nsites(ψ) + 1)])
-  return typeof(ψ)(ψextended′[2:(end - 1)]; reverse=ψ.reverse)
+  return typeof(ψ)(ψextended′[2:(end - 1)], translator(ψ); reverse=ψ.reverse)
 end
 
 function ITensors.dag(ψ::AbstractInfiniteMPS)
   ψdag = dag(ψ[1:nsites(ψ)])
-  return typeof(ψ)(ψdag; reverse=ψ.reverse)
+  return typeof(ψ)(ψdag, translator(ψ); reverse=ψ.reverse)
 end
 
 ITensors.linkinds(ψ::AbstractInfiniteMPS, n1n2) = linkinds(ψ, Pair(n1n2...))
@@ -206,10 +230,10 @@ end
 
 function ITensors.linkinds(f::typeof(only), ψ::AbstractInfiniteMPS)
   N = nsites(ψ)
-  return CelledVector([f(commoninds(ψ[n], ψ[n + 1])) for n in 1:N])
+  return CelledVector([f(commoninds(ψ[n], ψ[n + 1])) for n in 1:N], translator(ψ))
 end
 
 function ITensors.siteinds(f::typeof(only), ψ::AbstractInfiniteMPS)
   N = nsites(ψ)
-  return CelledVector([f(uniqueinds(ψ[n], ψ[n - 1], ψ[n + 1])) for n in 1:N])
+  return CelledVector([f(uniqueinds(ψ[n], ψ[n - 1], ψ[n + 1])) for n in 1:N], translator(ψ))
 end

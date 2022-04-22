@@ -20,11 +20,11 @@ function (A::AOᴸ)(x)
   r′ = linkinds(only, ψ′.AR)
   δˡ(n) = δ(l[n], l′[n])
   δʳ(n) = δ(dag(r[n]), prime(r[n]))
-  xT = translatecell(x, -1)
+  xT = translatecell(translator(ψ), x, -1)
   for j in (2 - N):1
     xT = xT * H[j][n, n] * ψ.AL[j] * ψ′.AL[j]
   end
-  xR = x * ψ.C[1] * ψ′.C[1] * δʳ(1) * denseblocks(δˡ(1))
+  xR = x * ψ.C[1] * (ψ′.C[1] * δʳ(1)) * denseblocks(δˡ(1))
   return xT - xR
 end
 
@@ -63,7 +63,7 @@ function apply_local_left_transfer_matrix(
   Ltarget = Vector{ITensor}(undef, size(H[n_1])[1])
   for j in 1:m
     if !isempty(H[n_1][m, j])
-      Ltarget[j] = Lstart * ψ.AL[n_1] * dag(prime(ψ.AL[n_1])) * H[n_1][m, j]
+      Ltarget[j] = Lstart * ψ.AL[n_1] * H[n_1][m, j] * dag(prime(ψ.AL[n_1]))
     end
   end
   return Ltarget
@@ -107,7 +107,7 @@ function left_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1e
   localR = ψ.C[1] * δʳ(1) * ψ′.C[1] #to revise
   for n in reverse(1:(dₕ - 1))
     temp_Ls = apply_left_transfer_matrix(
-      translatecell(Ls[1][n + 1], -1), n + 1, H, ψ, 2 - N
+      translatecell(translator(ψ), Ls[1][n + 1], -1), n + 1, H, ψ, 2 - N
     )
     for j in 1:n
       if isassigned(temp_Ls, j)
@@ -163,11 +163,11 @@ function (A::AOᴿ)(x)
   r′ = linkinds(only, ψ′.AR)
   δˡ(n) = δ(l[n], l′[n])
   δʳ(n) = δ(dag(r[n]), prime(r[n]))
-  xT = translatecell(x, 1)
+  xT = translatecell(translator(ψ), x, 1)
   for j in reverse(1:N)
     xT = xT * ψ.AR[j] * H[j][n, n] * ψ′.AR[j]
   end
-  xR = x * ψ.C[0] * ψ′.C[0] * δˡ(0) * denseblocks(δʳ(0))
+  xR = x * ψ.C[0] * (ψ′.C[0] * δˡ(0)) * denseblocks(δʳ(0))
   return xT - xR
 end
 
@@ -182,9 +182,9 @@ function apply_local_right_transfer_matrix!(
     for k in reverse(1:j)
       if !isempty(H[n_1][j, k]) && isassigned(Lstart, k) && !isempty(Lstart[k])
         if isassigned(Lstart, j) && init
-          Lstart[j] += Lstart[k] * ψ.AR[n_1] * ψ′.AR[n_1] * H[n_1][j, k]
+          Lstart[j] += Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
         else
-          Lstart[j] = Lstart[k] * ψ.AR[n_1] * ψ′.AR[n_1] * H[n_1][j, k]
+          Lstart[j] = Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
           init = true
         end
       end
@@ -203,9 +203,9 @@ function apply_local_right_transfer_matrix(
     for k in reverse(1:j)
       if !isempty(H[n_1][j, k]) && isassigned(Lstart, k) && !isempty(Lstart[k])
         if isassigned(Ltarget, j) && init
-          Ltarget[j] += Lstart[k] * ψ.AR[n_1] * ψ′.AR[n_1] * H[n_1][j, k]
+          Ltarget[j] += Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
         else
-          Ltarget[j] = Lstart[k] * ψ.AR[n_1] * ψ′.AR[n_1] * H[n_1][j, k]
+          Ltarget[j] = Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
           init = true
         end
       end
@@ -228,7 +228,7 @@ function apply_local_right_transfer_matrix(
   Ltarget = Vector{ITensor}(undef, dₕ)
   for j in m:dₕ
     if !isempty(H[n_1][j, m])
-      Ltarget[j] = Lstart * ψ.AR[n_1] * ψ′ * H[n_1][j, m] #TODO optimize
+      Ltarget[j] = Lstart * ψ.AR[n_1] * H[n_1][j, m] * ψ′ #TODO optimize
     end
   end
   return Ltarget
@@ -264,7 +264,9 @@ function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1
   Rs[1][1] = δʳ(0)
   localL = ψ.C[0] * δˡ(0) * dag(prime(ψ.C[0]))
   for n in 2:dₕ
-    temp_Rs = apply_right_transfer_matrix(translatecell(Rs[1][n - 1], 1), n - 1, H, ψ, N)
+    temp_Rs = apply_right_transfer_matrix(
+      translatecell(translator(ψ), Rs[1][n - 1], 1), n - 1, H, ψ, N
+    )
     for j in n:dₕ
       if isassigned(temp_Rs, j)
         if isassigned(Rs[1], j)
@@ -292,7 +294,9 @@ function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1
     end
   end
   if N > 1
-    Rs[N] = apply_local_right_transfer_matrix(translatecell(Rs[1], 1), H, ψ, N)
+    Rs[N] = apply_local_right_transfer_matrix(
+      translatecell(translator(ψ), Rs[1], 1), H, ψ, N
+    )
     for n in reverse(2:(N - 1))
       Rs[n] = apply_local_right_transfer_matrix(Rs[n + 1], H, ψ, n)
     end
