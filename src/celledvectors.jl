@@ -68,9 +68,12 @@ function translatecell(translator::Function, is::Union{<:Tuple,<:Vector}, n::Int
 end
 
 #Default behavior
-#translatecell(T::ITensor, n::Integer) = ITensors.setinds(T, translatecell(inds(T), n))
-#translatecell(T::MPO, n::Integer) = translatecell.(T, n)
-#translatecell(T::Matrix{ITensor}, n::Integer) = translatecell.(T, n)
+translatecell(T::ITensor, n::Integer) = translatecell(translatecelltags, T, n)
+translatecell(T::MPO, n::Integer) = translatecell(translatecelltags, T, n)
+translatecell(T::Matrix{ITensor}, n::Integer) = translatecell(translatecelltags, T, n)
+translatecell(i::Index, n::Integer) = translatecell(translatecelltags, i, n)
+translatecell(is::Union{<:Tuple,<:Vector}, n::Integer) = translatecell(translatecelltags, i, n)
+
 
 struct CelledVector{T,F} <: AbstractVector{T}
   data::Vector{T}

@@ -178,6 +178,11 @@ end
     # Check translational invariance
     @test contract(ψ.AL[1:nsite]..., ψ.C[nsite]) ≈ contract(ψ.C[0], ψ.AR[1:nsite]...)
 
+    #Checking translation of objects
+    @test translatecell(ψ.AL[1], 1) == ψ.AL[nsite + 1]
+    @test translatecell(H[1], 1) == H[nsite + 1]
+    @test translatecell(s[1], 1) == s[nsite + 1]
+
     vumps_kwargs = (
       multisite_update_alg=multisite_update_alg,
       tol=tol,
