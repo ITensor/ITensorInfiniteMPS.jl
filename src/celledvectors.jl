@@ -99,11 +99,15 @@ function CelledVector{T}(v::Vector{T}, translator::Function) where {T}
 end
 
 """
-    celllength(cv::CelledVector)
+    cell_length(cv::CelledVector)
+
+    celllength(cv::CelledVector) # Deprecated
 
 The length of a unit cell of a CelledVector.
 """
-celllength(cv::CelledVector) = length(ITensors.data(cv))
+cell_length(cv::CelledVector) = length(ITensors.data(cv))
+
+celllength(cv::CelledVector) = cell_length(cv)
 
 # For compatibility with Base
 Base.size(cv::CelledVector) = size(ITensors.data(cv))

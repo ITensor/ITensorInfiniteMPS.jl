@@ -7,14 +7,14 @@ using ITensorInfiniteMPS
 
 maxdim = 64 # Maximum bond dimension
 cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
-max_vumps_iters = 100 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
+max_vumps_iters = 10 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
 vumps_tol = 1e-6
-outer_iters = 4 # Number of times to increase the bond dimension
+outer_iters = 10 # Number of times to increase the bond dimension
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
 #
-N = 3# Number of sites in the unit cell
+N = 3 # Number of sites in the unit cell
 J = -1.0
 J₂ = -0.2
 h = 1.0;
@@ -39,9 +39,9 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
 for j in 1:outer_iters
   println("\nIncrease bond dimension")
-  ψ_1 = subspace_expansion(ψ_0, H; subspace_expansion_kwargs...)
+  ψ_1 = @time subspace_expansion(ψ_0, H; subspace_expansion_kwargs...)
   println("Run VUMPS with new bond dimension")
-  global ψ_0 = vumps(H, ψ_1; vumps_kwargs...)
+  global ψ_0 = @time vumps(H, ψ_1; vumps_kwargs...)
 end
 
 Sz = [expect(ψ_0, "Sz", n) for n in 1:N]
@@ -52,18 +52,20 @@ sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite; J=J, J₂=J₂, h=h)
 ψfinite = randomMPS(sfinite, initstate; linkdims=10)
 @show flux(ψfinite)
-sweeps = Sweeps(15)
-setmaxdim!(sweeps, maxdim)
-setcutoff!(sweeps, cutoff)
-energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
+# sweeps = Sweeps(10)
+# setmaxdim!(sweeps, maxdim)
+# setcutoff!(sweeps, cutoff)
+dmrg_kwargs = (nsweeps=10, maxdim, mindim=64, cutoff)
+energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; dmrg_kwargs...)
 
 nfinite = Nfinite ÷ 2
 Sz_finite = expect(ψfinite, "Sz")[nfinite:(nfinite + N - 1)]
 
-@show (
-  energy_infinite,
-  energy_finite_total / Nfinite,
-  reference(model, Observable("energy"); J=J, h=h, J₂=J₂),
-)
+println("\nEnergy")
+@show energy_infinite
+@show energy_finite_total / Nfinite
+@show reference(model, Observable("energy"); J=J, h=h, J₂=J₂)
 
-@show (Sz, Sz_finite)
+println("\nSz")
+@show Sz
+@show Sz_finite

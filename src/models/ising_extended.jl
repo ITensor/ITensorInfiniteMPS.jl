@@ -1,48 +1,45 @@
-nrange(::Model"ising_extended") = 3
+# For infinite Hamiltonian
 # H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ - J₂ Σⱼ XⱼZⱼ₊₁Xⱼ₊₂
-function ITensors.MPO(::Model"ising_extended", s; J=1.0, h=1.0, J₂=0.0)
-  N = length(s)
-  a = OpSum()
-  if J != 0
-    for n in 1:(N - 1)
-      a += -J, "X", n, "X", n + 1
-    end
-  end
-  if J₂ != 0
-    for n in 1:(N - 2)
-      a += -J₂, "X", n, "Z", n + 1, "X", n + 2
-    end
-  end
-  if h != 0
-    for n in 1:N
-      a += -h, "Z", n
-    end
-  end
-  return MPO(a, s)
-end
-
-# H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ - J₂ Σⱼ XⱼZⱼ₊₁Xⱼ₊₂
-function ITensors.OpSum(::Model"ising_extended", n1, n2; J=1.0, h=1.0, J₂=0.0)
+function opsum_infinite(::Model"ising_extended", n; J=1.0, h=1.0, J₂=0.0)
   opsum = OpSum()
-  if J != 0
-    opsum += -J / 2, "X", n1, "X", n2
-    opsum += -J / 2, "X", n2, "X", n2 + 1
+  for j in 1:n
+    opsum += -J, "X", j, "X", j + 1
+    opsum += -J₂, "X", j, "Z", j + 1, "X", j + 2
+    opsum -= h, "Z", j
   end
-  if J₂ != 0
-    opsum += -J₂, "X", n1, "Z", n2, "X", n2 + 1
-  end
-  opsum += -h / 3, "Z", n1
-  opsum += -h / 3, "Z", n2
-  opsum += -h / 3, "Z", n2 + 1
   return opsum
 end
 
-function ITensors.ITensor(::Model"ising_extended", s1, s2, s3; J=1.0, h=1.0, J₂=0.0)
-  opsum = OpSum(Model"ising_extended"(), 1, 2; J=J, h=h, J₂=J₂)
-  return prod(MPO(opsum, [s1, s2, s3]))
+# For finite Hamiltonian with open boundary conditions
+# H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ - J₂ Σⱼ XⱼZⱼ₊₁Xⱼ₊₂
+function opsum_finite(::Model"ising_extended", n; J=1.0, h=1.0, J₂=0.0)
+  # TODO: define using opsum_infinite, filtering sites
+  # that extend over the boundary.
+  opsum = OpSum()
+  for j in 1:n
+    if j ≤ (n - 1)
+      opsum += -J, "X", j, "X", j + 1
+    end
+    if j ≤ (n - 2)
+      opsum += -J₂, "X", j, "Z", j + 1, "X", j + 2
+    end
+    opsum -= h, "Z", j
+  end
+  return opsum
 end
 
 function reference(::Model"ising_extended", ::Observable"energy"; J=1.0, h=1.0, J₂=0.0)
   f(k) = sqrt((J * cos(k) + J₂ * cos(2k) - h)^2 + (J * sin(k) + J₂ * sin(2k))^2)
   return -1 / 2π * ITensorInfiniteMPS.∫(k -> f(k), -π, π)
 end
+
+#
+# Deprecated
+#
+
+# nrange(::Model"ising_extended") = 3
+
+# function ITensors.ITensor(::Model"ising_extended", s1::Index, s2::Index, s3::Index; J=1.0, h=1.0, J₂=0.0)
+#   opsum = OpSum(Model"ising_extended"(), 1, 2; J=J, h=h, J₂=J₂)
+#   return prod(MPO(opsum, [s1, s2, s3]))
+# end
