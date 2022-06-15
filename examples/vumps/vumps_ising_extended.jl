@@ -9,7 +9,7 @@ maxdim = 64 # Maximum bond dimension
 cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 100 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
 vumps_tol = 1e-6
-outer_iters = 4 # Number of times to increase the bond dimension
+outer_iters = 10 # Number of times to increase the bond dimension
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
@@ -35,13 +35,13 @@ H = InfiniteSum{MPO}(model, s; J=J, J₂=J₂, h=h);
 
 vumps_kwargs = (tol=vumps_tol, maxiter=max_vumps_iters)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
-ψ_0 = vumps(H, ψ; vumps_kwargs...)
+ψ_0 = @time vumps(H, ψ; vumps_kwargs...)
 
-for j in 1:outer_iters
+@time for j in 1:outer_iters
   println("\nIncrease bond dimension")
-  ψ_1 = subspace_expansion(ψ_0, H; subspace_expansion_kwargs...)
+  ψ_1 = @time subspace_expansion(ψ_0, H; subspace_expansion_kwargs...)
   println("Run VUMPS with new bond dimension")
-  global ψ_0 = vumps(H, ψ_1; vumps_kwargs...)
+  global ψ_0 = @time vumps(H, ψ_1; vumps_kwargs...)
 end
 
 Sz = [expect(ψ_0, "Sz", n) for n in 1:N]
