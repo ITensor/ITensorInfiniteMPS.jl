@@ -36,7 +36,7 @@ H = InfiniteSum{MPO}(model, s; J=J, J₂=J₂, h=h);
 
 vumps_kwargs = (tol=vumps_tol, maxiter=max_vumps_iters, eager)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
-ψ_0 = vumps(H, ψ; vumps_kwargs...)
+ψ_0 = @time vumps(H, ψ; vumps_kwargs...)
 
 @time for j in 1:outer_iters
   println("\nIncrease bond dimension")
