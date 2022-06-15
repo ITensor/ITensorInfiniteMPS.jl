@@ -24,29 +24,22 @@ function Base.:*(H::Hᶜ{MPO}, v::ITensor)
   Hᶜᴿv = v * δˡ(n) * Hᴿ[n]
   #We now start building terms where C overlap with the local Hamiltonian
   # We start with the tensor AL[n] - v - AR[n+1] ... AR[n + range_∑h - 1]
-  Hᶜʰv = v * ψ.AL[n] * δˡ(n - 1) * ∑h[n][1] * ψ′.AL[n] #left extremity
+  Hᶜʰv =
+    δʳ(n + range_∑h - 1) *
+    ψ.AR[n + range_∑h - 1] *
+    ∑h[n][end] *
+    ψ′.AR[n + range_∑h - 1]
   common_sites = findsites(ψ, ∑h[n])
-  idx = 2 #list the sites Σh, we start at 2 because n is already taken into account
-
-  @show common_sites
-
-  for k in 1:(range_∑h - 2)
+  idx = length(∑h[n]) - 1 #list the sites Σh, we start at 2 because n is already taken into account
+  for k in reverse(1:(range_∑h - 2))
     if n + k == common_sites[idx]
-      @show n, k, idx
-      Hᶜʰv = @visualize Hᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k] edge_labels=(tags=true, ids=true)
-      readline()
-      idx += 1
+      Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
+      idx -= 1
     else
       Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * δˢ(n + k) * ψ′.AR[n + k]
     end
   end
-  Hᶜʰv =
-    @visualize δʳ(n + range_∑h - 1) *
-    ψ.AR[n + range_∑h - 1] *
-    ∑h[n][end] *
-    ψ′.AR[n + range_∑h - 1] *
-    Hᶜʰv edge_labels=(tags=true, ids=true) #right most extremity
-  readline()
+  Hᶜʰv = v * ψ.AL[n] * δˡ(n - 1) * ∑h[n][1] * ψ′.AL[n] * Hᶜʰv #left extremity
   #Now we are building contributions of the form AL[n - j] ... AL[n] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
   for j in 1:(range_∑h - 2)
     temp_Hᶜʰv = ψ.AL[n - j] * δˡ(n - 1 - j) * ∑h[n - j][1] * ψ′.AL[n - j]
