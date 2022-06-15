@@ -132,7 +132,9 @@ function tdvp_iteration_sequential(
     Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = solver(
       Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol, eager
     )
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager)
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager
+    )
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
       Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol, eager
     )
@@ -263,7 +265,9 @@ function tdvp_iteration_parallel(
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
   for n in 1:Nsites
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager)
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager
+    )
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
       Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol, eager
     )

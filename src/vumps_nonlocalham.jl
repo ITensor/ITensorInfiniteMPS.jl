@@ -25,10 +25,7 @@ function Base.:*(H::Hᶜ{MPO}, v::ITensor)
   #We now start building terms where C overlap with the local Hamiltonian
   # We start with the tensor AL[n] - v - AR[n+1] ... AR[n + range_∑h - 1]
   Hᶜʰv =
-    δʳ(n + range_∑h - 1) *
-    ψ.AR[n + range_∑h - 1] *
-    ∑h[n][end] *
-    ψ′.AR[n + range_∑h - 1]
+    δʳ(n + range_∑h - 1) * ψ.AR[n + range_∑h - 1] * ∑h[n][end] * ψ′.AR[n + range_∑h - 1]
   common_sites = findsites(ψ, ∑h[n])
   idx = length(∑h[n]) - 1 #list the sites Σh, we start at 2 because n is already taken into account
   for k in reverse(1:(range_∑h - 2))
@@ -102,10 +99,7 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
   #We now start building terms where AC overlap with the local Hamiltonian
   # We start with the tensor v - AR[n+1] ... AR[n + range_∑h - 1]
   Hᴬᶜʰv =
-    δʳ(n + range_∑h - 1) *
-    ψ.AR[n + range_∑h - 1] *
-    ∑h[n][end] *
-    ψ′.AR[n + range_∑h - 1] #rightmost extremity
+    δʳ(n + range_∑h - 1) * ψ.AR[n + range_∑h - 1] * ∑h[n][end] * ψ′.AR[n + range_∑h - 1] #rightmost extremity
   common_sites = findsites(ψ, ∑h[n])
   idx = length(∑h[n]) - 1  #list the sites Σh, we start at 2 because n is already taken into account
   for k in reverse(1:(range_∑h - 2))
@@ -318,7 +312,9 @@ function tdvp_iteration_sequential(
     Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = solver(
       Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol, eager
     )
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager)
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager
+    )
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
       Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol, eager
     )

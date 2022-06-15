@@ -216,13 +216,20 @@ return function tdvp_solver(M, time_step, v₀, solver_tol, eager=true)
 end
 
 function vumps(
-  args...; time_step=-Inf, eigsolve_tol=(x -> x / 100), solver_tol=eigsolve_tol, eager=true, kwargs...
+  args...;
+  time_step=-Inf,
+  eigsolve_tol=(x -> x / 100),
+  solver_tol=eigsolve_tol,
+  eager=true,
+  kwargs...,
 )
   @assert isinf(time_step) && time_step < 0
   println("Using VUMPS solver with time step $time_step")
   flush(stdout)
   flush(stderr)
-  return tdvp(vumps_solver, args...; time_step=time_step, solver_tol=solver_tol, eager, kwargs...)
+  return tdvp(
+    vumps_solver, args...; time_step=time_step, solver_tol=solver_tol, eager, kwargs...
+  )
 end
 
 function tdvp(args...; time_step, solver_tol=(x -> x / 100), eager=true, kwargs...)
