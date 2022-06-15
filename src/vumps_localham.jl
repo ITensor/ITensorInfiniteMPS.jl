@@ -57,6 +57,7 @@ function tdvp_iteration_sequential(
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
   time_step,
   solver_tol=(x -> x / 100),
+  eager=true,
 )
   Nsites = nsites(ψ)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
@@ -129,11 +130,11 @@ function tdvp_iteration_sequential(
     Hᴿ = right_environment(hᴿ, ψ; tol=_solver_tol)
 
     Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = solver(
-      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol, eager
     )
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol)
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager)
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
-      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
+      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol, eager
     )
 
     C̃[n - 1] = Cvecsₙ₋₁
@@ -186,6 +187,7 @@ function tdvp_iteration_parallel(
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
   time_step,
   solver_tol=(x -> x / 100),
+  eager,
 )
   Nsites = nsites(ψ)
   range_∑h = nrange(ψ, ∑h[1])
@@ -261,9 +263,9 @@ function tdvp_iteration_parallel(
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites), translator(ψ))
   for n in 1:Nsites
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol)
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager)
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
-      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
+      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol, eager
     )
 
     C̃[n] = Cvecsₙ

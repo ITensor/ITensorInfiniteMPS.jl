@@ -27,20 +27,26 @@ function Base.:*(H::Hᶜ{MPO}, v::ITensor)
   Hᶜʰv = v * ψ.AL[n] * δˡ(n - 1) * ∑h[n][1] * ψ′.AL[n] #left extremity
   common_sites = findsites(ψ, ∑h[n])
   idx = 2 #list the sites Σh, we start at 2 because n is already taken into account
+
+  @show common_sites
+
   for k in 1:(range_∑h - 2)
     if n + k == common_sites[idx]
-      Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
+      @show n, k, idx
+      Hᶜʰv = @visualize Hᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k] edge_labels=(tags=true, ids=true)
+      readline()
       idx += 1
     else
       Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * δˢ(n + k) * ψ′.AR[n + k]
     end
   end
   Hᶜʰv =
-    Hᶜʰv *
+    @visualize δʳ(n + range_∑h - 1) *
     ψ.AR[n + range_∑h - 1] *
-    δʳ(n + range_∑h - 1) *
     ∑h[n][end] *
-    ψ′.AR[n + range_∑h - 1] #right most extremity
+    ψ′.AR[n + range_∑h - 1] *
+    Hᶜʰv edge_labels=(tags=true, ids=true) #right most extremity
+  readline()
   #Now we are building contributions of the form AL[n - j] ... AL[n] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
   for j in 1:(range_∑h - 2)
     temp_Hᶜʰv = ψ.AL[n - j] * δˡ(n - 1 - j) * ∑h[n - j][1] * ψ′.AL[n - j]
@@ -114,11 +120,11 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
     end
   end
   Hᴬᶜʰv =
-    Hᴬᶜʰv *
-    ψ.AR[n + range_∑h - 1] *
     δʳ(n + range_∑h - 1) *
+    ψ.AR[n + range_∑h - 1] *
     ∑h[n][end] *
-    ψ′.AR[n + range_∑h - 1] #rightmost extremity
+    ψ′.AR[n + range_∑h - 1] * 
+    Hᴬᶜʰv #rightmost extremity
   #Now we are building contributions of the form AL[n - j] ... AL[n-1] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
   for j in 1:(range_∑h - 1)
     temp_Hᴬᶜʰv = ψ.AL[n - j] * δˡ(n - j - 1) * ∑h[n - j][1] * ψ′.AL[n - j]
@@ -284,6 +290,7 @@ function tdvp_iteration_sequential(
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
   time_step,
   solver_tol=(x -> x / 100),
+  eager=true,
 )
   Nsites = nsites(ψ)
   range_∑h = nrange(∑h, 1)
@@ -317,11 +324,11 @@ function tdvp_iteration_sequential(
     Hᴿ, eᴿ = right_environment(∑h, ψ; tol=_solver_tol)
 
     Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = solver(
-      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol, eager
     )
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol)
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager)
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
-      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
+      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol, eager
     )
 
     C̃[n - 1] = Cvecsₙ₋₁
@@ -330,6 +337,7 @@ function tdvp_iteration_sequential(
 
     Ãᴸ[n] = ortho_polar(Ãᶜ[n], C̃[n])
     Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n - 1])
+
     # Update state for next iteration
     #ψ = InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ)
     ψ.AL[n] = Ãᴸ[n]
@@ -339,8 +347,18 @@ function tdvp_iteration_sequential(
   end
 
   for n in 1:Nsites
+    # Fix the sign
+    C̃[n] /= sign((dag(Ãᶜ[n]) * (Ãᴸ[n] * C̃[n]))[])
+    C̃[n - 1] /= sign((dag(Ãᶜ[n]) * (C̃[n - 1] * Ãᴿ[n]))[])
+
     ϵᴸ![n] = norm(Ãᶜ[n] - Ãᴸ[n] * C̃[n])
     ϵᴿ![n] = norm(Ãᶜ[n] - C̃[n - 1] * Ãᴿ[n])
+
+    if ϵᴸ![n] > 1
+      @warn "Left precision error $(ϵᴸ![n]) is too high!"
+    elseif ϵᴿ![n] > 1
+      @warn "Right precision error $(ϵᴿ![n]) is too high!"
+    end
   end
   return ψ, (eᴸ, eᴿ)
 end
