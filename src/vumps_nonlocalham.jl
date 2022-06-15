@@ -101,23 +101,22 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
   Hᴬᶜᴿv = v * δˡ(n - 1) * δˢ(n) * Hᴿ[n]
   #We now start building terms where AC overlap with the local Hamiltonian
   # We start with the tensor v - AR[n+1] ... AR[n + range_∑h - 1]
-  Hᴬᶜʰv = v * δˡ(n - 1) * ∑h[n][1]
-  common_sites = findsites(ψ, ∑h[n])
-  idx = 2 #list the sites Σh, we start at 2 because n is already taken into account
-  for k in 1:(range_∑h - 2)
-    if n + k == common_sites[idx]
-      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
-      idx += 1
-    else
-      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * δˢ(n + k) * ψ′.AR[n + k]
-    end
-  end
   Hᴬᶜʰv =
     δʳ(n + range_∑h - 1) *
     ψ.AR[n + range_∑h - 1] *
     ∑h[n][end] *
-    ψ′.AR[n + range_∑h - 1] * 
-    Hᴬᶜʰv #rightmost extremity
+    ψ′.AR[n + range_∑h - 1] #rightmost extremity
+  common_sites = findsites(ψ, ∑h[n])
+  idx = length(∑h[n]) - 1  #list the sites Σh, we start at 2 because n is already taken into account
+  for k in reverse(1:(range_∑h - 2))
+    if n + k == common_sites[idx]
+      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
+      idx -= 1
+    else
+      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * δˢ(n + k) * ψ′.AR[n + k]
+    end
+  end
+  Hᴬᶜʰv = v * Hᴬᶜʰv * ∑h[n][1] * δˡ(n - 1)
   #Now we are building contributions of the form AL[n - j] ... AL[n-1] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
   for j in 1:(range_∑h - 1)
     temp_Hᴬᶜʰv = ψ.AL[n - j] * δˡ(n - j - 1) * ∑h[n - j][1] * ψ′.AL[n - j]
