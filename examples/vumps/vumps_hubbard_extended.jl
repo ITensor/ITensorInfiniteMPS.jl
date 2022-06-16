@@ -5,11 +5,12 @@ using ITensorInfiniteMPS
 # VUMPS parameters
 #
 
-maxdim = 30 # Maximum bond dimension
+maxdim = 50 # Maximum bond dimension
 cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
 outer_iters = 5 # Number of times to increase the bond dimension
-localham_type = ITensor # or MPO
+localham_type = MPO # or ITensor
+eager = true
 
 model_params = (t=1.0, U=10.0, V=0.0)
 
@@ -47,7 +48,7 @@ println("\nCheck translational invariance of initial infinite MPS")
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
 outputlevel = 1
-vumps_kwargs = (tol=1e-8, maxiter=max_vumps_iters, outputlevel=outputlevel)
+vumps_kwargs = (tol=1e-8, maxiter=max_vumps_iters, outputlevel=outputlevel, eager)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
 # For now, to increase the bond dimension you must alternate
@@ -60,7 +61,7 @@ println("\nRun VUMPS on initial product state, unit cell size $N")
 
 @time for _ in 1:outer_iters
   println("\nIncrease bond dimension")
-  global ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
+  global ψ = @time subspace_expansion(ψ, H; subspace_expansion_kwargs...)
   println("Run VUMPS with new bond dimension")
   global ψ = @time vumps(H, ψ; vumps_kwargs...)
 end
@@ -107,7 +108,7 @@ Hfinite = MPO(model, sfinite; model_params...)
 ψfinite = randomMPS(sfinite, initstate; linkdims=10)
 println("\nQN sector of starting finite MPS")
 @show flux(ψfinite)
-sweeps = Sweeps(30)
+sweeps = Sweeps(10)
 maxdims =
   min.(maxdim, [2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 32, 32, 50])
 @show maxdims
@@ -120,7 +121,7 @@ println("\nEnergy density")
 
 nfinite = Nfinite ÷ 2 - 1
 bsfinite = [(nfinite, nfinite + 1), (nfinite + 1, nfinite + 2)]
-hfinite(b) = ITensor(model, sfinite[b[1]], sfinite[b[2]]; model_params...)
+hfinite(b) = ITensor(model, [sfinite[b[1]], sfinite[b[2]]]; model_params...)
 energy_finite = map(b -> expect_two_site(ψfinite, hfinite(b), b), bsfinite)
 
 Nup_finite = ITensors.expect(ψfinite, "Nup")[nfinite:(nfinite + 1)]

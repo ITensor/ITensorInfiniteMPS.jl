@@ -24,7 +24,7 @@ end
 
 function InfiniteSum{MPO}(model::Model, s::CelledVector; kwargs...)
   N = length(s)
-  mpos = [MPO(model, s, n; kwargs...) for n in 1:N] #slightly improved version. Note: the current implementation does not really allow for staggered potentials for example
+  mpos = [splitblocks(linkinds, MPO(model, s, n; kwargs...)) for n in 1:N] #slightly improved version. Note: the current implementation does not really allow for staggered potentials for example
   return InfiniteSum{MPO}(mpos, translator(s))
 end
 
@@ -38,7 +38,7 @@ end
 function ITensors.MPO(model::Model, s::CelledVector, n::Int64; kwargs...)
   n1, n2 = 1, 2
   opsum = OpSum(model, n1, n2; kwargs...)
-  return MPO(opsum, [s[x] for x in n:(n + nrange(model) - 1)]) #modification to allow for more than two sites per term in the Hamiltonians
+  return splitblocks(linkinds, MPO(opsum, [s[x] for x in n:(n + nrange(model) - 1)])) #modification to allow for more than two sites per term in the Hamiltonians
 end
 
 # Version accepting IndexSet

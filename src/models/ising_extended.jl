@@ -18,7 +18,7 @@ function ITensors.MPO(::Model"ising_extended", s; J=1.0, h=1.0, J₂=0.0)
       a += -h, "Z", n
     end
   end
-  return MPO(a, s)
+  return splitblocks(linkinds, MPO(a, s))
 end
 
 # H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ - J₂ Σⱼ XⱼZⱼ₊₁Xⱼ₊₂

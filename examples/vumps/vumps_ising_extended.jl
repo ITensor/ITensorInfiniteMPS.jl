@@ -10,6 +10,7 @@ cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 100 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
 vumps_tol = 1e-6
 outer_iters = 10 # Number of times to increase the bond dimension
+eager = true
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
@@ -33,7 +34,7 @@ H = InfiniteSum{MPO}(model, s; J=J, J₂=J₂, h=h);
 
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...));
 
-vumps_kwargs = (tol=vumps_tol, maxiter=max_vumps_iters)
+vumps_kwargs = (tol=vumps_tol, maxiter=max_vumps_iters, eager)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 ψ_0 = @time vumps(H, ψ; vumps_kwargs...)
 
@@ -52,7 +53,7 @@ sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite; J=J, J₂=J₂, h=h)
 ψfinite = randomMPS(sfinite, initstate; linkdims=10)
 @show flux(ψfinite)
-sweeps = Sweeps(15)
+sweeps = Sweeps(10)
 setmaxdim!(sweeps, maxdim)
 setcutoff!(sweeps, cutoff)
 energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
@@ -60,10 +61,9 @@ energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
 nfinite = Nfinite ÷ 2
 Sz_finite = expect(ψfinite, "Sz")[nfinite:(nfinite + N - 1)]
 
-@show (
-  energy_infinite,
-  energy_finite_total / Nfinite,
-  reference(model, Observable("energy"); J=J, h=h, J₂=J₂),
-)
+@show energy_infinite
+@show energy_finite_total / Nfinite
+@show reference(model, Observable("energy"); J=J, h=h, J₂=J₂)
 
-@show (Sz, Sz_finite)
+@show Sz
+@show Sz_finite

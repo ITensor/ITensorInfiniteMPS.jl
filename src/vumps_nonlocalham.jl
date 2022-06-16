@@ -24,23 +24,19 @@ function Base.:*(H::Hᶜ{MPO}, v::ITensor)
   Hᶜᴿv = v * δˡ(n) * Hᴿ[n]
   #We now start building terms where C overlap with the local Hamiltonian
   # We start with the tensor AL[n] - v - AR[n+1] ... AR[n + range_∑h - 1]
-  Hᶜʰv = v * ψ.AL[n] * δˡ(n - 1) * ∑h[n][1] * ψ′.AL[n] #left extremity
+  Hᶜʰv =
+    δʳ(n + range_∑h - 1) * ψ.AR[n + range_∑h - 1] * ∑h[n][end] * ψ′.AR[n + range_∑h - 1]
   common_sites = findsites(ψ, ∑h[n])
-  idx = 2 #list the sites Σh, we start at 2 because n is already taken into account
-  for k in 1:(range_∑h - 2)
+  idx = length(∑h[n]) - 1 #list the sites Σh, we start at 2 because n is already taken into account
+  for k in reverse(1:(range_∑h - 2))
     if n + k == common_sites[idx]
       Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
-      idx += 1
+      idx -= 1
     else
       Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * δˢ(n + k) * ψ′.AR[n + k]
     end
   end
-  Hᶜʰv =
-    Hᶜʰv *
-    ψ.AR[n + range_∑h - 1] *
-    δʳ(n + range_∑h - 1) *
-    ∑h[n][end] *
-    ψ′.AR[n + range_∑h - 1] #right most extremity
+  Hᶜʰv = v * ψ.AL[n] * δˡ(n - 1) * ∑h[n][1] * ψ′.AL[n] * Hᶜʰv #left extremity
   #Now we are building contributions of the form AL[n - j] ... AL[n] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
   for j in 1:(range_∑h - 2)
     temp_Hᶜʰv = ψ.AL[n - j] * δˡ(n - 1 - j) * ∑h[n - j][1] * ψ′.AL[n - j]
@@ -102,23 +98,19 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
   Hᴬᶜᴿv = v * δˡ(n - 1) * δˢ(n) * Hᴿ[n]
   #We now start building terms where AC overlap with the local Hamiltonian
   # We start with the tensor v - AR[n+1] ... AR[n + range_∑h - 1]
-  Hᴬᶜʰv = v * δˡ(n - 1) * ∑h[n][1]
+  Hᴬᶜʰv =
+    δʳ(n + range_∑h - 1) * ψ.AR[n + range_∑h - 1] * ∑h[n][end] * ψ′.AR[n + range_∑h - 1] #rightmost extremity
   common_sites = findsites(ψ, ∑h[n])
-  idx = 2 #list the sites Σh, we start at 2 because n is already taken into account
-  for k in 1:(range_∑h - 2)
+  idx = length(∑h[n]) - 1  #list the sites Σh, we start at 2 because n is already taken into account
+  for k in reverse(1:(range_∑h - 2))
     if n + k == common_sites[idx]
       Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
-      idx += 1
+      idx -= 1
     else
       Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * δˢ(n + k) * ψ′.AR[n + k]
     end
   end
-  Hᴬᶜʰv =
-    Hᴬᶜʰv *
-    ψ.AR[n + range_∑h - 1] *
-    δʳ(n + range_∑h - 1) *
-    ∑h[n][end] *
-    ψ′.AR[n + range_∑h - 1] #rightmost extremity
+  Hᴬᶜʰv = v * Hᴬᶜʰv * ∑h[n][1] * δˡ(n - 1)
   #Now we are building contributions of the form AL[n - j] ... AL[n-1] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
   for j in 1:(range_∑h - 1)
     temp_Hᴬᶜʰv = ψ.AL[n - j] * δˡ(n - j - 1) * ∑h[n - j][1] * ψ′.AL[n - j]
@@ -284,6 +276,7 @@ function tdvp_iteration_sequential(
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
   time_step,
   solver_tol=(x -> x / 100),
+  eager=true,
 )
   Nsites = nsites(ψ)
   range_∑h = nrange(∑h, 1)
@@ -317,11 +310,13 @@ function tdvp_iteration_sequential(
     Hᴿ, eᴿ = right_environment(∑h, ψ; tol=_solver_tol)
 
     Cvalsₙ₋₁, Cvecsₙ₋₁, Cinfoₙ₋₁ = solver(
-      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n - 1), time_step, ψ.C[n - 1], _solver_tol, eager
     )
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol)
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager
+    )
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
-      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
+      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol, eager
     )
 
     C̃[n - 1] = Cvecsₙ₋₁
@@ -330,6 +325,7 @@ function tdvp_iteration_sequential(
 
     Ãᴸ[n] = ortho_polar(Ãᶜ[n], C̃[n])
     Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n - 1])
+
     # Update state for next iteration
     #ψ = InfiniteCanonicalMPS(Ãᴸ, C̃, Ãᴿ)
     ψ.AL[n] = Ãᴸ[n]
@@ -339,8 +335,18 @@ function tdvp_iteration_sequential(
   end
 
   for n in 1:Nsites
+    # Fix the sign
+    C̃[n] /= sign((dag(Ãᶜ[n]) * (Ãᴸ[n] * C̃[n]))[])
+    C̃[n - 1] /= sign((dag(Ãᶜ[n]) * (C̃[n - 1] * Ãᴿ[n]))[])
+
     ϵᴸ![n] = norm(Ãᶜ[n] - Ãᴸ[n] * C̃[n])
     ϵᴿ![n] = norm(Ãᶜ[n] - C̃[n - 1] * Ãᴿ[n])
+
+    if ϵᴸ![n] > 1
+      @warn "Left precision error $(ϵᴸ![n]) is too high!"
+    elseif ϵᴿ![n] > 1
+      @warn "Right precision error $(ϵᴿ![n]) is too high!"
+    end
   end
   return ψ, (eᴸ, eᴿ)
 end
@@ -353,6 +359,7 @@ function tdvp_iteration_parallel(
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
   time_step,
   solver_tol=(x -> x / 100),
+  eager=true,
 )
   Nsites = nsites(ψ)
   range_∑h = nrange(∑h, 1)
@@ -377,9 +384,11 @@ function tdvp_iteration_parallel(
   C̃ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   Ãᶜ = InfiniteMPS(Vector{ITensor}(undef, Nsites))
   for n in 1:Nsites
-    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol)
+    Cvalsₙ, Cvecsₙ, Cinfoₙ = solver(
+      Hᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.C[n], _solver_tol, eager
+    )
     Avalsₙ, Avecsₙ, Ainfoₙ = solver(
-      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
+      Hᴬᶜ(∑h, Hᴸ, Hᴿ, ψ, n), time_step, ψ.AL[n] * ψ.C[n], _solver_tol, eager
     )
 
     C̃[n] = Cvecsₙ
