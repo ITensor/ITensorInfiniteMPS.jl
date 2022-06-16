@@ -93,13 +93,17 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
   δˡ(n) = δ(l[n], l′[n])
 
   #Contribution of the left environment
-  Hᴬᶜᴸv = v * Hᴸ[n - 1] * δˢ(n) * δʳ(n)
+  # Hᴬᶜᴸv = v * Hᴸ[n - 1] * δˢ(n) * δʳ(n)
+  Hᴬᶜᴸv = replaceinds(v * Hᴸ[n - 1], (s[n], r[n]) => (s[n]', r[n]'))
   #Contribution of the right environment
-  Hᴬᶜᴿv = v * δˡ(n - 1) * δˢ(n) * Hᴿ[n]
+  # Hᴬᶜᴿv = v * δˡ(n - 1) * δˢ(n) * Hᴿ[n]
+  Hᴬᶜᴿv = replaceinds(v, (l[n - 1], s[n]) => (l[n - 1]', s[n]')) * Hᴿ[n]
   #We now start building terms where AC overlap with the local Hamiltonian
   # We start with the tensor v - AR[n+1] ... AR[n + range_∑h - 1]
+  # Hᴬᶜʰv =
+  #   δʳ(n + range_∑h - 1) * ψ.AR[n + range_∑h - 1] * ∑h[n][end] * ψ′.AR[n + range_∑h - 1] #rightmost extremity
   Hᴬᶜʰv =
-    δʳ(n + range_∑h - 1) * ψ.AR[n + range_∑h - 1] * ∑h[n][end] * ψ′.AR[n + range_∑h - 1] #rightmost extremity
+    replaceinds(ψ.AR[n + range_∑h - 1], r[n + range_∑h - 1] => r[n + range_∑h - 1]') * ∑h[n][end] * ψ′.AR[n + range_∑h - 1] #rightmost extremity
   common_sites = findsites(ψ, ∑h[n])
   idx = length(∑h[n]) - 1  #list the sites Σh, we start at 2 because n is already taken into account
   for k in reverse(1:(range_∑h - 2))
@@ -107,13 +111,16 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
       Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
       idx -= 1
     else
-      Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * δˢ(n + k) * ψ′.AR[n + k]
+      # Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * δˢ(n + k) * ψ′.AR[n + k]
+      Hᴬᶜʰv = replaceinds(Hᴬᶜʰv * ψ.AR[n + k], s[n + k] => s[n + k]') * ψ′.AR[n + k]
     end
   end
-  Hᴬᶜʰv = v * Hᴬᶜʰv * ∑h[n][1] * δˡ(n - 1)
+  # Hᴬᶜʰv = v * Hᴬᶜʰv * ∑h[n][1] * δˡ(n - 1)
+  Hᴬᶜʰv = replaceinds(v * Hᴬᶜʰv * ∑h[n][1], l[n - 1] => l[n - 1]')
   #Now we are building contributions of the form AL[n - j] ... AL[n-1] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
   for j in 1:(range_∑h - 1)
-    temp_Hᴬᶜʰv = ψ.AL[n - j] * δˡ(n - j - 1) * ∑h[n - j][1] * ψ′.AL[n - j]
+    # temp_Hᴬᶜʰv = ψ.AL[n - j] * δˡ(n - j - 1) * ∑h[n - j][1] * ψ′.AL[n - j]
+    temp_Hᴬᶜʰv = replaceinds(ψ.AL[n - j], l[n - j - 1] => l[n - j - 1]') * ∑h[n - j][1] * ψ′.AL[n - j]
     common_sites = findsites(ψ, ∑h[n - j])
     idx = 2
     for k in 1:(j - 1)
@@ -121,38 +128,47 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
         temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AL[n - j + k] * ∑h[n - j][idx] * ψ′.AL[n - j + k]
         idx += 1
       else
-        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AL[n - j + k] * δˢ(n - j + k) * ψ′.AL[n - j + k]
+        # temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AL[n - j + k] * δˢ(n - j + k) * ψ′.AL[n - j + k]
+        temp_Hᴬᶜʰv = replaceinds(temp_Hᴬᶜʰv * ψ.AL[n - j + k], s[n - j + k] => s[n - j + k]') * ψ′.AL[n - j + k]
       end
     end
     #Finished with AL, treating the center AC = v
     if j == range_∑h - 1
-      temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * ∑h[n - j][end] * δʳ(n - j + range_∑h - 1)
+      # temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * ∑h[n - j][end] * δʳ(n - j + range_∑h - 1)
+      temp_Hᴬᶜʰv = replaceinds(temp_Hᴬᶜʰv * v * ∑h[n - j][end], r[n - j + range_∑h - 1] => r[n - j + range_∑h - 1]')
     else
       if n == common_sites[idx] #need to check whether we need to branch v
         temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * ∑h[n - j][idx]
         idx += 1
       else
-        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * δˢ(n)
+        # temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * δˢ(n)
+        temp_Hᴬᶜʰv = replaceinds(temp_Hᴬᶜʰv * v, s[n] => s[n]')
       end
       for k in (j + 1):(range_∑h - 2)
         if n + k - j == common_sites[idx]
           temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * ∑h[n - j][idx] * ψ′.AR[n + k - j]
           idx += 1
         else
-          temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * δˢ(n + k - j) * ψ′.AR[n + k - j]
+          # temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * δˢ(n + k - j) * ψ′.AR[n + k - j]
+          temp_Hᴬᶜʰv = replaceinds(temp_Hᴬᶜʰv * ψ.AR[n + k - j], s[n + k - j] => s[n + k - j]') * ψ′.AR[n + k - j]
         end
       end
+      # temp_Hᴬᶜʰv =
+      #   temp_Hᴬᶜʰv *
+      #   ψ.AR[n + range_∑h - 1 - j] *
+      #   δʳ(n - j + range_∑h - 1) *
+      #   ∑h[n - j][end] *
+      #   ψ′.AR[n + range_∑h - 1 - j]
       temp_Hᴬᶜʰv =
-        temp_Hᴬᶜʰv *
-        ψ.AR[n + range_∑h - 1 - j] *
-        δʳ(n - j + range_∑h - 1) *
+        replaceinds(temp_Hᴬᶜʰv * ψ.AR[n + range_∑h - 1 - j], r[n - j + range_∑h - 1] => r[n - j + range_∑h - 1]') *
         ∑h[n - j][end] *
         ψ′.AR[n + range_∑h - 1 - j]
     end
     Hᴬᶜʰv = Hᴬᶜʰv + temp_Hᴬᶜʰv
   end
   Hᴬᶜv = Hᴬᶜᴸv + Hᴬᶜʰv + Hᴬᶜᴿv
-  return Hᴬᶜv * dag(δˡ(n - 1)) * dag(δˢ(n)) * dag(δʳ(n))
+  # return Hᴬᶜv * dag(δˡ(n - 1)) * dag(δˢ(n)) * dag(δʳ(n))
+  return replaceinds(Hᴬᶜv, (l[n - 1], s[n], r[n]) => (l[n - 1]', s[n]', r[n]'))
 end
 
 function left_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=1e-15)
