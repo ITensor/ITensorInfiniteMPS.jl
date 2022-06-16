@@ -15,7 +15,7 @@ function ITensors.MPO(::Model"heisenberg", s)
     os .+= 0.5, "S-", j, "S+", j + 1
     os .+= "Sz", j, "Sz", j + 1
   end
-  return MPO(os, s)
+  return splitblocks(linkinds, MPO(os, s))
 end
 
 """

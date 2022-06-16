@@ -26,7 +26,7 @@ function ITensors.MPO(::Model"fqhe_2b_pot", s::CelledVector, n::Int64; Ly, Vs, p
   end
   opsum = generate_Hamiltonian(opt)
 
-  return MPO(opsum, [s[x] for x in n:(n + range_model)])
+  return splitblocks(linkinds, MPO(opsum, [s[x] for x in n:(n + range_model)]))
 end
 
 #Please contact Loic Herviou before using this part of the code for production

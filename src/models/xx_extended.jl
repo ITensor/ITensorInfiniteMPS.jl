@@ -40,7 +40,7 @@ function ITensors.MPO(::Model"xx_extended", s; J=1.0, J₂=1.0, h=0.0)
       os += 0.5 * J₂, "S-", j, "Sz", j + 1, "S+", j + 2
     end
   end
-  return MPO(os, s)
+  return splitblocks(linkinds, MPO(os, s))
 end
 
 nrange(::Model"xx_extended") = 3

@@ -6,7 +6,7 @@ function ITensors.MPO(::Model"xx", s)
     os .+= 1, "X", n, "X", n + 1
     os .+= 1, "Y", n, "Y", n + 1
   end
-  return MPO(os, s)
+  return splitblocks(linkinds, MPO(os, s))
 end
 
 # H = X₁X₂ + Y₁Y₂
