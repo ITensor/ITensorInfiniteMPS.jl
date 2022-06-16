@@ -137,32 +137,33 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
       # temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * ∑h[n - j][end] * δʳ(n - j + range_∑h - 1)
       temp_Hᴬᶜʰv = replaceinds(temp_Hᴬᶜʰv * v * ∑h[n - j][end], r[n - j + range_∑h - 1] => r[n - j + range_∑h - 1]')
     else
-      if n == common_sites[idx] #need to check whether we need to branch v
-        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * ∑h[n - j][idx]
-        idx += 1
-      else
-        # temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * δˢ(n)
-        temp_Hᴬᶜʰv = replaceinds(temp_Hᴬᶜʰv * v, s[n] => s[n]')
-      end
-      for k in (j + 1):(range_∑h - 2)
-        if n + k - j == common_sites[idx]
-          temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * ∑h[n - j][idx] * ψ′.AR[n + k - j]
-          idx += 1
-        else
-          # temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AR[n + k - j] * δˢ(n + k - j) * ψ′.AR[n + k - j]
-          temp_Hᴬᶜʰv = replaceinds(temp_Hᴬᶜʰv * ψ.AR[n + k - j], s[n + k - j] => s[n + k - j]') * ψ′.AR[n + k - j]
-        end
-      end
-      # temp_Hᴬᶜʰv =
-      #   temp_Hᴬᶜʰv *
+      # temp_Hᴬᶜʰv_r =
       #   ψ.AR[n + range_∑h - 1 - j] *
       #   δʳ(n - j + range_∑h - 1) *
       #   ∑h[n - j][end] *
       #   ψ′.AR[n + range_∑h - 1 - j]
-      temp_Hᴬᶜʰv =
-        replaceinds(temp_Hᴬᶜʰv * ψ.AR[n + range_∑h - 1 - j], r[n - j + range_∑h - 1] => r[n - j + range_∑h - 1]') *
+      temp_Hᴬᶜʰv_r =
+        replaceinds(ψ.AR[n + range_∑h - 1 - j], r[n - j + range_∑h - 1] => r[n - j + range_∑h - 1]') *
         ∑h[n - j][end] *
         ψ′.AR[n + range_∑h - 1 - j]
+
+      idx = length(∑h[n]) - 1
+      for k in reverse((j + 1):(range_∑h - 2))
+        if n + k - j == common_sites[idx]
+          temp_Hᴬᶜʰv_r = temp_Hᴬᶜʰv_r * ψ.AR[n + k - j] * ∑h[n - j][idx] * ψ′.AR[n + k - j]
+          idx -= 1
+        else
+          # temp_Hᴬᶜʰv_r = temp_Hᴬᶜʰv_r * ψ.AR[n + k - j] * δˢ(n + k - j) * ψ′.AR[n + k - j]
+          temp_Hᴬᶜʰv_r = replaceinds(temp_Hᴬᶜʰv_r * ψ.AR[n + k - j], s[n + k - j] => s[n + k - j]') * ψ′.AR[n + k - j]
+        end
+      end
+
+      if n == common_sites[idx] #need to check whether we need to branch v
+        temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * ∑h[n - j][idx] * temp_Hᴬᶜʰv_r
+      else
+        # temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * v * δˢ(n) * temp_Hᴬᶜʰv_r
+        temp_Hᴬᶜʰv = replaceinds(temp_Hᴬᶜʰv * v * temp_Hᴬᶜʰv_r, s[n] => s[n]')
+      end
     end
     Hᴬᶜʰv = Hᴬᶜʰv + temp_Hᴬᶜʰv
   end
