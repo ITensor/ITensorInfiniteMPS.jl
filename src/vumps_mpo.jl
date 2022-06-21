@@ -354,6 +354,7 @@ function tdvp_iteration_sequential(
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
   time_step,
   solver_tol=(x -> x / 100),
+  eager=true,
 )
   ψ = copy(ψ)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
@@ -372,10 +373,10 @@ function tdvp_iteration_sequential(
     R, eR[n] = right_environment(H, ψ; tol=_solver_tol) #TODO currently computing two many of them
     if N == 1
       # 0-site effective Hamiltonian
-      E0, C̃[n], info0 = solver(H⁰(L[1], R[2]), time_step, ψ.C[1], _solver_tol)
+      E0, C̃[n], info0 = solver(H⁰(L[1], R[2]), time_step, ψ.C[1], _solver_tol, eager)
       # 1-site effective Hamiltonian
       E1, Ãᶜ[n], info1 = solver(
-        H¹(L[0], R[2], H[1]), time_step, ψ.AL[1] * ψ.C[1], _solver_tol
+        H¹(L[0], R[2], H[1]), time_step, ψ.AL[1] * ψ.C[1], _solver_tol, eager
       )
       Ãᴸ[1] = ortho_polar(Ãᶜ[1], C̃[1])
       Ãᴿ[1] = ortho_polar(Ãᶜ[1], C̃[0])
@@ -384,13 +385,13 @@ function tdvp_iteration_sequential(
       ψ.C[1] = C̃[1]
     else
       # 0-site effective Hamiltonian
-      E0, C̃[n], info0 = solver(H⁰(L[n], R[n + 1]), time_step, ψ.C[n], _solver_tol)
+      E0, C̃[n], info0 = solver(H⁰(L[n], R[n + 1]), time_step, ψ.C[n], _solver_tol, eager)
       E0′, C̃[n - 1], info0′ = solver(
-        H⁰(L[n - 1], R[n]), time_step, ψ.C[n - 1], _solver_tol
+        H⁰(L[n - 1], R[n]), time_step, ψ.C[n - 1], _solver_tol, eager
       )
       # 1-site effective Hamiltonian
       E1, Ãᶜ[n], info1 = solver(
-        H¹(L[n - 1], R[n + 1], H[n]), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
+        H¹(L[n - 1], R[n + 1], H[n]), time_step, ψ.AL[n] * ψ.C[n], _solver_tol, eager
       )
       Ãᴸ[n] = ortho_polar(Ãᶜ[n], C̃[n])
       Ãᴿ[n] = ortho_polar(Ãᶜ[n], C̃[n - 1])
@@ -415,6 +416,7 @@ function tdvp_iteration_parallel(
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
   time_step,
   solver_tol=(x -> x / 100),
+  eager=true,
 )
   ψ = copy(ψ)
   ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
@@ -433,10 +435,10 @@ function tdvp_iteration_parallel(
   for n in 1:N
     if N == 1
       # 0-site effective Hamiltonian
-      E0, C̃[n], info0 = solver(H⁰(L[1], R[2]), time_step, ψ.C[1], _solver_tol)
+      E0, C̃[n], info0 = solver(H⁰(L[1], R[2]), time_step, ψ.C[1], _solver_tol, eager)
       # 1-site effective Hamiltonian
       E1, Ãᶜ[n], info1 = solver(
-        H¹(L[0], R[2], H[1]), time_step, ψ.AL[1] * ψ.C[1], _solver_tol
+        H¹(L[0], R[2], H[1]), time_step, ψ.AL[1] * ψ.C[1], _solver_tol, eager
       )
       Ãᴸ[1] = ortho_polar(Ãᶜ[1], C̃[1])
       Ãᴿ[1] = ortho_polar(Ãᶜ[1], C̃[0])
@@ -446,9 +448,9 @@ function tdvp_iteration_parallel(
     else
       # 0-site effective Hamiltonian
       for n in 1:N
-        E0, C̃[n], info0 = solver(H⁰(L[n], R[n + 1]), time_step, ψ.C[n], _solver_tol)
+        E0, C̃[n], info0 = solver(H⁰(L[n], R[n + 1]), time_step, ψ.C[n], _solver_tol, eager)
         E1, Ãᶜ[n], info1 = solver(
-          H¹(L[n - 1], R[n + 1], H[n]), time_step, ψ.AL[n] * ψ.C[n], _solver_tol
+          H¹(L[n - 1], R[n + 1], H[n]), time_step, ψ.AL[n] * ψ.C[n], _solver_tol, eager
         )
       end
       # 1-site effective Hamiltonian

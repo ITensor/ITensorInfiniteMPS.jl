@@ -31,7 +31,7 @@ function ITensors.MPO(::Model"hubbard", s; t, U, V)
       opsum .+= U, "Nupdn", n
     end
   end
-  return MPO(opsum, s)
+  return splitblocks(linkinds, MPO(opsum, s))
 end
 
 function ITensors.ITensor(model::Model"hubbard", s; kwargs...)

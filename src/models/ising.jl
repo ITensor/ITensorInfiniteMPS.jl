@@ -8,7 +8,7 @@ function ITensors.MPO(::Model"ising", s; J, h)
   for n in 1:N
     a .+= -h, "Z", n
   end
-  return MPO(a, s)
+  return splitblocks(linkinds, MPO(a, s))
 end
 
 # H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ

@@ -155,6 +155,7 @@ function tdvp(
   solver::Function,
   ∑h,
   ψ;
+  eager=true,
   maxiter=10,
   tol=1e-8,
   outputlevel=1,
@@ -180,6 +181,7 @@ function tdvp(
       multisite_update_alg=multisite_update_alg,
       solver_tol=solver_tol,
       time_step=time_step,
+      eager,
     )
     ϵᵖʳᵉˢ = max(maximum(ϵᴸ!), maximum(ϵᴿ!))
     maxdimψ = maxlinkdim(ψ[0:(N + 1)])
@@ -202,28 +204,35 @@ function tdvp(
   return ψ
 end
 
-function vumps_solver(M, time_step, v₀, solver_tol)
-  λ⃗, v⃗, info = eigsolve(M, v₀, 1, :SR; ishermitian=true, tol=solver_tol)
+function vumps_solver(M, time_step, v₀, solver_tol, eager=true)
+  λ⃗, v⃗, info = eigsolve(M, v₀, 1, :SR; ishermitian=true, tol=solver_tol, eager)
   return λ⃗[1], v⃗[1], info
 end
 
-return function tdvp_solver(M, time_step, v₀, solver_tol)
-  v, info = exponentiate(M, time_step, v₀; ishermitian=true, tol=solver_tol)
+return function tdvp_solver(M, time_step, v₀, solver_tol, eager=true)
+  v, info = exponentiate(M, time_step, v₀; ishermitian=true, tol=solver_tol, eager)
   v = v / norm(v)
   return nothing, v, info
 end
 
 function vumps(
-  args...; time_step=-Inf, eigsolve_tol=(x -> x / 100), solver_tol=eigsolve_tol, kwargs...
+  args...;
+  time_step=-Inf,
+  eigsolve_tol=(x -> x / 100),
+  solver_tol=eigsolve_tol,
+  eager=true,
+  kwargs...,
 )
   @assert isinf(time_step) && time_step < 0
   println("Using VUMPS solver with time step $time_step")
   flush(stdout)
   flush(stderr)
-  return tdvp(vumps_solver, args...; time_step=time_step, solver_tol=solver_tol, kwargs...)
+  return tdvp(
+    vumps_solver, args...; time_step=time_step, solver_tol=solver_tol, eager, kwargs...
+  )
 end
 
-function tdvp(args...; time_step, solver_tol=(x -> x / 100), kwargs...)
+function tdvp(args...; time_step, solver_tol=(x -> x / 100), eager=true, kwargs...)
   solver = if !isinf(time_step)
     println("Using TDVP solver with time step $time_step")
     flush(stdout)
@@ -238,5 +247,5 @@ function tdvp(args...; time_step, solver_tol=(x -> x / 100), kwargs...)
   else
     error("Time step $time_step not supported.")
   end
-  return tdvp(solver, args...; time_step=time_step, solver_tol=solver_tol, kwargs...)
+  return tdvp(solver, args...; time_step=time_step, solver_tol=solver_tol, eager, kwargs...)
 end
