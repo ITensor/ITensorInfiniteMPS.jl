@@ -65,7 +65,10 @@ function InfiniteSum{MPO}(opsum::OpSum, s::CelledVector)
     opsums[j1] += o
   end
   shifted_opsums = [shift_sites(opsum, -first_site(opsum) + 1) for opsum in opsums]
-  mpos = [splitblocks(linkinds, MPO(shifted_opsums[j], [s[k] for k in j:(j + nrange - 1)])) for j in 1:n]
+  mpos = [
+    splitblocks(linkinds, MPO(shifted_opsums[j], [s[k] for k in j:(j + nrange - 1)])) for
+    j in 1:n
+  ]
   return InfiniteSum{MPO}(mpos, translator(s))
 end
 # Helper function to make an MPO

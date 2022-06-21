@@ -53,7 +53,7 @@ sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite; J=J, J₂=J₂, h=h)
 ψfinite = randomMPS(sfinite, initstate; linkdims=10)
 @show flux(ψfinite)
-dmrg_kwargs = (nsweeps=10, maxdim cutoff)
+dmrg_kwargs = (nsweeps=10, maxdim, cutoff)
 energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; dmrg_kwargs...)
 energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
 
