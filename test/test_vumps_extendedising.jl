@@ -23,10 +23,7 @@ using Random
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
   ψfinite = randomMPS(sfinite, initstate)
-  sweeps = Sweeps(20)
-  setmaxdim!(sweeps, 30)
-  setcutoff!(sweeps, 1E-10)
-  energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
+  energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; outputlevel=0, nsweeps=30, maxdim=30, cutoff=1e-10)
   Szs_finite = expect(ψfinite, "Sz")
 
   function energy(ψ, h, n)
@@ -86,18 +83,16 @@ using Random
   end
 end
 
-# XXX: orthogonalize is broken right now
-## @testset "ITensorInfiniteMPS.jl" begin
-##   @testset "Mixed canonical gauge" begin
-##     N = 10
-##     s = siteinds("S=1/2", N; conserve_szparity=true)
-##     χ = 6
-##     @test iseven(χ)
-##     space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
-##     ψ = InfiniteMPS(ComplexF64, s; space=space)
-##     randn!.(ψ)
-##
-##     ψ = orthogonalize(ψ, :)
-##     @test prod(ψ.AL[1:N]) * ψ.C[N] ≈ ψ.C[0] * prod(ψ.AR[1:N])
-##   end
-## end
+@testset "Mixed canonical gauge" begin
+  N = 4
+  s = siteinds("S=1/2", N; conserve_szparity=true)
+  χ = 6
+  @test iseven(χ)
+  space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
+  ψ = InfiniteMPS(ComplexF64, s; space=space)
+  for n in 1:N
+    ψ[n] = randomITensor(inds(ψ[n]))
+  end
+  ψ = orthogonalize(ψ, :)
+  @test contract(ψ.AL[1:N]) * ψ.C[N] ≈ ψ.C[0] * contract(ψ.AR[1:N])
+end

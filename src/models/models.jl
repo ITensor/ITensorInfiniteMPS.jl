@@ -110,6 +110,12 @@ function ITensors.MPO(model::Model, s::Vector{<:Index}; kwargs...)
   return splitblocks(linkinds, MPO(opsum, s))
 end
 
+# The ITensor of a single term of the model
+function ITensors.ITensor(model::Model, s::Index...; kwargs...)
+  opsum = opsum_infinite(model, 1; kwargs...)
+  return contract(MPO(opsum, [s...]))
+end
+
 #
 # Deprecated
 #

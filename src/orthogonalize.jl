@@ -1,39 +1,18 @@
-
 # TODO: call as `orthogonalize(ψ, -∞)`
 # TODO: could use commontags(ψ) as a default for left_tags
 function right_orthogonalize(
   ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12
 )
-  # TODO: replace dag(ψ) with ψ'ᴴ?
-  ψᴴ = prime(linkinds, dag(ψ))
-
-  N = nsites(ψ)
-
-  # The unit cell range
-  # Turn into function `eachcellindex(ψ::InfiniteMPS, cell::Integer = 1)`
-  cell₁ = 1:N
-  # A transfer matrix made from the 1st unit cell of
-  # the infinite MPS
-  # TODO: make a `Cell` Integer type and call as `ψ[Cell(1)]`
-  # TODO: make a TransferMatrix wrapper that automatically
-  # primes and daggers, so it can be called with:
-  # T = TransferMatrix(ψ[Cell(1)])
-  ψ₁ = ψ[cell₁]
-  ψ₁ᴴ = ψᴴ[cell₁]
-  T₀₁ = ITensorMap(
-    ψ₁,
-    ψ₁ᴴ;
-    input_inds=unioninds(commoninds(ψ[N], ψ[N + 1]), commoninds(ψᴴ[N], ψᴴ[N + 1])),
-    output_inds=unioninds(commoninds(ψ[1], ψ[0]), commoninds(ψᴴ[1], ψᴴ[0])),
-  )
+  # A transfer matrix made from the 1st unit cell of the infinite MPS
+  T = TransferMatrix(ψ)
 
   # TODO: make an optional initial state
-  v₁ᴿᴺ = randomITensor(dag(input_inds(T₀₁)))
+  v₁ᴿᴺ = randomITensor(dag(input_inds(T)))
 
-  # Start by getting the right eivenvector/eigenvalue of T₀₁
+  # Start by getting the right eivenvector/eigenvalue of T
   # TODO: make a function `right_environments(::InfiniteMPS)` that computes
   # all of the right environments using `eigsolve` and shifting unit cells
-  λ⃗₁ᴿᴺ, v⃗₁ᴿᴺ, eigsolve_info = eigsolve(T₀₁, v₁ᴿᴺ, 1, :LM; tol=tol)
+  λ⃗₁ᴿᴺ, v⃗₁ᴿᴺ, eigsolve_info = eigsolve(T, v₁ᴿᴺ, 1, :LM; tol=tol)
   λ₁ᴿᴺ, v₁ᴿᴺ = λ⃗₁ᴿᴺ[1], v⃗₁ᴿᴺ[1]
 
   if imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) > 1e-15
@@ -51,7 +30,7 @@ function right_orthogonalize(
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
     error("v₁ᴿᴺ not hermitian")
   end
-  if norm(imag(v₁ᴿᴺ)) > 1e-15
+  if norm(imag(v₁ᴿᴺ)) / norm(v₁ᴿᴺ) > 1e-13
     println(
       "Norm of the imaginary part $(norm(imag(v₁ᴿᴺ))) is larger than the tolerance value 1e-15. Keeping as complex.",
     )
@@ -65,16 +44,6 @@ function right_orthogonalize(
   C₁ᴿᴺ = sqrt(v₁ᴿᴺ)
   C₁ᴿᴺ = replacetags(C₁ᴿᴺ, left_tags => right_tags; plev=1)
   C₁ᴿᴺ = noprime(C₁ᴿᴺ, right_tags)
-
-  ## Flip the sign:
-  ## @show inds(ψ[N])
-  ## @show inds(C₁ᴿᴺ)
-  ## @show C₁ᴿᴺ
-  ## @show rᴺ = dag(uniqueind(C₁ᴿᴺ, ψ[N]))
-  ## rᴺ⁻ = Index(-space(rᴺ); tags=tags(rᴺ), plev=plev(rᴺ), dir=dir(rᴺ))
-  ## C₁ᴿᴺ = C₁ᴿᴺ * δ(rᴺ, rᴺ⁻)
-  ## @show C₁ᴿᴺ
-  ## @show inds(C₁ᴿᴺ)
 
   # Normalize the center matrix
   normalize!(C₁ᴿᴺ)
@@ -108,7 +77,7 @@ function right_orthogonalize_polar(
     λⁿ = norm(Cᴿ[n - 1])
     Cᴿ[n - 1] /= λⁿ
     λ *= λⁿ
-    if !isapprox(ψ[n] * Cᴿ[n], λⁿ * Cᴿ[n - 1] * ψᴿ[n]; atol=1e-14)
+    if !isapprox(ψ[n] * Cᴿ[n], λⁿ * Cᴿ[n - 1] * ψᴿ[n]; rtol=1e-10)
       @show norm(ψ[n] * Cᴿ[n] - λⁿ * Cᴿ[n - 1] * ψᴿ[n])
       error("ψ[n] * Cᴿ[n] ≠ λⁿ * Cᴿ[n-1] * ψᴿ[n]")
     end
