@@ -33,7 +33,7 @@ using Random
 
   nfinite = Nfinite ÷ 2
   hnfinite = ITensor(
-    model, sfinite[nfinite], sfinite[nfinite + 1], sfinite[nfinite + 2]; model_kwargs...
+    model, nfinite, sfinite[nfinite], sfinite[nfinite + 1], sfinite[nfinite + 2]; model_kwargs...
   )
   orthogonalize!(ψfinite, nfinite)
   energy_finite = energy(ψfinite, hnfinite, nfinite)

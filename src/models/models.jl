@@ -110,9 +110,67 @@ function ITensors.MPO(model::Model, s::Vector{<:Index}; kwargs...)
   return splitblocks(linkinds, MPO(opsum, s))
 end
 
-# The ITensor of a single term of the model
-function ITensors.ITensor(model::Model, s::Index...; kwargs...)
-  opsum = opsum_infinite(model, 1; kwargs...)
+translatecell(translator, opsum::OpSum, n::Integer) = translator(opsum, n)
+
+function infinite_terms(model::Model; kwargs...)
+  opsum_cell = unit_cell_terms(model; kwargs...)
+  nsites = length(opsum_cell)
+  function _shift_cell(opsum::OpSum, cell::Int)
+    return shift_sites(opsum, nsites * cell)
+  end
+  return CelledVector(opsum_cell, _shift_cell)
+end
+
+function opsum_infinite(model::Model, nsites::Int; kwargs...)
+  _infinite_terms = infinite_terms(model::Model; kwargs...)
+  # Desired unit cell size must be commensurate
+  # with the primitive unit cell of the model.
+  if !iszero(nsites % length(_infinite_terms))
+    error("Desired unit cell size $nsites must be commensurate with the primitive unit cell size of the model $model, which is $(length(_infinite_terms))")
+  end
+  opsum = OpSum()
+  for j in 1:nsites
+    opsum += _infinite_terms[j]
+  end
+  return opsum
+end
+
+function filter_terms(f, opsum::OpSum; by=identity)
+  filtered_opsum = OpSum()
+  for t in ITensors.terms(opsum)
+    if f(by(t))
+      filtered_opsum += t
+    end
+  end
+  return filtered_opsum
+end
+
+function finite_terms(model::Model, n::Int; kwargs...)
+  _infite_terms = infinite_terms(model; kwargs...)
+  _finite_terms = OpSum[]
+  for j in 1:n
+    term_j = _infite_terms[j]
+    filtered_term_j = filter_terms(s -> all(≤(n), s), term_j; by=ITensors.sites)
+    push!(_finite_terms, filtered_term_j)
+  end
+  return _finite_terms
+end
+
+# For finite Hamiltonian with open boundary conditions
+# Obtain from infinite Hamiltonian, dropping terms
+# that extend outside of the system.
+function opsum_finite(model::Model, n::Int; kwargs...)
+  opsum = OpSum()
+  for term in finite_terms(model, n; kwargs...)
+    opsum += term
+  end
+  return opsum
+end
+
+# The ITensor of a single term `n` of the model.
+function ITensors.ITensor(model::Model, n::Int, s::Index...; kwargs...)
+  opsum = infinite_terms(model; kwargs...)[n]
+  opsum = shift_sites(opsum, -first_site(opsum) + 1)
   return contract(MPO(opsum, [s...]))
 end
 
