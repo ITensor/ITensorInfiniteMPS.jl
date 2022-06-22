@@ -88,10 +88,10 @@ using Random
 
     function energy(ψ1, ψ2, h::ITensor)
       ϕ = ψ1 * ψ2
-      return (noprime(ϕ * h) * dag(ϕ))[]
+      return inner(ϕ, apply(h, ϕ))
     end
 
-    energy(ψ1, ψ2, h::MPO) = energy(ψ1, ψ2, prod(h))
+    energy(ψ1, ψ2, h::MPO) = energy(ψ1, ψ2, contract(h))
 
     function expect(ψ, o)
       return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]

@@ -1,49 +1,17 @@
 # H = JΣⱼ (½ S⁺ⱼS⁻ⱼ₊₁ + ½ S⁻ⱼS⁺ⱼ₊₁) + J₂Σⱼ (½ S⁺ⱼZⱼ₊₁S⁻ⱼ₊₂ + ½ S⁻ⱼZⱼ₊₁S⁺ⱼ₊₂) - h Σⱼ Sⱼᶻ
-function ITensors.OpSum(::Model"xx_extended", n1, n2; J=1.0, J₂=1.0, h=0.0)
+function unit_cell_terms(::Model"xx_extended"; J=1.0, J₂=1.0, h=0.0)
   opsum = OpSum()
-  if J != 0.0
-    opsum += 0.25 * J, "S+", n1, "S-", n2
-    opsum += 0.25 * J, "S-", n1, "S+", n2
-    opsum += 0.25 * J, "S+", n2, "S-", n2 + 1
-    opsum += 0.25 * J, "S-", n2, "S+", n2 + 1
-  end
-  if J₂ != 0
-    opsum += 0.5 * J₂, "S+", n1, "Sz", n2, "S-", n2 + 1
-    opsum += 0.5 * J₂, "S-", n1, "Sz", n2, "S+", n2 + 1
-  end
-  if h != 0
-    opsum += -h / 3, "Sz", n1
-    opsum += -h / 3, "Sz", n2
-    opsum += -h / 3, "Sz", n2 + 1
-  end
+  opsum += 0.25 * J, "S+", 1, "S-", 2
+  opsum += 0.25 * J, "S-", 1, "S+", 2
+  opsum += 0.25 * J, "S+", 2, "S-", 2 + 1
+  opsum += 0.25 * J, "S-", 2, "S+", 2 + 1
+  opsum += 0.5 * J₂, "S+", 1, "Sz", 2, "S-", 3
+  opsum += 0.5 * J₂, "S-", 1, "Sz", 2, "S+", 3
+  opsum += -h / 3, "Sz", 1
+  opsum += -h / 3, "Sz", 2
+  opsum += -h / 3, "Sz", 3
   return opsum
 end
-
-# H = JΣⱼ (½ S⁺ⱼS⁻ⱼ₊₁ + ½ S⁻ⱼS⁺ⱼ₊₁) + J₂Σⱼ (½ S⁺ⱼS⁻ⱼ₊₂ + ½ S⁻ⱼS⁺ⱼ₊₂) - h Σⱼ Sⱼᶻ
-function ITensors.MPO(::Model"xx_extended", s; J=1.0, J₂=1.0, h=0.0)
-  N = length(s)
-  os = OpSum()
-  if h != 0
-    for j in 1:N
-      os += -h, "Sz", j
-    end
-  end
-  if J != 0
-    for j in 1:(N - 1)
-      os += 0.5 * J, "S+", j, "S-", j + 1
-      os += 0.5 * J, "S-", j, "S+", j + 1
-    end
-  end
-  if J₂ != 0
-    for j in 1:(N - 2)
-      os += 0.5 * J₂, "S+", j, "Sz", j + 1, "S-", j + 2
-      os += 0.5 * J₂, "S-", j, "Sz", j + 1, "S+", j + 2
-    end
-  end
-  return splitblocks(linkinds, MPO(os, s))
-end
-
-nrange(::Model"xx_extended") = 3
 
 function ITensorInfiniteMPS.reference(
   ::Model"xx_extended", ::Observable"energy"; N=1000, J=1.0, J₂=1.0, h=0.0, filling=0.5
@@ -68,3 +36,49 @@ function ITensorInfiniteMPS.reference(
   temp = sort(λ.(0:(N - 1)))
   return sum(temp[1:round(Int64, filling * N)]) / N - h * (2 * filling - 1)
 end
+
+## function ITensors.OpSum(::Model"xx_extended", n1, n2; J=1.0, J₂=1.0, h=0.0)
+##   opsum = OpSum()
+##   if J != 0.0
+##     opsum += 0.25 * J, "S+", n1, "S-", n2
+##     opsum += 0.25 * J, "S-", n1, "S+", n2
+##     opsum += 0.25 * J, "S+", n2, "S-", n2 + 1
+##     opsum += 0.25 * J, "S-", n2, "S+", n2 + 1
+##   end
+##   if J₂ != 0
+##     opsum += 0.5 * J₂, "S+", n1, "Sz", n2, "S-", n2 + 1
+##     opsum += 0.5 * J₂, "S-", n1, "Sz", n2, "S+", n2 + 1
+##   end
+##   if h != 0
+##     opsum += -h / 3, "Sz", n1
+##     opsum += -h / 3, "Sz", n2
+##     opsum += -h / 3, "Sz", n2 + 1
+##   end
+##   return opsum
+## end
+## 
+## # H = JΣⱼ (½ S⁺ⱼS⁻ⱼ₊₁ + ½ S⁻ⱼS⁺ⱼ₊₁) + J₂Σⱼ (½ S⁺ⱼS⁻ⱼ₊₂ + ½ S⁻ⱼS⁺ⱼ₊₂) - h Σⱼ Sⱼᶻ
+## function ITensors.MPO(::Model"xx_extended", s; J=1.0, J₂=1.0, h=0.0)
+##   N = length(s)
+##   os = OpSum()
+##   if h != 0
+##     for j in 1:N
+##       os += -h, "Sz", j
+##     end
+##   end
+##   if J != 0
+##     for j in 1:(N - 1)
+##       os += 0.5 * J, "S+", j, "S-", j + 1
+##       os += 0.5 * J, "S-", j, "S+", j + 1
+##     end
+##   end
+##   if J₂ != 0
+##     for j in 1:(N - 2)
+##       os += 0.5 * J₂, "S+", j, "Sz", j + 1, "S-", j + 2
+##       os += 0.5 * J₂, "S-", j, "Sz", j + 1, "S+", j + 2
+##     end
+##   end
+##   return splitblocks(linkinds, MPO(os, s))
+## end
+## 
+## nrange(::Model"xx_extended") = 3

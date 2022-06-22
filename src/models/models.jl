@@ -25,8 +25,15 @@ function InfiniteSum{MPO}(model::Model, s::CelledVector; kwargs...)
   return InfiniteSum{MPO}(opsum_infinite(model, cell_length(s); kwargs...), s)
 end
 
+function InfiniteSum{ITensor}(model::Model, s::CelledVector; kwargs...)
+  N = length(s)
+  itensors = [ITensor(model, s, n; kwargs...) for n in 1:N]
+  return InfiniteSum{ITensor}(itensors, translator(s))
+end
+
 # Get the first site with nontrivial support of the OpSum
 first_site(opsum::OpSum) = minimum(ITensors.sites(opsum))
+last_site(opsum::OpSum) = maximum(ITensors.sites(opsum))
 
 function set_site(o::Op, s::Int)
   return Op(ITensors.which_op(o), s; ITensors.params(o)...)
@@ -126,7 +133,9 @@ function opsum_infinite(model::Model, nsites::Int; kwargs...)
   # Desired unit cell size must be commensurate
   # with the primitive unit cell of the model.
   if !iszero(nsites % length(_infinite_terms))
-    error("Desired unit cell size $nsites must be commensurate with the primitive unit cell size of the model $model, which is $(length(_infinite_terms))")
+    error(
+      "Desired unit cell size $nsites must be commensurate with the primitive unit cell size of the model $model, which is $(length(_infinite_terms))",
+    )
   end
   opsum = OpSum()
   for j in 1:nsites
@@ -168,10 +177,28 @@ function opsum_finite(model::Model, n::Int; kwargs...)
 end
 
 # The ITensor of a single term `n` of the model.
-function ITensors.ITensor(model::Model, n::Int, s::Index...; kwargs...)
+function ITensors.ITensor(model::Model, s::Vector{<:Index}, n::Int; kwargs...)
   opsum = infinite_terms(model; kwargs...)[n]
   opsum = shift_sites(opsum, -first_site(opsum) + 1)
   return contract(MPO(opsum, [s...]))
+end
+
+function ITensors.ITensor(model::Model, n::Int, s::Index...; kwargs...)
+  return ITensor(model, [s...], n; kwargs...)
+end
+
+function ITensors.ITensor(model::Model, s::Index...; kwargs...)
+  return ITensor(model, 1, s...; kwargs...)
+end
+
+function ITensors.ITensor(model::Model, s::CelledVector, n::Int64; kwargs...)
+  opsum = infinite_terms(model; kwargs...)[n]
+  opsum = shift_sites(opsum, -first_site(opsum) + 1)
+  site_range = n:(n + last_site(opsum) - 1)
+  return contract(MPO(opsum, [s[j] for j in site_range]))
+
+  # Deprecated version
+  # return contract(MPO(model, s, n; kwargs...))
 end
 
 #
@@ -183,12 +210,6 @@ end
 # Version accepting IndexSet
 # function ITensors.ITensor(model::Model, s::CelledVector, n::Int64; kwargs...)
 #   return prod(MPO(model, s, n; kwargs...)) #modification to allow for more than two sites per term in the Hamiltonians
-# end
-
-# function InfiniteSum{ITensor}(model::Model, s::CelledVector; kwargs...)
-#   N = length(s)
-#   itensors = [ITensor(model, s, n; kwargs...) for n in 1:N]
-#   return InfiniteSum{ITensor}(itensors, translator(s))
 # end
 
 # # MPO building version

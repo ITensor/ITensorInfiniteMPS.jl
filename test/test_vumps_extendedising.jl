@@ -23,7 +23,9 @@ using Random
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
   ψfinite = randomMPS(sfinite, initstate)
-  energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; outputlevel=0, nsweeps=30, maxdim=30, cutoff=1e-10)
+  energy_finite_total, ψfinite = dmrg(
+    Hfinite, ψfinite; outputlevel=0, nsweeps=30, maxdim=30, cutoff=1e-10
+  )
   Szs_finite = expect(ψfinite, "Sz")
 
   function energy(ψ, h, n)
@@ -33,7 +35,12 @@ using Random
 
   nfinite = Nfinite ÷ 2
   hnfinite = ITensor(
-    model, nfinite, sfinite[nfinite], sfinite[nfinite + 1], sfinite[nfinite + 2]; model_kwargs...
+    model,
+    nfinite,
+    sfinite[nfinite],
+    sfinite[nfinite + 1],
+    sfinite[nfinite + 2];
+    model_kwargs...,
   )
   orthogonalize!(ψfinite, nfinite)
   energy_finite = energy(ψfinite, hnfinite, nfinite)
