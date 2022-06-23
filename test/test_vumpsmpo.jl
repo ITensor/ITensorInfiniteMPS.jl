@@ -3,6 +3,11 @@ using ITensorInfiniteMPS
 using Test
 using Random
 
+function expect_three_site(ψ::MPS, h::ITensor, n::Int)
+  ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
+  return inner(ϕ, (apply(h, ϕ)))
+end
+
 #Ref time is 21.6s with negligible compilation time
 @time @testset "vumpsmpo_ising" begin
   Random.seed!(1234)
@@ -31,15 +36,10 @@ using Random
   energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
   Szs_finite = expect(ψfinite, "Sz")
 
-  function energy(ψ, h, n)
-    ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
-    return inner(ϕ, (apply(h, ϕ)))
-  end
-
   nfinite = Nfinite ÷ 2
   hnfinite = ITensor(model, sfinite[nfinite], sfinite[nfinite + 1]; model_kwargs...)
   orthogonalize!(ψfinite, nfinite)
-  energy_finite = energy(ψfinite, hnfinite, nfinite)
+  energy_finite = expect_three_site(ψfinite, hnfinite, nfinite)
 
   @testset "VUMPS/TDVP with: multisite_update_alg = $multisite_update_alg, conserve_qns = $conserve_qns, nsites = $nsites" for multisite_update_alg in
                                                                                                                                [
@@ -58,7 +58,7 @@ using Random
     )
     subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
-    s = infsiteinds("S=1/2", nsites; initstate, conserve_qns)
+    s = infsiteinds("S=1/2", nsites; initstate, conserve_szparity=conserve_qns)
     ψ = InfMPS(s, initstate)
 
     Hmpo = InfiniteMPOMatrix(model, s; model_kwargs...)
@@ -111,20 +111,15 @@ end
   )
   Szs_finite = expect(ψfinite, "Sz")
 
-  function energy(ψ, h, n)
-    ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
-    return inner(ϕ, apply(h, ϕ))
-  end
-
   nfinite = Nfinite ÷ 2
   hnfinite = ITensor(
     model, sfinite[nfinite], sfinite[nfinite + 1], sfinite[nfinite + 2]; model_kwargs...
   )
   orthogonalize!(ψfinite, nfinite)
-  energy_finite = energy(ψfinite, hnfinite, nfinite)
+  energy_finite = expect_three_site(ψfinite, hnfinite, nfinite)
 
   for multisite_update_alg in ["sequential"],
-    conserve_qns in [true],
+    conserve_qns in [true, false],
     nsites in [1, 2],
     time_step in [-Inf]
 
@@ -187,22 +182,17 @@ end
   energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
   Szs_finite = expect(ψfinite, "Sz")
 
-  function energy(ψ, h, n)
-    ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
-    return (noprime(ϕ * h) * dag(ϕ))[]
-  end
-
   nfinite = Nfinite ÷ 2
   hnfinite = ITensor(
     model, sfinite[nfinite], sfinite[nfinite + 1], sfinite[nfinite + 2]; model_kwargs...
   )
   orthogonalize!(ψfinite, nfinite)
-  energy_finite = energy(ψfinite, hnfinite, nfinite)
+  energy_finite = expect_three_site(ψfinite, hnfinite, nfinite)
 
   temp_translatecell(i::Index, n::Integer) = ITensorInfiniteMPS.translatecelltags(i, n)
 
   for multisite_update_alg in ["sequential"],
-    conserve_qns in [true],
+    conserve_qns in [true, false],
     nsite in [1, 2, 3],
     time_step in [-Inf]
 

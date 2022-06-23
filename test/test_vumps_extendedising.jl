@@ -3,6 +3,11 @@ using ITensorInfiniteMPS
 using Test
 using Random
 
+function expect_three_site(ψ::MPS, h::ITensor, n::Int)
+  ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
+  return inner(ϕ, apply(h, ϕ))
+end
+
 @testset "vumps_extended_ising" begin
   Random.seed!(1234)
 
@@ -20,11 +25,6 @@ using Random
   )
   Szs_finite = expect(ψfinite, "Sz")
 
-  function energy(ψ, h, n)
-    ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
-    return inner(ϕ, apply(h, ϕ))
-  end
-
   nfinite = Nfinite ÷ 2
   hnfinite = ITensor(
     model,
@@ -35,7 +35,7 @@ using Random
     model_kwargs...,
   )
   orthogonalize!(ψfinite, nfinite)
-  energy_finite = energy(ψfinite, hnfinite, nfinite)
+  energy_finite = expect_three_site(ψfinite, hnfinite, nfinite)
 
   cutoff = 1e-8
   maxdim = 100

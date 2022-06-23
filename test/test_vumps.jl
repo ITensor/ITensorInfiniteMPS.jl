@@ -3,6 +3,17 @@ using ITensorInfiniteMPS
 using Test
 using Random
 
+function expect_two_site(ψ1::ITensor, ψ2::ITensor, h::ITensor)
+  ϕ = ψ1 * ψ2
+  return inner(ϕ, apply(h, ϕ))
+end
+
+expect_two_site(ψ1::ITensor, ψ2::ITensor, h::MPO) = expect_two_site(ψ1, ψ2, contract(h))
+
+function expect(ψ::ITensor, o::String)
+  return inner(ψ, apply(op(o, filterinds(ψ, "Site")...), ψ))
+end
+
 @testset "vumps" begin
   Random.seed!(1234)
 
@@ -77,29 +88,18 @@ using Random
     ## @test contract(ψ.AL[1:nsites]..., ψ.C[nsites]) ≈ contract(ψ.C[0], ψ.AR[1:nsites]...) rtol =
     ##   1e-6
 
-    function energy(ψ1, ψ2, h::ITensor)
-      ϕ = ψ1 * ψ2
-      return inner(ϕ, apply(h, ϕ))
-    end
-
-    energy(ψ1, ψ2, h::MPO) = energy(ψ1, ψ2, contract(h))
-
-    function expect(ψ, o)
-      return inner(ψ, apply(op(o, filterinds(ψ, "Site")...), ψ))
-    end
-
     nfinite = Nfinite ÷ 2
     hnfinite1 = ITensor(model, sfinite[nfinite], sfinite[nfinite + 1]; model_kwargs...)
     hnfinite2 = ITensor(model, sfinite[nfinite + 1], sfinite[nfinite + 2]; model_kwargs...)
 
     orthogonalize!(ψfinite, nfinite)
-    energy1_finite = energy(ψfinite[nfinite], ψfinite[nfinite + 1], hnfinite1)
+    energy1_finite = expect_two_site(ψfinite[nfinite], ψfinite[nfinite + 1], hnfinite1)
 
     orthogonalize!(ψfinite, nfinite + 1)
-    energy2_finite = energy(ψfinite[nfinite + 1], ψfinite[nfinite + 2], hnfinite2)
+    energy2_finite = expect_two_site(ψfinite[nfinite + 1], ψfinite[nfinite + 2], hnfinite2)
 
-    energy1_infinite = energy(ψ.AL[1], ψ.AL[2] * ψ.C[2], H[(1, 2)])
-    energy2_infinite = energy(ψ.AL[2], ψ.AL[3] * ψ.C[3], H[(2, 3)])
+    energy1_infinite = expect_two_site(ψ.AL[1], ψ.AL[2] * ψ.C[2], H[(1, 2)])
+    energy2_infinite = expect_two_site(ψ.AL[2], ψ.AL[3] * ψ.C[3], H[(2, 3)])
 
     orthogonalize!(ψfinite, nfinite)
     Sz1_finite = expect(ψfinite[nfinite], "Sz")
@@ -179,27 +179,18 @@ end
     ## @test contract(ψ.AL[1:nsites]..., ψ.C[nsites]) ≈ contract(ψ.C[0], ψ.AR[1:nsites]...) rtol =
     ##   1e-6
 
-    function energy(ψ1, ψ2, h)
-      ϕ = ψ1 * ψ2
-      return (noprime(ϕ * h) * dag(ϕ))[]
-    end
-
-    function expect(ψ, o)
-      return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
-    end
-
     nfinite = Nfinite ÷ 2
     hnfinite1 = ITensor(model, sfinite[nfinite], sfinite[nfinite + 1]; model_kwargs...)
     hnfinite2 = ITensor(model, sfinite[nfinite + 1], sfinite[nfinite + 2]; model_kwargs...)
 
     orthogonalize!(ψfinite, nfinite)
-    energy1_finite = energy(ψfinite[nfinite], ψfinite[nfinite + 1], hnfinite1)
+    energy1_finite = expect_two_site(ψfinite[nfinite], ψfinite[nfinite + 1], hnfinite1)
 
     orthogonalize!(ψfinite, nfinite + 1)
-    energy2_finite = energy(ψfinite[nfinite + 1], ψfinite[nfinite + 2], hnfinite2)
+    energy2_finite = expect_two_site(ψfinite[nfinite + 1], ψfinite[nfinite + 2], hnfinite2)
 
-    energy1_infinite = energy(ψ.AL[1], ψ.AL[2] * ψ.C[2], prod(H[(1, 2)]))
-    energy2_infinite = energy(ψ.AL[2], ψ.AL[3] * ψ.C[3], prod(H[(2, 3)]))
+    energy1_infinite = expect_two_site(ψ.AL[1], ψ.AL[2] * ψ.C[2], prod(H[(1, 2)]))
+    energy2_infinite = expect_two_site(ψ.AL[2], ψ.AL[3] * ψ.C[3], prod(H[(2, 3)]))
 
     orthogonalize!(ψfinite, nfinite)
     Sz1_finite = expect(ψfinite[nfinite], "Sz")
