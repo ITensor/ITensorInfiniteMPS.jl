@@ -10,7 +10,7 @@ end
 
 expect_two_site(ψ1::ITensor, ψ2::ITensor, h::MPO) = expect_two_site(ψ1, ψ2, contract(h))
 
-function expect(ψ::ITensor, o::String)
+function expect_one_site(ψ::ITensor, o::String)
   return inner(ψ, apply(op(o, filterinds(ψ, "Site")...), ψ))
 end
 
@@ -102,13 +102,13 @@ end
     energy2_infinite = expect_two_site(ψ.AL[2], ψ.AL[3] * ψ.C[3], H[(2, 3)])
 
     orthogonalize!(ψfinite, nfinite)
-    Sz1_finite = expect(ψfinite[nfinite], "Sz")
+    Sz1_finite = expect_one_site(ψfinite[nfinite], "Sz")
 
     orthogonalize!(ψfinite, nfinite + 1)
-    Sz2_finite = expect(ψfinite[nfinite + 1], "Sz")
+    Sz2_finite = expect_one_site(ψfinite[nfinite + 1], "Sz")
 
-    Sz1_infinite = expect(ψ.AL[1] * ψ.C[1], "Sz")
-    Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
+    Sz1_infinite = expect_one_site(ψ.AL[1] * ψ.C[1], "Sz")
+    Sz2_infinite = expect_one_site(ψ.AL[2] * ψ.C[2], "Sz")
 
     @test energy1_finite ≈ energy1_infinite rtol = 1e-4
     @test energy2_finite ≈ energy2_infinite rtol = 1e-4
@@ -193,13 +193,13 @@ end
     energy2_infinite = expect_two_site(ψ.AL[2], ψ.AL[3] * ψ.C[3], prod(H[(2, 3)]))
 
     orthogonalize!(ψfinite, nfinite)
-    Sz1_finite = expect(ψfinite[nfinite], "Sz")
+    Sz1_finite = expect_one_site(ψfinite[nfinite], "Sz")
 
     orthogonalize!(ψfinite, nfinite + 1)
-    Sz2_finite = expect(ψfinite[nfinite + 1], "Sz")
+    Sz2_finite = expect_one_site(ψfinite[nfinite + 1], "Sz")
 
-    Sz1_infinite = expect(ψ.AL[1] * ψ.C[1], "Sz")
-    Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
+    Sz1_infinite = expect_one_site(ψ.AL[1] * ψ.C[1], "Sz")
+    Sz2_infinite = expect_one_site(ψ.AL[2] * ψ.C[2], "Sz")
 
     @test energy1_finite ≈ energy1_infinite rtol = 1e-4
     @test energy2_finite ≈ energy2_infinite rtol = 1e-4
