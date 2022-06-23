@@ -94,7 +94,7 @@ nfinite = Nfinite ÷ 2
 orthogonalize!(ψfinite, nfinite)
 hnfinite = ITensor(model, sfinite[nfinite], sfinite[nfinite + 1]; model_params...)
 energy_finite = energy_local(ψfinite[nfinite], ψfinite[nfinite + 1], hnfinite)
-energy_infinite = energy_local(ψ.AL[1], ψ.AL[2] * ψ.C[2], H[(1, 2)])
+energy_infinite = energy_local(ψ.AL[1], ψ.AL[2] * ψ.C[2], contract(H[(1, 2)]))
 @show energy_finite, energy_infinite
 @show abs(energy_finite - energy_infinite)
 
@@ -115,7 +115,7 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 #
 
 using Arpack
-using KrylovKit
+using KrylovKit: eigsolve
 using LinearAlgebra
 
 T = TransferMatrix(ψ.AL)
@@ -138,7 +138,7 @@ tol = 1e-10
 neigs = length(v⃗ᴿ)
 
 # Normalize the vectors
-N⃗ = [(translatecell(v⃗ᴸ[n], 1) * v⃗ᴿ[n])[] for n in 1:neigs]
+N⃗ = [(translatecelltags(v⃗ᴸ[n], 1) * v⃗ᴿ[n])[] for n in 1:neigs]
 
 v⃗ᴿ ./= sqrt.(N⃗)
 v⃗ᴸ ./= sqrt.(N⃗)
@@ -152,18 +152,19 @@ function proj(v⃗ᴸ, v⃗ᴿ, n)
   Lⁿ = v⃗ᴸ[n]
   Rⁿ = v⃗ᴿ[n]
   return ITensorMap(
-    [translatecell(Lⁿ, 1), translatecell(Rⁿ, -1)]; input_inds=inds(Rⁿ), output_inds=inds(Lⁿ)
+    [translatecelltags(Lⁿ, 1), translatecelltags(Rⁿ, -1)]; input_inds=inds(Rⁿ), output_inds=inds(Lⁿ)
   )
 end
 
 P⃗ = [proj(v⃗ᴸ, v⃗ᴿ, n) for n in 1:neigs]
 T⁻P = T - sum(P⃗)
 
-#vⁱᴿ² = vⁱᴿ - (translatecell(v⃗ᴸ[1], 1) * vⁱᴿ)[] / norm(v⃗ᴿ[1]) * v⃗ᴿ[1]
+#vⁱᴿ² = vⁱᴿ - (translatecelltags(v⃗ᴸ[1], 1) * vⁱᴿ)[] / norm(v⃗ᴿ[1]) * v⃗ᴿ[1]
 #@show norm(dag(vⁱᴿ²) * v⃗ᴿ[1])
 
-λ⃗ᴾᴿ, v⃗ᴾᴿ, right_info = eigsolve(T⁻P, vⁱᴿ, neigs, :LM; tol=tol)
-@show λ⃗ᴾᴿ
+# XXX: Error with mismatched QN index arrows
+# λ⃗ᴾᴿ, v⃗ᴾᴿ, right_info = eigsolve(T⁻P, vⁱᴿ, neigs, :LM; tol=tol)
+# @show λ⃗ᴾᴿ
 
 vⁱᴿ⁻ᵈᵃᵗᵃ = vec(array(vⁱᴿ))
 λ⃗ᴿᴬ, v⃗ᴿ⁻ᵈᵃᵗᵃ = Arpack.eigs(T; v0=vⁱᴿ⁻ᵈᵃᵗᵃ, nev=neigs)

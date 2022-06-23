@@ -183,6 +183,10 @@ function ITensors.ITensor(model::Model, s::Vector{<:Index}, n::Int; kwargs...)
   return contract(MPO(opsum, [s...]))
 end
 
+function ITensors.ITensor(model::Model, s::Vector{<:Index}; kwargs...)
+  return ITensor(model, s, 1; kwargs...)
+end
+
 function ITensors.ITensor(model::Model, n::Int, s::Index...; kwargs...)
   return ITensor(model, [s...], n; kwargs...)
 end

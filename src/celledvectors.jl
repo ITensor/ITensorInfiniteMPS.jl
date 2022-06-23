@@ -67,8 +67,9 @@ function translatecell(translator::Function, is::Union{<:Tuple,<:Vector}, n::Int
   return translatecell.(translator, is, n)
 end
 
-#Default behavior
-#translatecell(T::ITensor, n::Integer) = ITensors.setinds(T, translatecell(inds(T), n))
+# Default behavior
+translatecelltags(T::ITensor, n::Integer) = translatecell(translatecelltags, T, n)
+translatecelltags(T::ITensors.Indices, n::Integer) = translatecell(translatecelltags, T, n)
 #translatecell(T::MPO, n::Integer) = translatecell.(T, n)
 #translatecell(T::Matrix{ITensor}, n::Integer) = translatecell.(T, n)
 

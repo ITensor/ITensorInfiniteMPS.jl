@@ -6,7 +6,7 @@ function unit_cell_terms(::Model"hubbard"; t, U, V)
   opsum += -t, "Cdagdn", 2, "Cdn", 1
   opsum += U, "Nupdn", 1
   opsum += V, "Ntot", 1, "Ntot", 2
-  return opsum
+  return [opsum]
 end
 
 """

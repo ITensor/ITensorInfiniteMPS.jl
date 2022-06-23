@@ -206,12 +206,20 @@ end
 
 # TODO: return a Dictionary or IndexSetNetwork?
 function ITensors.siteinds(ψ::AbstractInfiniteMPS, r::AbstractRange)
-  return [siteinds(ψ, n) for n in r]
+  return [siteind(ψ, n) for n in r]
 end
 
-siterange(ψ::AbstractInfiniteMPS, c::Cell) = 1:(nsites(ψ) .+ (c.cell - 1))
+function siterange(ψ::AbstractInfiniteMPS, c::Cell)
+  #1:(nsites(ψ) .+ (c.cell - 1))
+  start = nsites(ψ) * (c.cell - 1) + 1
+  stop = start + nsites(ψ) - 1
+  return start:stop
+end
 
 ITensors.siteinds(ψ::AbstractInfiniteMPS, c::Cell) = siteinds(ψ, siterange(ψ, c))
+
+ITensors.siteinds(ψ::AbstractInfiniteMPS) = CelledVector(siteinds(ψ, Cell(1)), translator(ψ))
+infsiteinds(ψ::AbstractInfiniteMPS) = siteinds(ψ)
 
 Base.getindex(ψ::AbstractInfiniteMPS, r::UnitRange{Int}) = MPS([ψ[n] for n in r])
 

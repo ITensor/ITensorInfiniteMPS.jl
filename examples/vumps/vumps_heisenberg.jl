@@ -37,11 +37,11 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 ψ = vumps(H, ψ; vumps_kwargs...)
 
 # Alternate steps of running VUMPS and increasing the bond dimension
-for _ in 1:outer_iters
+@time for _ in 1:outer_iters
   println("\nIncrease bond dimension")
-  global ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
+  global ψ = @time subspace_expansion(ψ, H; subspace_expansion_kwargs...)
   println("Run VUMPS with new bond dimension")
-  global ψ = vumps(H, ψ; vumps_kwargs...)
+  global ψ = @time vumps(H, ψ; vumps_kwargs...)
 end
 
 # Check translational invariance
