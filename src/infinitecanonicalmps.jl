@@ -1,5 +1,7 @@
 # TODO: Move to ITensors.jl
-setval(qnval::ITensors.QNVal, val::Int) = ITensors.QNVal(ITensors.name(qnval), val, ITensors.modulus(qnval))
+function setval(qnval::ITensors.QNVal, val::Int)
+  return ITensors.QNVal(ITensors.name(qnval), val, ITensors.modulus(qnval))
+end
 
 # TODO: Move to ITensors.jl
 function Base.:/(qnval::ITensors.QNVal, n::Int)
@@ -36,9 +38,15 @@ function shift_flux_to_zero(s::Vector{<:Index}, initstate::Function)
   return shift_flux_to_zero(s, flux(MPS(s, initstate)))
 end
 
-shift_flux(qnblock::Pair{QN,Int}, flux_density::QN) = ((ITensors.qn(qnblock) - flux_density) => ITensors.blockdim(qnblock))
-shift_flux(space::Vector{Pair{QN,Int}}, flux_density::QN) = map(qnblock -> shift_flux(qnblock, flux_density), space)
-shift_flux(i::Index, flux_density::QN) = ITensors.setspace(i, shift_flux(space(i), flux_density))
+function shift_flux(qnblock::Pair{QN,Int}, flux_density::QN)
+  return ((ITensors.qn(qnblock) - flux_density) => ITensors.blockdim(qnblock))
+end
+function shift_flux(space::Vector{Pair{QN,Int}}, flux_density::QN)
+  return map(qnblock -> shift_flux(qnblock, flux_density), space)
+end
+function shift_flux(i::Index, flux_density::QN)
+  return ITensors.setspace(i, shift_flux(space(i), flux_density))
+end
 
 function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
   if iszero(flux)
@@ -49,7 +57,9 @@ function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
   return map(sₙ -> shift_flux(sₙ, flux_density), s)
 end
 
-function infsiteinds(site_tag, n::Int; translator=translatecelltags, initstate=nothing, kwargs...)
+function infsiteinds(
+  site_tag, n::Int; translator=translatecelltags, initstate=nothing, kwargs...
+)
   s = siteinds(site_tag, n; kwargs...)
   s = shift_flux_to_zero(s, initstate)
   return infsiteinds(s, translator)

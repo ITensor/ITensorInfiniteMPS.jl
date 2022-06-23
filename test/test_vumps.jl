@@ -6,16 +6,8 @@ using Random
 @testset "vumps" begin
   Random.seed!(1234)
 
-  model = Model"ising"()
+  model = Model("ising")
   model_kwargs = (J=1.0, h=1.1)
-
-  function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
-    if conserve_qns
-      return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-    else
-      return [QN() => 2]
-    end
-  end
 
   # VUMPS arguments
   cutoff = 1e-8
@@ -31,10 +23,10 @@ using Random
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
   ψfinite = randomMPS(sfinite, initstate)
-  sweeps = Sweeps(20)
-  setmaxdim!(sweeps, 10)
-  setcutoff!(sweeps, 1E-10)
-  energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
+  nsweeps = 20
+  energy_finite_total, ψfinite = dmrg(
+    Hfinite, ψfinite; nsweeps, maxdims=10, cutoff=1e-10, outputlevel=0
+  )
 
   @testset "VUMPS/TDVP with: multisite_update_alg = $multisite_update_alg, conserve_qns = $conserve_qns, nsites = $nsites, time_step = $time_step, localham_type = $localham_type" for multisite_update_alg in
                                                                                                                                                                                        [
@@ -45,20 +37,19 @@ using Random
     time_step in [-Inf, -0.5],
     localham_type in [ITensor, MPO]
 
-    # ITensor VUMPS currently broken for unit cells > 2
     if (localham_type == ITensor) && (nsites > 2)
+      # ITensor VUMPS currently broken for unit cells > 2
+      continue
+    end
+
+    if nsites > 1 && isodd(nsites) && conserve_qns
+      # Odd site greater than 1 not commensurate with conserving parity
       continue
     end
 
     @show localham_type
 
-    #if conserve_qns
-    # Flux density is inconsistent for odd unit cells
-    #  isodd(nsites) && continue
-    #end
-
-    space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsites)
-    s = infsiteinds("S=1/2", nsites; space=space_)
+    s = infsiteinds("S=1/2", nsites; initstate, conserve_szparity=conserve_qns)
     ψ = InfMPS(s, initstate)
 
     # Form the Hamiltonian
@@ -94,7 +85,7 @@ using Random
     energy(ψ1, ψ2, h::MPO) = energy(ψ1, ψ2, contract(h))
 
     function expect(ψ, o)
-      return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
+      return inner(ψ, apply(op(o, filterinds(ψ, "Site")...), ψ))
     end
 
     nfinite = Nfinite ÷ 2
@@ -129,18 +120,10 @@ end
 @testset "vumps_ising_translator" begin
   Random.seed!(1234)
 
-  model = Model"ising"()
+  model = Model("ising")
   model_kwargs = (J=1.0, h=1.1)
 
-  function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
-    if conserve_qns
-      return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-    else
-      return [QN() => 2]
-    end
-  end
-
-  #Not a correct and valid Hamiltonian #nned to think about a good test (or just import Laughlin 13)
+  #Not a correct and valid Hamiltonian need to think about a good test (or just import Laughlin 13)
   temp_translatecell(i::Index, n::Integer) = ITensorInfiniteMPS.translatecelltags(i, n)
 
   # VUMPS arguments
@@ -157,19 +140,18 @@ end
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
   ψfinite = randomMPS(sfinite, initstate)
-  sweeps = Sweeps(20)
-  setmaxdim!(sweeps, 10)
-  setcutoff!(sweeps, 1E-10)
-  energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
+  nsweeps = 20
+  energy_finite_total, ψfinite = dmrg(
+    Hfinite, ψfinite; nsweeps, maxdims=10, cutoff=1e-10outputlevel = 0
+  )
 
   multisite_update_alg = "sequential"
   conserve_qns = true
   time_step = -Inf
 
   for nsite in 1:3
-    space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsite)
-    s_bis = infsiteinds("S=1/2", nsite; space=space_)
-    s = infsiteinds("S=1/2", nsite; space=space_, translator=temp_translatecell)
+    s_bis = infsiteinds("S=1/2", nsite; initstate)
+    s = infsiteinds("S=1/2", nsite; initstate, translator=temp_translatecell)
     ψ = InfMPS(s, initstate)
 
     # Form the Hamiltonian

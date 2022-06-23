@@ -7,16 +7,16 @@ using Random
 @time @testset "vumpsmpo_ising" begin
   Random.seed!(1234)
 
-  model = Model"ising"()
+  model = Model("ising")
   model_kwargs = (J=1.0, h=1.2)
 
-  function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
-    if conserve_qns
-      return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-    else
-      return [QN() => 2]
-    end
-  end
+  ## function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
+  ##   if conserve_qns
+  ##     return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
+  ##   else
+  ##     return [QN() => 2]
+  ##   end
+  ## end
 
   # VUMPS arguments
   cutoff = 1e-8
@@ -32,6 +32,7 @@ using Random
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
   ψfinite = randomMPS(sfinite, initstate)
+
   sweeps = Sweeps(20)
   setmaxdim!(sweeps, 10)
   setcutoff!(sweeps, 1E-10)
@@ -40,7 +41,7 @@ using Random
 
   function energy(ψ, h, n)
     ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
-    return (noprime(ϕ * h) * dag(ϕ))[]
+    return inner(ϕ, (apply(h, ϕ)))
   end
 
   nfinite = Nfinite ÷ 2
@@ -65,8 +66,7 @@ using Random
     )
     subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
-    space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsites)
-    s = infsiteinds("S=1/2", nsites; space=space_)
+    s = infsiteinds("S=1/2", nsites; initstate, conserve_qns)
     ψ = InfMPS(s, initstate)
 
     Hmpo = InfiniteMPOMatrix(model, s; model_kwargs...)
@@ -121,10 +121,10 @@ end
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
   ψfinite = randomMPS(sfinite, initstate)
-  sweeps = Sweeps(20)
-  setmaxdim!(sweeps, 10)
-  setcutoff!(sweeps, 1E-10)
-  energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
+  nsweeps = 20
+  energy_finite_total, ψfinite = dmrg(
+    Hfinite, ψfinite; nsweeps, maxdims=10, cutoff=1e-10, outputlevel=0
+  )
   Szs_finite = expect(ψfinite, "Sz")
 
   function energy(ψ, h, n)

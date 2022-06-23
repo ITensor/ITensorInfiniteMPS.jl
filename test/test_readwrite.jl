@@ -4,15 +4,10 @@ using ITensorInfiniteMPS.HDF5
 using Test
 
 @testset "HDF5 Read and Write" begin
-  function space_shifted(::Model"ising", q̃sz)
-    return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-  end
-
   N = 2
-  model = Model"ising"()
-  space_ = fill(space_shifted(model, 0), N)
-  s = infsiteinds("S=1/2", N; space=space_)
+  model = Model("ising")
   initstate(n) = "↑"
+  s = infsiteinds("S=1/2", N; initstate)
   ψ = InfMPS(s, initstate)
 
   @testset "InfiniteCanonicalMPS" begin

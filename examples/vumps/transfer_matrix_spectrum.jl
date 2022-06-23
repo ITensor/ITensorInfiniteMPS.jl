@@ -45,7 +45,9 @@ vumps_kwargs = (
 )
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
-ψ = tdvp_subspace_expansion(H, ψ; time_step, outer_iters, subspace_expansion_kwargs, vumps_kwargs)
+ψ = tdvp_subspace_expansion(
+  H, ψ; time_step, outer_iters, subspace_expansion_kwargs, vumps_kwargs
+)
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
