@@ -10,14 +10,6 @@ using Random
   model = Model("ising")
   model_kwargs = (J=1.0, h=1.2)
 
-  ## function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
-  ##   if conserve_qns
-  ##     return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-  ##   else
-  ##     return [QN() => 2]
-  ##   end
-  ## end
-
   # VUMPS arguments
   cutoff = 1e-8
   maxdim = 20
@@ -99,14 +91,6 @@ end
   model = Model"ising_extended"()
   model_kwargs = (J=1.0, h=1.1, J₂=0.2)
 
-  function space_shifted(::Model"ising_extended", q̃sz; conserve_qns=true)
-    if conserve_qns
-      return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-    else
-      return [QN() => 2]
-    end
-  end
-
   # VUMPS arguments
   cutoff = 1e-8
   maxdim = 20
@@ -129,7 +113,7 @@ end
 
   function energy(ψ, h, n)
     ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
-    return (noprime(ϕ * h) * dag(ϕ))[]
+    return inner(ϕ, apply(h, ϕ))
   end
 
   nfinite = Nfinite ÷ 2
@@ -153,8 +137,7 @@ end
     )
     subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
-    space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsites)
-    s = infsiteinds("S=1/2", nsites; space=space_)
+    s = infsiteinds("S=1/2", nsites; conserve_szparity=conserve_qns, initstate)
     ψ = InfMPS(s, initstate)
 
     Hmpo = InfiniteMPOMatrix(model, s; model_kwargs...)
@@ -181,16 +164,8 @@ end
 @testset "vumpsmpo_extendedising_translator" begin
   Random.seed!(1234)
 
-  model = Model"ising_extended"()
+  model = Model("ising_extended")
   model_kwargs = (J=1.0, h=1.1, J₂=0.2)
-
-  function space_shifted(::Model"ising_extended", q̃sz; conserve_qns=true)
-    if conserve_qns
-      return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-    else
-      return [QN() => 2]
-    end
-  end
 
   # VUMPS arguments
   cutoff = 1e-8
@@ -240,9 +215,14 @@ end
     )
     subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
-    space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsite)
-    s_bis = infsiteinds("S=1/2", nsite; space=space_)
-    s = infsiteinds("S=1/2", nsite; space=space_, translator=temp_translatecell)
+    s_bis = infsiteinds("S=1/2", nsite; conserve_szparity=conserve_qns, initstate)
+    s = infsiteinds(
+      "S=1/2",
+      nsite;
+      conserve_szparity=conserve_qns,
+      initstate,
+      translator=temp_translatecell,
+    )
     ψ = InfMPS(s, initstate)
 
     Hmpo = InfiniteMPOMatrix(model, s; model_kwargs...)
