@@ -3,22 +3,26 @@ using ITensorInfiniteMPS
 using Test
 using Random
 
+function ITensors.space(::SiteType"FermionK", pos::Int; p=1, q=1, conserve_momentum=true)
+  if !conserve_momentum
+    return [QN("Nf", -p) => 1, QN("Nf", q - p) => 1]
+  else
+    return [
+      QN(("Nf", -p), ("NfMom", -p * pos)) => 1,
+      QN(("Nf", q - p), ("NfMom", (q - p) * pos)) => 1,
+    ]
+  end
+end
+
+# Forward all op definitions to Fermion
+function ITensors.op!(Op::ITensor, opname::OpName, ::SiteType"FermionK", s::Index...)
+  return ITensors.op!(Op, opname, SiteType("Fermion"), s...)
+end
+
 #Currently, VUMPS cannot give the right result as the subspace expansion is too small
 #This is meant to test the generalized translation rules
 @time @testset "vumpsmpo_fqhe" begin
   Random.seed!(1234)
-
-  function fermions_space_shift(pos; p=1, q=1, conserve_momentum=true, momentum_shift=1)
-    if !conserve_momentum
-      return [QN("Nf", -p) => 1, QN("Nf", q - p) => 1]
-    else
-      return [
-        QN(("Nf", -p), ("NfMom", -p * pos + momentum_shift)) => 1,
-        QN(("Nf", q - p), ("NfMom", (q - p) * pos + momentum_shift)) => 1,
-      ]
-    end
-  end
-
   function initstate(n)
     if mod(n, 3) == 1
       return 2
@@ -35,7 +39,7 @@ using Random
   outer_iters = 1
 
   #### Test 1/3
-  model = Model"fqhe_2b_pot"()
+  model = Model("fqhe_2b_pot")
   model_kwargs = (Ly=3.0, Vs=[1.0], prec=1e-6) #parent Hamiltonian of Laughlin 13
   p = 1
   q = 3
@@ -52,14 +56,14 @@ using Random
     nsites in [6],
     time_step in [-Inf]
 
-    vumps_kwargs = (
-      multisite_update_alg=multisite_update_alg,
-      tol=tol,
-      maxiter=maxiter,
+    vumps_kwargs = (;
+      multisite_update_alg,
+      tol,
+      maxiter,
       outputlevel=0,
-      time_step=time_step,
+      time_step,
     )
-    subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
+    subspace_expansion_kwargs = (; cutoff, maxdim)
 
     function fermion_momentum_translator(i::Index, n::Integer; N=nsites)
       ts = tags(i)
@@ -75,13 +79,8 @@ using Random
       return new_i
     end
 
-    fermionic_space = [
-      fermions_space_shift(
-        x; p=p, q=q, conserve_momentum=conserve_momentum, momentum_shift=momentum_shift
-      ) for x in 1:nsites
-    ]
     s = infsiteinds(
-      "Fermion", nsites; space=fermionic_space, translator=fermion_momentum_translator
+      "FermionK", nsites; initstate, translator=fermion_momentum_translator, p, q, conserve_momentum
     )
     ψ = InfMPS(s, initstate)
 
