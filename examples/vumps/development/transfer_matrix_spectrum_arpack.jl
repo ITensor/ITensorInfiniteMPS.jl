@@ -23,7 +23,7 @@ model_params = (J=1.0, h=0.9)
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
 #
 
-model = Model("ising")
+model = Model"ising"()
 
 function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
   if conserve_qns
@@ -114,6 +114,7 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 # Compute eigenspace of the transfer matrix
 #
 
+using Arpack
 using KrylovKit: eigsolve
 using LinearAlgebra
 
@@ -142,11 +143,48 @@ N⃗ = [(translatecelltags(v⃗ᴸ[n], 1) * v⃗ᴿ[n])[] for n in 1:neigs]
 v⃗ᴿ ./= sqrt.(N⃗)
 v⃗ᴸ ./= sqrt.(N⃗)
 
-# Compare to full eigendecomposition
-# Note the this obtains eigenvectors from all QN
-# sectors so will include vectors not found by
-# `eigsolve` above, which only includes eigenvectors
-# in the trivial QN sector.
+# Form a second starting vector orthogonal to v⃗ᴿ[1]
+# This doesn't work. TODO: project out v⃗ᴿ[1], v⃗ᴸ[1] from T
+#λ⃗ᴿ², v⃗ᴿ², right_info_2 = eigsolve(T, vⁱᴿ², neigs, :LM; tol=tol)
+
+# Projector onto the n-th eigenstate
+function proj(v⃗ᴸ, v⃗ᴿ, n)
+  Lⁿ = v⃗ᴸ[n]
+  Rⁿ = v⃗ᴿ[n]
+  return ITensorMap(
+    [translatecelltags(Lⁿ, 1), translatecelltags(Rⁿ, -1)];
+    input_inds=inds(Rⁿ),
+    output_inds=inds(Lⁿ),
+  )
+end
+
+P⃗ = [proj(v⃗ᴸ, v⃗ᴿ, n) for n in 1:neigs]
+T⁻P = T - sum(P⃗)
+
+#vⁱᴿ² = vⁱᴿ - (translatecelltags(v⃗ᴸ[1], 1) * vⁱᴿ)[] / norm(v⃗ᴿ[1]) * v⃗ᴿ[1]
+#@show norm(dag(vⁱᴿ²) * v⃗ᴿ[1])
+
+# XXX: Error with mismatched QN index arrows
+# λ⃗ᴾᴿ, v⃗ᴾᴿ, right_info = eigsolve(T⁻P, vⁱᴿ, neigs, :LM; tol=tol)
+# @show λ⃗ᴾᴿ
+
+vⁱᴿ⁻ᵈᵃᵗᵃ = vec(array(vⁱᴿ))
+λ⃗ᴿᴬ, v⃗ᴿ⁻ᵈᵃᵗᵃ = Arpack.eigs(T; v0=vⁱᴿ⁻ᵈᵃᵗᵃ, nev=neigs)
+
+## XXX: this is giving an error about trying to set the element of the wrong QN block for:
+## maxdim = 5
+## cutoff = 1e-12
+## max_vumps_iters = 10
+## outer_iters = 10
+## model_params = (J=1.0, h=0.8)
+##
+## v⃗ᴿᴬ = [itensor(v⃗ᴿ⁻ᵈᵃᵗᵃ[:, n], input_inds(T); tol=1e-4) for n in 1:length(λ⃗ᴿᴬ)]
+## @show flux.(v⃗ᴿᴬ)
+
+@show λ⃗ᴿᴬ
+
+# Full eigendecomposition
+
 Tfull = prod(T)
 DV = eigen(Tfull, input_inds(T), output_inds(T))
 
@@ -157,3 +195,6 @@ d = diag(array(DV.D))
 p = sortperm(d; by=abs, rev=true)
 @show p[1:neigs]
 @show d[p[1:neigs]]
+
+println("Error if ED with Arpack")
+@show d[p[1:neigs]] - λ⃗ᴿᴬ

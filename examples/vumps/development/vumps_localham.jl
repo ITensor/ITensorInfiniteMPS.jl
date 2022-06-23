@@ -4,8 +4,6 @@ using Random
 
 Random.seed!(1234)
 
-include("models.jl")
-
 function _siteind(site_tag, n::Int; space)
   return addtags(Index(space, "Site,n=$n"), site_tag)
 end

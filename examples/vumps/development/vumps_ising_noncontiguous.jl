@@ -70,7 +70,7 @@ Sz_finite = expect(ψfinite, "Sz")[nfinite:(nfinite + N - 1)]
 @show (
   energy_infinite,
   energy_finite_total / Nfinite,
-  reference(model, Observable("energy"); J=J, h=h, J₂=J₂),
+  reference(model, Observable("energy"); J=J, h=h),
 )
 
 @show (Sz, Sz_finite)
