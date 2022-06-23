@@ -80,7 +80,13 @@ end
     end
 
     s = infsiteinds(
-      "FermionK", nsites; initstate, translator=fermion_momentum_translator, p, q, conserve_momentum
+      "FermionK",
+      nsites;
+      initstate,
+      translator=fermion_momentum_translator,
+      p,
+      q,
+      conserve_momentum,
     )
     ψ = InfMPS(s, initstate)
 
