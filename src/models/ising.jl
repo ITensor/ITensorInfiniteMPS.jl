@@ -28,39 +28,3 @@ function reference(::Model"ising_classical", ::Observable"critical_inverse_tempe
   # log1p(x) = log(1 + x)
   return log1p(sqrt(2)) / 2
 end
-
-# function ITensors.MPO(::Model"ising", s; J, h)
-#   N = length(s)
-#   a = OpSum()
-#   for n in 1:(N - 1)
-#     a .+= -J, "X", n, "X", n + 1
-#   end
-#   for n in 1:N
-#     a .+= -h, "Z", n
-#   end
-#   return splitblocks(linkinds, MPO(a, s))
-# end
-# 
-# # H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ
-# function ITensors.OpSum(::Model"ising", n1, n2; J, h)
-#   opsum = OpSum()
-#   if J != 0
-#     opsum += -J, "X", n1, "X", n2
-#   end
-#   if h != 0
-#     opsum += -h / 2, "Z", n1
-#     opsum += -h / 2, "Z", n2
-#   end
-#   return opsum
-# end
-# 
-# # H = -J X₁X₂ - h Z₁
-# # XXX: use `op` instead of `ITensor`
-# function ITensors.ITensor(::Model"ising", s1::Index, s2::Index; J, h)
-#   # -J * op("X", s1) * op("X", s2) - h * op("Z", s1) * op("Id", s2)
-#   opsum = OpSum()
-#   n = 1
-#   opsum += -J, "X", n, "X", n + 1
-#   opsum += -h, "Z", n
-#   return prod(MPO(opsum, [s1, s2]))
-# end

@@ -183,20 +183,3 @@ end
 function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteSum)
   return [expect(ψ, h[j]) for j in 1:nsites(ψ)]
 end
-
-## XXX: Delete
-## # More general siteind that allows specifying
-## # the space
-## function _siteind(site_tag, n::Int; space)
-##   return addtags(Index(space, "Site,n=$n"), site_tag)
-## end
-## 
-## _siteinds(site_tag, N::Int; space) = __siteinds(site_tag, N, space)
-## 
-## function __siteinds(site_tag, N::Int, space::Vector)
-##   return [_siteind(site_tag, n; space=space[n]) for n in 1:N]
-## end
-## 
-## function __siteinds(site_tag, N::Int, space)
-##   return [_siteind(site_tag, n; space=space) for n in 1:N]
-## end

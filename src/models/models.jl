@@ -204,33 +204,3 @@ function ITensors.ITensor(model::Model, s::CelledVector, n::Int64; kwargs...)
   # Deprecated version
   # return contract(MPO(model, s, n; kwargs...))
 end
-
-#
-# Deprecated
-#
-
-#ITensorInfiniteMPS.nrange(model::Model) = 2; #required to keep everything compatible with the current implementation for 2 band models
-
-# Version accepting IndexSet
-# function ITensors.ITensor(model::Model, s::CelledVector, n::Int64; kwargs...)
-#   return prod(MPO(model, s, n; kwargs...)) #modification to allow for more than two sites per term in the Hamiltonians
-# end
-
-# # MPO building version
-# function ITensors.MPO(model::Model, s::CelledVector; kwargs...)
-#   opsum = OpSum(model, nsites(s); kwargs...)
-# 
-#   # @show nrange(ops)
-#   # @show n:(n + nrange(opsum) - 1)
-#   # @show opsum
-# 
-#   # return MPO(opsum, [s[x] for x in n:(n + nrange(opsum) - 1)]) #modification to allow for more than two sites per term in the Hamiltonians
-#   return MPO(opsum, [s[x] for x in ITensors.sites(opsum)]) #modification to allow for more than two sites per term in the Hamiltonians
-# end
-
-# function InfiniteSum{MPO}(model::Model, s::CelledVector; kwargs...)
-#   N = length(s)
-#   # mpos = [MPO(model, s, n; kwargs...) for n in 1:N] #slightly improved version. Note: the current implementation does not really allow for staggered potentials for example
-#   mpo = MPO(model, s; kwargs...)
-#   return InfiniteSum{MPO}([mpo], translator(s))
-# end

@@ -56,13 +56,7 @@ end
     nsites in [6],
     time_step in [-Inf]
 
-    vumps_kwargs = (;
-      multisite_update_alg,
-      tol,
-      maxiter,
-      outputlevel=0,
-      time_step,
-    )
+    vumps_kwargs = (; multisite_update_alg, tol, maxiter, outputlevel=0, time_step)
     subspace_expansion_kwargs = (; cutoff, maxdim)
 
     function fermion_momentum_translator(i::Index, n::Integer; N=nsites)
@@ -80,7 +74,13 @@ end
     end
 
     s = infsiteinds(
-      "FermionK", nsites; initstate, translator=fermion_momentum_translator, p, q, conserve_momentum
+      "FermionK",
+      nsites;
+      initstate,
+      translator=fermion_momentum_translator,
+      p,
+      q,
+      conserve_momentum,
     )
     ψ = InfMPS(s, initstate)
 
