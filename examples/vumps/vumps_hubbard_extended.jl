@@ -1,6 +1,8 @@
 using ITensors
 using ITensorInfiniteMPS
 
+include(joinpath(@__DIR__, "src", "vumps_subspace_expansion.jl"))
+
 ##############################################################################
 # VUMPS parameters
 #
@@ -8,6 +10,7 @@ using ITensorInfiniteMPS
 maxdim = 50 # Maximum bond dimension
 cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at each bond dimension
+vumps_tol = 1e-5
 outer_iters = 5 # Number of times to increase the bond dimension
 localham_type = MPO # or ITensor
 eager = true
@@ -23,18 +26,19 @@ N = 2 # Unit cell size
 @show N
 @show localham_type
 
-function electron_space_shift(q̃nf, q̃sz)
-  return [
-    QN(("Nf", 0 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1,
-    QN(("Nf", 1 - q̃nf, -1), ("Sz", 1 - q̃sz)) => 1,
-    QN(("Nf", 1 - q̃nf, -1), ("Sz", -1 - q̃sz)) => 1,
-    QN(("Nf", 2 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1,
-  ]
-end
+## function electron_space_shift(q̃nf, q̃sz)
+##   return [
+##     QN(("Nf", 0 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1,
+##     QN(("Nf", 1 - q̃nf, -1), ("Sz", 1 - q̃sz)) => 1,
+##     QN(("Nf", 1 - q̃nf, -1), ("Sz", -1 - q̃sz)) => 1,
+##     QN(("Nf", 2 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1,
+##   ]
+## end
+## 
+## electron_space = fill(electron_space_shift(1, 0), N)
 
-electron_space = fill(electron_space_shift(1, 0), N)
-s = infsiteinds("Electron", N; space=electron_space)
 initstate(n) = isodd(n) ? "↑" : "↓"
+s = infsiteinds("Electron", N; initstate)
 ψ = InfMPS(s, initstate)
 
 model = Model"hubbard"()
@@ -48,7 +52,7 @@ println("\nCheck translational invariance of initial infinite MPS")
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
 outputlevel = 1
-vumps_kwargs = (tol=1e-8, maxiter=max_vumps_iters, outputlevel=outputlevel, eager)
+vumps_kwargs = (tol=vumps_tol, maxiter=max_vumps_iters, outputlevel=outputlevel, eager)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
 # For now, to increase the bond dimension you must alternate
@@ -57,14 +61,16 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 # a larger bond dimension)
 
 println("\nRun VUMPS on initial product state, unit cell size $N")
-ψ = @time vumps(H, ψ; vumps_kwargs...)
+ψ = vumps_subspace_expansion(H, ψ; outer_iters, subspace_expansion_kwargs, vumps_kwargs)
 
-@time for _ in 1:outer_iters
-  println("\nIncrease bond dimension")
-  global ψ = @time subspace_expansion(ψ, H; subspace_expansion_kwargs...)
-  println("Run VUMPS with new bond dimension")
-  global ψ = @time vumps(H, ψ; vumps_kwargs...)
-end
+# ψ = @time vumps(H, ψ; vumps_kwargs...)
+# 
+# @time for _ in 1:outer_iters
+#   println("\nIncrease bond dimension")
+#   global ψ = @time subspace_expansion(ψ, H; subspace_expansion_kwargs...)
+#   println("Run VUMPS with new bond dimension")
+#   global ψ = @time vumps(H, ψ; vumps_kwargs...)
+# end
 
 # Check translational invariance
 println("\nCheck translational invariance of optimized infinite MPS")
@@ -108,14 +114,17 @@ Hfinite = MPO(model, sfinite; model_params...)
 ψfinite = randomMPS(sfinite, initstate; linkdims=10)
 println("\nQN sector of starting finite MPS")
 @show flux(ψfinite)
-sweeps = Sweeps(10)
+
+nsweeps = 15
 maxdims =
   min.(maxdim, [2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 32, 32, 50])
 @show maxdims
-setmaxdim!(sweeps, maxdims...)
-setcutoff!(sweeps, cutoff)
+
+## setmaxdim!(sweeps, maxdims...)
+## setcutoff!(sweeps, cutoff)
+
 println("\nRun DMRG on $Nfinite sites")
-energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps)
+energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; nsweeps, maxdims, cutoff)
 println("\nEnergy density")
 @show energy_finite_total / Nfinite
 

@@ -3,13 +3,15 @@ setval(qnval::ITensors.QNVal, val::Int) = ITensors.QNVal(ITensors.name(qnval), v
 
 # TODO: Move to ITensors.jl
 function Base.:/(qnval::ITensors.QNVal, n::Int)
-  return setval(qnval, Int(ITensors.val(qnval) / n))
+  div_val = ITensors.val(qnval) / n
+  if !isinteger(div_val)
+    error("Dividing $qnval by $n, the resulting QN value is not an integer")
+  end
+  return setval(qnval, Int(div_val))
 end
 
 # TODO: Move to ITensors.jl
 function Base.:/(qn::QN, n::Int)
-  @show qn
-  @show n
   return QN(map(qnval -> qnval / n, qn.data))
 end
 

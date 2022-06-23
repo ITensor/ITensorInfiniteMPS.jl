@@ -1,6 +1,8 @@
 using ITensors
 using ITensorInfiniteMPS
 
+include(joinpath(@__DIR__, "src", "vumps_subspace_expansion.jl"))
+
 ##############################################################################
 # VUMPS parameters
 #
@@ -25,17 +27,8 @@ model_params = (J=1.0, h=0.9)
 
 model = Model("ising")
 
-function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
-  if conserve_qns
-    return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-  else
-    return [QN() => 2]
-  end
-end
-
-space_ = fill(space_shifted(model, 0; conserve_qns=conserve_qns), N)
-s = infsiteinds("S=1/2", N; space=space_)
 initstate(n) = "↑"
+s = infsiteinds("S=1/2", N; initstate, conserve_szparity=conserve_qns)
 ψ = InfMPS(s, initstate)
 
 # Form the Hamiltonian
@@ -51,15 +44,8 @@ vumps_kwargs = (
   multisite_update_alg=multisite_update_alg,
 )
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
-#ψ = tdvp(H, ψ; time_step=time_step, vumps_kwargs...)
 
-# Alternate steps of running VUMPS and increasing the bond dimension
-@time for _ in 1:outer_iters
-  println("\nIncrease bond dimension")
-  global ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
-  println("Run VUMPS with new bond dimension")
-  global ψ = tdvp(H, ψ; time_step=time_step, vumps_kwargs...)
-end
+ψ = tdvp_subspace_expansion(H, ψ; time_step, outer_iters, subspace_expansion_kwargs, vumps_kwargs)
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
@@ -69,7 +55,7 @@ end
 #
 
 Nfinite = 100
-sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
+sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=conserve_qns)
 Hfinite = MPO(model, sfinite; model_params...)
 ψfinite = randomMPS(sfinite, initstate)
 @show flux(ψfinite)
@@ -127,6 +113,8 @@ tol = 1e-10
 λ⃗ᴿ, v⃗ᴿ, right_info = eigsolve(T, vⁱᴿ, neigs, :LM; tol=tol)
 λ⃗ᴸ, v⃗ᴸ, left_info = eigsolve(Tᵀ, vⁱᴸ, neigs, :LM; tol=tol)
 
+println("\n##########################################")
+println("Check transfer matrix left and right fixed points")
 @show norm(T(v⃗ᴿ[1]) - λ⃗ᴿ[1] * v⃗ᴿ[1])
 @show norm(Tᵀ(v⃗ᴸ[1]) - λ⃗ᴸ[1] * v⃗ᴸ[1])
 
@@ -134,7 +122,9 @@ tol = 1e-10
 @show λ⃗ᴸ
 @show flux.(v⃗ᴿ)
 
-neigs = length(v⃗ᴿ)
+neigs = min(length(v⃗ᴸ), length(v⃗ᴿ))
+v⃗ᴸ = v⃗ᴸ[1:neigs]
+v⃗ᴿ = v⃗ᴿ[1:neigs]
 
 # Normalize the vectors
 N⃗ = [(translatecelltags(v⃗ᴸ[n], 1) * v⃗ᴿ[n])[] for n in 1:neigs]
@@ -150,6 +140,7 @@ v⃗ᴸ ./= sqrt.(N⃗)
 Tfull = prod(T)
 DV = eigen(Tfull, input_inds(T), output_inds(T))
 
+println("\nCheck full diagonalization on transfer matrix")
 @show norm(Tfull * DV.V - DV.Vt * DV.D)
 
 d = diag(array(DV.D))
