@@ -152,7 +152,9 @@ function proj(v⃗ᴸ, v⃗ᴿ, n)
   Lⁿ = v⃗ᴸ[n]
   Rⁿ = v⃗ᴿ[n]
   return ITensorMap(
-    [translatecelltags(Lⁿ, 1), translatecelltags(Rⁿ, -1)]; input_inds=inds(Rⁿ), output_inds=inds(Lⁿ)
+    [translatecelltags(Lⁿ, 1), translatecelltags(Rⁿ, -1)];
+    input_inds=inds(Rⁿ),
+    output_inds=inds(Lⁿ),
   )
 end
 
