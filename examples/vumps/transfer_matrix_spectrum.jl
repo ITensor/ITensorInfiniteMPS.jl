@@ -69,11 +69,11 @@ energy_finite_total, ψfinite = @time dmrg(Hfinite, ψfinite, sweeps)
 
 function energy_local(ψ1, ψ2, h)
   ϕ = ψ1 * ψ2
-  return (noprime(ϕ * h) * dag(ϕ))[]
+  return inner(ϕ, apply(h, ϕ))
 end
 
-function ITensors.expect(ψ, o)
-  return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
+function ITensors.expect(ψ::ITensor, o::String)
+  return inner(ψ, apply(op(o, filterinds(ψ, "Site")...), ψ))
 end
 
 # Exact energy at criticality: 4/pi = 1.2732395447351628

@@ -42,18 +42,14 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 println("\nCheck translation invariance of the final VUMPS state")
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
-function ITensors.expect(ψ::InfiniteCanonicalMPS, o, n)
-  return (noprime(ψ.AL[n] * ψ.C[n] * op(o, s[n])) * dag(ψ.AL[n] * ψ.C[n]))[]
-end
-
 function expect_two_site(ψ::InfiniteCanonicalMPS, h::ITensor, n1n2)
   n1, n2 = n1n2
   ϕ = ψ.AL[n1] * ψ.AL[n2] * ψ.C[n2]
-  return (noprime(ϕ * h) * dag(ϕ))[]
+  return inner(ϕ, apply(h, ϕ))
 end
 
 function expect_two_site(ψ::InfiniteCanonicalMPS, h::MPO, n1n2)
-  return expect_two_site(ψ, prod(h), n1n2)
+  return expect_two_site(ψ, contract(h), n1n2)
 end
 
 Sz = [expect(ψ, "Sz", n) for n in 1:N]
@@ -79,7 +75,7 @@ energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; nsweeps, maxdim, cutoff)
 
 energy_exact_finite = reference(model, Observable("energy"); N=Nfinite)
 
-function ITensors.expect(ψ, o)
+function ITensors.expect(ψ::ITensor, o::String)
   return inner(ψ, apply(op(o, filterinds(ψ, "Site")...), ψ))
 end
 

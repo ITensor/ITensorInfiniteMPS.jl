@@ -26,17 +26,6 @@ N = 2 # Unit cell size
 @show N
 @show localham_type
 
-## function electron_space_shift(q̃nf, q̃sz)
-##   return [
-##     QN(("Nf", 0 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1,
-##     QN(("Nf", 1 - q̃nf, -1), ("Sz", 1 - q̃sz)) => 1,
-##     QN(("Nf", 1 - q̃nf, -1), ("Sz", -1 - q̃sz)) => 1,
-##     QN(("Nf", 2 - q̃nf, -1), ("Sz", 0 - q̃sz)) => 1,
-##   ]
-## end
-## 
-## electron_space = fill(electron_space_shift(1, 0), N)
-
 initstate(n) = isodd(n) ? "↑" : "↓"
 s = infsiteinds("Electron", N; initstate)
 ψ = InfMPS(s, initstate)
@@ -63,22 +52,9 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 println("\nRun VUMPS on initial product state, unit cell size $N")
 ψ = vumps_subspace_expansion(H, ψ; outer_iters, subspace_expansion_kwargs, vumps_kwargs)
 
-# ψ = @time vumps(H, ψ; vumps_kwargs...)
-# 
-# @time for _ in 1:outer_iters
-#   println("\nIncrease bond dimension")
-#   global ψ = @time subspace_expansion(ψ, H; subspace_expansion_kwargs...)
-#   println("Run VUMPS with new bond dimension")
-#   global ψ = @time vumps(H, ψ; vumps_kwargs...)
-# end
-
 # Check translational invariance
 println("\nCheck translational invariance of optimized infinite MPS")
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
-
-function ITensors.expect(ψ::InfiniteCanonicalMPS, o, n)
-  return (noprime(ψ.AL[n] * ψ.C[n] * op(o, s[n])) * dag(ψ.AL[n] * ψ.C[n]))[]
-end
 
 function expect_two_site(ψ::InfiniteCanonicalMPS, h::ITensor, n1n2)
   n1, n2 = n1n2

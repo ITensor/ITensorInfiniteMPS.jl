@@ -148,9 +148,11 @@ function InfMPS(s::CelledVector, f::Function)
   return ψ = InfiniteCanonicalMPS(ψL, ψC, ψR)
 end
 
-function ITensors.expect(ψ::InfiniteCanonicalMPS, o, n)
+function ITensors.expect(ψ::InfiniteCanonicalMPS, o::String, n::Int)
   s = siteinds(only, ψ.AL)
-  return (noprime(ψ.AL[n] * ψ.C[n] * op(o, s[n])) * dag(ψ.AL[n] * ψ.C[n]))[]
+  O = op(o, s[n])
+  ϕ = ψ.AL[n] * ψ.C[n]
+  return inner(ϕ, apply(O, ϕ))
 end
 
 function ITensors.expect(ψ::InfiniteCanonicalMPS, h::MPO)
