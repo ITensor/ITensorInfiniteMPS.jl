@@ -218,7 +218,9 @@ end
 
 ITensors.siteinds(ψ::AbstractInfiniteMPS, c::Cell) = siteinds(ψ, siterange(ψ, c))
 
-ITensors.siteinds(ψ::AbstractInfiniteMPS) = CelledVector(siteinds(ψ, Cell(1)), translator(ψ))
+function ITensors.siteinds(ψ::AbstractInfiniteMPS)
+  return CelledVector(siteinds(ψ, Cell(1)), translator(ψ))
+end
 infsiteinds(ψ::AbstractInfiniteMPS) = siteinds(ψ)
 
 Base.getindex(ψ::AbstractInfiniteMPS, r::UnitRange{Int}) = MPS([ψ[n] for n in r])
