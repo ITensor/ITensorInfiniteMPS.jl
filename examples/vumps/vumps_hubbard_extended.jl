@@ -13,6 +13,7 @@ max_vumps_iters = 200 # Maximum number of iterations of the VUMPS algorithm at e
 vumps_tol = 1e-5
 outer_iters = 5 # Number of times to increase the bond dimension
 localham_type = MPO # or ITensor
+conserve_qns = true
 eager = true
 
 model_params = (t=1.0, U=10.0, V=0.0)
@@ -27,7 +28,7 @@ N = 2 # Unit cell size
 @show localham_type
 
 initstate(n) = isodd(n) ? "↑" : "↓"
-s = infsiteinds("Electron", N; initstate)
+s = infsiteinds("Electron", N; initstate, conserve_qns)
 ψ = InfMPS(s, initstate)
 
 model = Model"hubbard"()
@@ -41,7 +42,7 @@ println("\nCheck translational invariance of initial infinite MPS")
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
 
 outputlevel = 1
-vumps_kwargs = (tol=vumps_tol, maxiter=max_vumps_iters, outputlevel=outputlevel, eager)
+vumps_kwargs = (tol=vumps_tol, maxiter=max_vumps_iters, outputlevel, eager)
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
 # For now, to increase the bond dimension you must alternate
@@ -85,7 +86,7 @@ energy_infinite = map(b -> expect_two_site(ψ, H[b], b), bs)
 #
 
 Nfinite = 100
-sfinite = siteinds("Electron", Nfinite; conserve_qns=true)
+sfinite = siteinds("Electron", Nfinite; conserve_qns)
 Hfinite = MPO(model, sfinite; model_params...)
 ψfinite = randomMPS(sfinite, initstate; linkdims=10)
 println("\nQN sector of starting finite MPS")

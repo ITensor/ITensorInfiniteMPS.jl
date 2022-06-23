@@ -196,6 +196,11 @@ end
     nsite in [1, 2, 3],
     time_step in [-Inf]
 
+    if nsite > 1 && isodd(nsite) && conserve_qns
+      # Parity conservation not commensurate with odd number of sites.
+      continue
+    end
+
     vumps_kwargs = (
       multisite_update_alg=multisite_update_alg,
       tol=tol,
