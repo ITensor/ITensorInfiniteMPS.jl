@@ -17,11 +17,8 @@ outer_iters = 8 # Number of times to increase the bond dimension
 
 N = 2 # Number of sites in the unit cell
 
-heisenberg_space_shift(q̃nf, q̃sz) = [QN("Sz", 1 - q̃sz) => 1, QN("Sz", -1 - q̃sz) => 1]
-
-heisenberg_space = fill(heisenberg_space_shift(1, 0), N)
-s = infsiteinds("S=1/2", N; space=heisenberg_space)
 initstate(n) = isodd(n) ? "↑" : "↓"
+s = infsiteinds("S=1/2", N; conserve_qns=false, initstate)
 ψ = InfMPS(s, initstate)
 
 model = Model("heisenberg")

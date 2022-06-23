@@ -16,11 +16,9 @@ indextagprefix() = "n="
 # translatecell
 #
 
-# TODO: account for shifting by a tuple, for example:
-# translatecell(ts"Site,c=1|2", (2, 3)) -> ts"Site,c=3|5"
-# TODO: ts"c=10|12" has too many characters
-# TODO: ts"c=1|2|3" has too many characters
-#
+# TODO: account for shifting by a tuple for multidimensional
+# indexing, for example:
+# translatecell(ts"Site,c=1×2", (2, 3)) -> ts"Site,c=3×5"
 
 # Determine the cell `n` from the tag `"c=n"`
 function getcell(ts::TagSet)
