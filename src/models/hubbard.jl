@@ -1,4 +1,4 @@
-function unit_cell_terms(::Model"hubbard"; t, U, V)
+function unit_cell_terms(::Model"hubbard"; t, U, V=0.0)
   opsum = OpSum()
   opsum += -t, "Cdagup", 1, "Cup", 2
   opsum += -t, "Cdagup", 2, "Cup", 1
