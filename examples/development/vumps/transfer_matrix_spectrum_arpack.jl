@@ -13,7 +13,7 @@ outer_iters = 5 # Number of times to increase the bond dimension
 time_step = -Inf # -Inf corresponds to VUMPS
 solver_tol = (x -> x / 100) # Tolerance for the local solver (eigsolve in VUMPS and exponentiate in TDVP)
 multisite_update_alg = "parallel" # Choose between ["sequential", "parallel"]
-conserve_qns = true
+conserve_qns = false
 N = 2 # Number of sites in the unit cell (1 site unit cell is currently broken)
 
 # Parameters of the transverse field Ising model
@@ -23,19 +23,10 @@ model_params = (J=1.0, h=0.9)
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
 #
 
-model = Model"ising"()
+model = Model("ising")
 
-function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
-  if conserve_qns
-    return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-  else
-    return [QN() => 2]
-  end
-end
-
-space_ = fill(space_shifted(model, 0; conserve_qns=conserve_qns), N)
-s = infsiteinds("S=1/2", N; space=space_)
 initstate(n) = "↑"
+s = infsiteinds("S=1/2", N; initstate, conserve_szparity=conserve_qns)
 ψ = InfMPS(s, initstate)
 
 # Form the Hamiltonian
@@ -135,7 +126,9 @@ tol = 1e-10
 @show λ⃗ᴸ
 @show flux.(v⃗ᴿ)
 
-neigs = length(v⃗ᴿ)
+neigs = min(length(v⃗ᴸ), length(v⃗ᴿ))
+v⃗ᴸ = v⃗ᴸ[1:neigs]
+v⃗ᴿ = v⃗ᴿ[1:neigs]
 
 # Normalize the vectors
 N⃗ = [(translatecelltags(v⃗ᴸ[n], 1) * v⃗ᴿ[n])[] for n in 1:neigs]
