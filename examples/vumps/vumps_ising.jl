@@ -1,7 +1,7 @@
 using ITensors
 using ITensorInfiniteMPS
 
-include(joinpath(@__DIR__, "src", "vumps_subspace_expansion.jl"))
+include(joinpath(pkgdir(ITensorInfiniteMPS), "examples", "src", "vumps_subspace_expansion.jl"))
 
 ##############################################################################
 # VUMPS/TDVP parameters
