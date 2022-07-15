@@ -213,10 +213,14 @@ function subspace_expansion(
   NR *= dag(V)
 
   ALⁿ¹, newl = ITensors.directsum(
-    ψ.AL[n1] => uniqueinds(ψ.AL[n1], NL), dag(NL) => uniqueinds(NL, ψ.AL[n1]); tags=("Left",)
+    ψ.AL[n1] => uniqueinds(ψ.AL[n1], NL),
+    dag(NL) => uniqueinds(NL, ψ.AL[n1]);
+    tags=("Left",),
   )
   ARⁿ², newr = ITensors.directsum(
-    ψ.AR[n2] => uniqueinds(ψ.AR[n2], NR), dag(NR) => uniqueinds(NR, ψ.AR[n2]); tags=("Right",)
+    ψ.AR[n2] => uniqueinds(ψ.AR[n2], NR),
+    dag(NR) => uniqueinds(NR, ψ.AR[n2]);
+    tags=("Right",),
   )
 
   C = ITensor(dag(newl)..., dag(newr)...)
