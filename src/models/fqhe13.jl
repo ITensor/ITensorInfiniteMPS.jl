@@ -6,8 +6,7 @@ function unit_cell_terms(
   opt = optimize_coefficients(coeff; prec=prec)
   opt = filter_optimized_Hamiltonian_by_first_site(opt)
   #sorted_opt = sort_by_configuration(opt);
-  #println(opt)
-  return [generate_Hamiltonian(opt)]
+  return generate_Hamiltonian(opt)
 end
 
 #Please contact Loic Herviou before using this part of the code for production

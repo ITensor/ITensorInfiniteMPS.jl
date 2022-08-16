@@ -1,8 +1,8 @@
 # H = Σⱼ XⱼXⱼ₊₁ + YⱼYⱼ₊₁
 function unit_cell_terms(::Model"xx")
   os = OpSum()
-  os += 1, "X", 1, "X", 2
-  os += 1, "Y", 1, "Y", 2
+  os += "X", 1, "X", 2
+  os += "Y", 1, "Y", 2
   return os
 end
 

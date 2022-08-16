@@ -3,7 +3,7 @@ function unit_cell_terms(::Model"ising"; J=1.0, h=1.0)
   opsum = OpSum()
   opsum += -J, "X", 1, "X", 2
   opsum += -h, "Z", 1
-  return [opsum]
+  return opsum
 end
 
 # P. Pfeuty, The one-dimensional Ising model with a transverse field, Annals of Physics 57, p. 79 (1970)

@@ -4,7 +4,7 @@ function unit_cell_terms(::Model"heisenberg")
   opsum += 0.5, "S+", 1, "S-", 2
   opsum += 0.5, "S-", 1, "S+", 2
   opsum += "Sz", 1, "Sz", 2
-  return [opsum]
+  return opsum
 end
 
 """
