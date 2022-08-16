@@ -22,7 +22,7 @@ using KrylovKit: eigsolve, linsolve, exponentiate
 
 import Base: getindex, length, setindex!, +, -, *
 
-import ITensors: AbstractMPS
+import ITensors: AbstractMPS, ⊕
 
 include("ITensors.jl")
 include("ITensorNetworks.jl")
