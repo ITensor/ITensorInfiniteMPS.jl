@@ -119,33 +119,31 @@ end
 
 translatecell(translator, opsum::OpSum, n::Integer) = translator(opsum, n)
 
-function split_by_first_site(opsum::OpSum)
-  cell_terms = Ops.terms(opsum)
-  # The first site of each term of the `opsum`
-  term_first_site = [minimum(Ops.sites(o)) for o in cell_terms]
-  nsites_in_unit_cell = maximum(term_first_site)
-  opsums = [OpSum() for _ in 1:nsites_in_unit_cell]
-  for j in eachindex(cell_terms)
-    siteⱼ = term_first_site[j]
-    termⱼ = cell_terms[j]
-    opsums[siteⱼ] += termⱼ
-  end
-  return opsums
-end
-
 function infinite_terms(model::Model; kwargs...)
   # An `OpSum` storing all of the terms in the
   # first unit cell.
   # TODO: Allow specifying the unit cell size
   # explicitly.
-  opsum = unit_cell_terms(model; kwargs...)
+  return infinite_terms(unit_cell_terms(model; kwargs...))
+end
+
+function infinite_terms(opsum::OpSum; kwargs...)
   # `Vector{OpSum}`, vector of length of number
   # of sites in the unit cell where each element
   # contains the terms with support starting on that
   # site of the unit cell, i.e. `opsum_cell[i]`
   # stores all terms starting on site `i`.
-  opsum_cell = split_by_first_site(opsum)
-  nsites = length(opsum_cell)
+  opsum_cell_dict = groupreduce(minimum ∘ ITensors.sites, +, opsum)
+  nsites = maximum(keys(opsum_cell_dict))
+  # Assumes each site in the unit cell has a term
+  for j in 1:nsites
+    if !haskey(opsum_cell_dict, j)
+      error(
+        "The input unit cell terms for the $nsites-site unit cell doesn't have a term starting on site $j. Skipping sites in the unit cell is currently not supported. A workaround is to define a term in the unit cell with a coefficient of 0, for example `opsum += 0, \"I\", $j`.",
+      )
+    end
+  end
+  opsum_cell = [opsum_cell_dict[j] for j in 1:nsites]
   function _shift_cell(opsum::OpSum, cell::Int)
     return shift_sites(opsum, nsites * cell)
   end
