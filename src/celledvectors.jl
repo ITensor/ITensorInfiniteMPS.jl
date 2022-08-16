@@ -16,11 +16,9 @@ indextagprefix() = "n="
 # translatecell
 #
 
-# TODO: account for shifting by a tuple, for example:
-# translatecell(ts"Site,c=1|2", (2, 3)) -> ts"Site,c=3|5"
-# TODO: ts"c=10|12" has too many characters
-# TODO: ts"c=1|2|3" has too many characters
-#
+# TODO: account for shifting by a tuple for multidimensional
+# indexing, for example:
+# translatecell(ts"Site,c=1×2", (2, 3)) -> ts"Site,c=3×5"
 
 # Determine the cell `n` from the tag `"c=n"`
 function getcell(ts::TagSet)
@@ -67,8 +65,9 @@ function translatecell(translator::Function, is::Union{<:Tuple,<:Vector}, n::Int
   return translatecell.(translator, is, n)
 end
 
-#Default behavior
-#translatecell(T::ITensor, n::Integer) = ITensors.setinds(T, translatecell(inds(T), n))
+# Default behavior
+translatecelltags(T::ITensor, n::Integer) = translatecell(translatecelltags, T, n)
+translatecelltags(T::ITensors.Indices, n::Integer) = translatecell(translatecelltags, T, n)
 #translatecell(T::MPO, n::Integer) = translatecell.(T, n)
 #translatecell(T::Matrix{ITensor}, n::Integer) = translatecell.(T, n)
 
@@ -99,11 +98,15 @@ function CelledVector{T}(v::Vector{T}, translator::Function) where {T}
 end
 
 """
-    celllength(cv::CelledVector)
+    cell_length(cv::CelledVector)
+
+    celllength(cv::CelledVector) # Deprecated
 
 The length of a unit cell of a CelledVector.
 """
-celllength(cv::CelledVector) = length(ITensors.data(cv))
+cell_length(cv::CelledVector) = length(ITensors.data(cv))
+
+celllength(cv::CelledVector) = cell_length(cv)
 
 # For compatibility with Base
 Base.size(cv::CelledVector) = size(ITensors.data(cv))

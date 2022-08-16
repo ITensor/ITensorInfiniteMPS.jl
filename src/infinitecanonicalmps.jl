@@ -1,4 +1,22 @@
-# Get the promoted type of the Index objects in a collection
+# TODO: Move to ITensors.jl
+function setval(qnval::ITensors.QNVal, val::Int)
+  return ITensors.QNVal(ITensors.name(qnval), val, ITensors.modulus(qnval))
+end
+
+# TODO: Move to ITensors.jl
+function Base.:/(qnval::ITensors.QNVal, n::Int)
+  div_val = ITensors.val(qnval) / n
+  if !isinteger(div_val)
+    error("Dividing $qnval by $n, the resulting QN value is not an integer")
+  end
+  return setval(qnval, Int(div_val))
+end
+
+# TODO: Move to ITensors.jl
+function Base.:/(qn::QN, n::Int)
+  return QN(map(qnval -> qnval / n, qn.data))
+end
+
 # of Index (Tuple, Vector, ITensor, etc.)
 indtype(i::Index) = typeof(i)
 indtype(T::Type{<:Index}) = T
@@ -9,39 +27,42 @@ indtype(A::ITensor...) = indtype(inds.(A))
 indtype(tn1, tn2) = promote_type(indtype(tn1), indtype(tn2))
 indtype(tn) = mapreduce(indtype, promote_type, tn)
 
-# More general siteind that allows specifying
-# the space
-function _siteind(site_tag, n::Int; space)
-  return addtags(Index(space, "Site,n=$n"), site_tag)
-end
-
-_siteinds(site_tag, N::Int; space) = __siteinds(site_tag, N, space)
-
-function __siteinds(site_tag, N::Int, space::Vector)
-  return [_siteind(site_tag, n; space=space[n]) for n in 1:N]
-end
-
-function __siteinds(site_tag, N::Int, space)
-  return [_siteind(site_tag, n; space=space) for n in 1:N]
-end
-
-infsiteinds(s::Vector{<:Index}) = CelledVector(addtags(s, celltags(1)))
-function infsiteinds(s::Vector{<:Index}, translator)
+function infsiteinds(s::Vector{<:Index}, translator=translatecelltags)
   return CelledVector(addtags(s, celltags(1)), translator)
 end
 
-function infsiteinds(site_tag, N::Int; space=nothing, translator=nothing, kwargs...)
-  if !isnothing(space)
-    s = _siteinds(site_tag, N; space=space)
-  else
-    # TODO: add a shift option
-    s = siteinds(site_tag, N; kwargs...)
+shift_flux_to_zero(s::Vector{Index{Int}}, initestate::Function) = s
+shift_flux_to_zero(s::Vector{Index{Int}}, flux_density::QN) = s
+
+function shift_flux_to_zero(s::Vector{<:Index}, initstate::Function)
+  return shift_flux_to_zero(s, flux(MPS(s, initstate)))
+end
+
+function shift_flux(qnblock::Pair{QN,Int}, flux_density::QN)
+  return ((ITensors.qn(qnblock) - flux_density) => ITensors.blockdim(qnblock))
+end
+function shift_flux(space::Vector{Pair{QN,Int}}, flux_density::QN)
+  return map(qnblock -> shift_flux(qnblock, flux_density), space)
+end
+function shift_flux(i::Index, flux_density::QN)
+  return ITensors.setspace(i, shift_flux(space(i), flux_density))
+end
+
+function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
+  if iszero(flux)
+    return s
   end
-  if !isnothing(translator)
-    return infsiteinds(s, translator)
-  else
-    return infsiteinds(s)
-  end
+  n = length(s)
+  flux_density = flux / n
+  return map(sₙ -> shift_flux(sₙ, flux_density), s)
+end
+
+function infsiteinds(
+  site_tag, n::Int; translator=translatecelltags, initstate=nothing, kwargs...
+)
+  s = siteinds(site_tag, n; kwargs...)
+  s = shift_flux_to_zero(s, initstate)
+  return infsiteinds(s, translator)
 end
 
 function ITensors.linkinds(ψ::InfiniteMPS)
@@ -49,17 +70,15 @@ function ITensors.linkinds(ψ::InfiniteMPS)
   return CelledVector([linkinds(ψ, (n, n + 1)) for n in 1:N], translator(ψ))
 end
 
-function InfMPS(s::Vector, f::Function)
-  return InfMPS(infsiteinds(s), f)
-end
-
-function InfMPS(s::Vector, f::Function, translator::Function)
+function InfMPS(s::Vector, f::Function, translator::Function=translatecelltags)
   return InfMPS(infsiteinds(s, translator), f)
 end
 
 function indval(iv::Pair)
   return ind(iv) => val(iv)
 end
+
+zero_qn(i::Index{Int}) = nothing
 
 function zero_qn(i::Index)
   return zero(qn(first(space(i))))
@@ -129,9 +148,11 @@ function InfMPS(s::CelledVector, f::Function)
   return ψ = InfiniteCanonicalMPS(ψL, ψC, ψR)
 end
 
-function ITensors.expect(ψ::InfiniteCanonicalMPS, o, n)
+function ITensors.expect(ψ::InfiniteCanonicalMPS, o::String, n::Int)
   s = siteinds(only, ψ.AL)
-  return (noprime(ψ.AL[n] * ψ.C[n] * op(o, s[n])) * dag(ψ.AL[n] * ψ.C[n]))[]
+  O = op(o, s[n])
+  ϕ = ψ.AL[n] * ψ.C[n]
+  return inner(ϕ, apply(O, ϕ))
 end
 
 function ITensors.expect(ψ::InfiniteCanonicalMPS, h::MPO)

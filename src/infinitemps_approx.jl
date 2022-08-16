@@ -1,4 +1,3 @@
-
 function siteind(ψ::InfiniteMPS, n::Integer)
   return uniqueind(ψ[n], ψ[n - 1], ψ[n + 1])
 end
@@ -37,7 +36,11 @@ function infinitemps_approx(
   A = InfiniteMPS(
     [settags(s[nrange[n]], addtags(site_tags, "n=$n")) for n in 1:length(nrange)]; space=χ
   )
-  randn!.(A)
+  # XXX: Why doesn't this work?
+  # randn!.(A)
+  for n in 1:N
+    A[n] = randomITensor(inds(A[n]))
+  end
   ψ∞ = orthogonalize(A, :)
 
   # Site indices of the infinite MPS

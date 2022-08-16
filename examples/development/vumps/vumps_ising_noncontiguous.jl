@@ -18,13 +18,8 @@ N = 2# Number of sites in the unit cell
 J = 1.0
 h = 1.0;
 
-function space_shifted(q̃sz)
-  return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-end
-
-space_ = fill(space_shifted(1), N);
-s = infsiteinds("S=1/2", N; space=space_)
 initstate(n) = "↑"
+s = infsiteinds("S=1/2", N; initstate)
 ψ = InfMPS(s, initstate);
 
 model = Model("ising");
@@ -70,7 +65,7 @@ Sz_finite = expect(ψfinite, "Sz")[nfinite:(nfinite + N - 1)]
 @show (
   energy_infinite,
   energy_finite_total / Nfinite,
-  reference(model, Observable("energy"); J=J, h=h, J₂=J₂),
+  reference(model, Observable("energy"); J=J, h=h),
 )
 
 @show (Sz, Sz_finite)

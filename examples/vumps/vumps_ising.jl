@@ -1,5 +1,11 @@
-using ITensorInfiniteMPS
 using ITensors
+using ITensorInfiniteMPS
+
+include(
+  joinpath(
+    pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src", "vumps_subspace_expansion.jl"
+  ),
+)
 
 ##############################################################################
 # VUMPS/TDVP parameters
@@ -24,22 +30,10 @@ model_params = (J=1.0, h=0.9)
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
 #
 
-model = Model"ising"()
+model = Model("ising")
 
-function space_shifted(::Model"ising", q̃sz; conserve_qns=true)
-  if conserve_qns
-    return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-  else
-    return [QN() => 2]
-  end
-end
-
-# Shift the QNs by 1 so that the flux of the unit cell is zero
-# and therefore the flux density of the uniform state is zero
-# to avoid diverging flux in the thermodynamic limit.
-space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsite)
-s = infsiteinds("S=1/2", nsite; space=space_)
 initstate(n) = "↑"
+s = infsiteinds("S=1/2", nsite; initstate, conserve_szparity=conserve_qns)
 ψ = InfMPS(s, initstate)
 
 # Form the Hamiltonian
@@ -56,13 +50,7 @@ vumps_kwargs = (
 )
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
-# Alternate steps of running VUMPS and increasing the bond dimension
-@time for _ in 1:outer_iters
-  println("\nIncrease bond dimension")
-  global ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
-  println("Run VUMPS with new bond dimension")
-  global ψ = tdvp(H, ψ; time_step=time_step, vumps_kwargs...)
-end
+ψ = vumps_subspace_expansion(H, ψ; outer_iters, subspace_expansion_kwargs, vumps_kwargs)
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:nsite]..., ψ.C[nsite]) - contract(ψ.C[0], ψ.AR[1:nsite]...))
@@ -72,7 +60,7 @@ end
 #
 
 nsite_finite = 100
-s_finite = siteinds("S=1/2", nsite_finite; conserve_szparity=true)
+s_finite = siteinds("S=1/2", nsite_finite; conserve_szparity=conserve_qns)
 H_finite = MPO(model, s_finite; model_params...)
 ψ_finite = randomMPS(s_finite, initstate)
 @show flux(ψ_finite)

@@ -1,12 +1,6 @@
 using ITensors
 using ITensorInfiniteMPS
 
-include(
-  joinpath(
-    pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src", "vumps_subspace_expansion.jl"
-  ),
-)
-
 ##############################################################################
 # VUMPS parameters
 #
@@ -19,7 +13,7 @@ outer_iters = 5 # Number of times to increase the bond dimension
 time_step = -Inf # -Inf corresponds to VUMPS
 solver_tol = (x -> x / 100) # Tolerance for the local solver (eigsolve in VUMPS and exponentiate in TDVP)
 multisite_update_alg = "parallel" # Choose between ["sequential", "parallel"]
-conserve_qns = true
+conserve_qns = false
 N = 2 # Number of sites in the unit cell (1 site unit cell is currently broken)
 
 # Parameters of the transverse field Ising model
@@ -48,10 +42,15 @@ vumps_kwargs = (
   multisite_update_alg=multisite_update_alg,
 )
 subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
+#ψ = tdvp(H, ψ; time_step=time_step, vumps_kwargs...)
 
-ψ = tdvp_subspace_expansion(
-  H, ψ; time_step, outer_iters, subspace_expansion_kwargs, vumps_kwargs
-)
+# Alternate steps of running VUMPS and increasing the bond dimension
+@time for _ in 1:outer_iters
+  println("\nIncrease bond dimension")
+  global ψ = subspace_expansion(ψ, H; subspace_expansion_kwargs...)
+  println("Run VUMPS with new bond dimension")
+  global ψ = tdvp(H, ψ; time_step=time_step, vumps_kwargs...)
+end
 
 # Check translational invariance
 @show norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...))
@@ -61,7 +60,7 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 #
 
 Nfinite = 100
-sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=conserve_qns)
+sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite; model_params...)
 ψfinite = randomMPS(sfinite, initstate)
 @show flux(ψfinite)
@@ -73,11 +72,11 @@ energy_finite_total, ψfinite = @time dmrg(Hfinite, ψfinite, sweeps)
 
 function energy_local(ψ1, ψ2, h)
   ϕ = ψ1 * ψ2
-  return inner(ϕ, apply(h, ϕ))
+  return (noprime(ϕ * h) * dag(ϕ))[]
 end
 
-function ITensors.expect(ψ::ITensor, o::String)
-  return inner(ψ, apply(op(o, filterinds(ψ, "Site")...), ψ))
+function ITensors.expect(ψ, o)
+  return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
 end
 
 # Exact energy at criticality: 4/pi = 1.2732395447351628
@@ -106,6 +105,7 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 # Compute eigenspace of the transfer matrix
 #
 
+using Arpack
 using KrylovKit: eigsolve
 using LinearAlgebra
 
@@ -119,8 +119,6 @@ tol = 1e-10
 λ⃗ᴿ, v⃗ᴿ, right_info = eigsolve(T, vⁱᴿ, neigs, :LM; tol=tol)
 λ⃗ᴸ, v⃗ᴸ, left_info = eigsolve(Tᵀ, vⁱᴸ, neigs, :LM; tol=tol)
 
-println("\n##########################################")
-println("Check transfer matrix left and right fixed points")
 @show norm(T(v⃗ᴿ[1]) - λ⃗ᴿ[1] * v⃗ᴿ[1])
 @show norm(Tᵀ(v⃗ᴸ[1]) - λ⃗ᴸ[1] * v⃗ᴸ[1])
 
@@ -138,15 +136,51 @@ N⃗ = [(translatecelltags(v⃗ᴸ[n], 1) * v⃗ᴿ[n])[] for n in 1:neigs]
 v⃗ᴿ ./= sqrt.(N⃗)
 v⃗ᴸ ./= sqrt.(N⃗)
 
-# Compare to full eigendecomposition
-# Note the this obtains eigenvectors from all QN
-# sectors so will include vectors not found by
-# `eigsolve` above, which only includes eigenvectors
-# in the trivial QN sector.
+# Form a second starting vector orthogonal to v⃗ᴿ[1]
+# This doesn't work. TODO: project out v⃗ᴿ[1], v⃗ᴸ[1] from T
+#λ⃗ᴿ², v⃗ᴿ², right_info_2 = eigsolve(T, vⁱᴿ², neigs, :LM; tol=tol)
+
+# Projector onto the n-th eigenstate
+function proj(v⃗ᴸ, v⃗ᴿ, n)
+  Lⁿ = v⃗ᴸ[n]
+  Rⁿ = v⃗ᴿ[n]
+  return ITensorMap(
+    [translatecelltags(Lⁿ, 1), translatecelltags(Rⁿ, -1)];
+    input_inds=inds(Rⁿ),
+    output_inds=inds(Lⁿ),
+  )
+end
+
+P⃗ = [proj(v⃗ᴸ, v⃗ᴿ, n) for n in 1:neigs]
+T⁻P = T - sum(P⃗)
+
+#vⁱᴿ² = vⁱᴿ - (translatecelltags(v⃗ᴸ[1], 1) * vⁱᴿ)[] / norm(v⃗ᴿ[1]) * v⃗ᴿ[1]
+#@show norm(dag(vⁱᴿ²) * v⃗ᴿ[1])
+
+# XXX: Error with mismatched QN index arrows
+# λ⃗ᴾᴿ, v⃗ᴾᴿ, right_info = eigsolve(T⁻P, vⁱᴿ, neigs, :LM; tol=tol)
+# @show λ⃗ᴾᴿ
+
+vⁱᴿ⁻ᵈᵃᵗᵃ = vec(array(vⁱᴿ))
+λ⃗ᴿᴬ, v⃗ᴿ⁻ᵈᵃᵗᵃ = Arpack.eigs(T; v0=vⁱᴿ⁻ᵈᵃᵗᵃ, nev=neigs)
+
+## XXX: this is giving an error about trying to set the element of the wrong QN block for:
+## maxdim = 5
+## cutoff = 1e-12
+## max_vumps_iters = 10
+## outer_iters = 10
+## model_params = (J=1.0, h=0.8)
+##
+## v⃗ᴿᴬ = [itensor(v⃗ᴿ⁻ᵈᵃᵗᵃ[:, n], input_inds(T); tol=1e-4) for n in 1:length(λ⃗ᴿᴬ)]
+## @show flux.(v⃗ᴿᴬ)
+
+@show λ⃗ᴿᴬ
+
+# Full eigendecomposition
+
 Tfull = prod(T)
 DV = eigen(Tfull, input_inds(T), output_inds(T))
 
-println("\nCheck full diagonalization on transfer matrix")
 @show norm(Tfull * DV.V - DV.Vt * DV.D)
 
 d = diag(array(DV.D))
@@ -154,3 +188,6 @@ d = diag(array(DV.D))
 p = sortperm(d; by=abs, rev=true)
 @show p[1:neigs]
 @show d[p[1:neigs]]
+
+println("Error if ED with Arpack")
+@show d[p[1:neigs]] - λ⃗ᴿᴬ

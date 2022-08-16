@@ -3,43 +3,39 @@ using ITensorInfiniteMPS
 using Test
 using Random
 
+function expect_three_site(ψ::MPS, h::ITensor, n::Int)
+  ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
+  return inner(ϕ, apply(h, ϕ))
+end
+
 @testset "vumps_extended_ising" begin
   Random.seed!(1234)
 
-  model = Model"ising_extended"()
+  model = Model("ising_extended")
   model_kwargs = (J=1.0, h=1.1, J₂=0.2)
   initstate(n) = "↑"
-
-  function space_shifted(::Model"ising_extended", q̃sz; conserve_qns=true)
-    if conserve_qns
-      return [QN("SzParity", 1 - q̃sz, 2) => 1, QN("SzParity", 0 - q̃sz, 2) => 1]
-    else
-      return [QN() => 2]
-    end
-  end
 
   # Compare to DMRG
   Nfinite = 100
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
   ψfinite = randomMPS(sfinite, initstate)
-  sweeps = Sweeps(20)
-  setmaxdim!(sweeps, 30)
-  setcutoff!(sweeps, 1E-10)
-  energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite, sweeps; outputlevel=0)
+  energy_finite_total, ψfinite = dmrg(
+    Hfinite, ψfinite; outputlevel=0, nsweeps=30, maxdim=30, cutoff=1e-10
+  )
   Szs_finite = expect(ψfinite, "Sz")
-
-  function energy(ψ, h, n)
-    ϕ = ψ[n] * ψ[n + 1] * ψ[n + 2]
-    return (noprime(ϕ * h) * dag(ϕ))[]
-  end
 
   nfinite = Nfinite ÷ 2
   hnfinite = ITensor(
-    model, sfinite[nfinite], sfinite[nfinite + 1], sfinite[nfinite + 2]; model_kwargs...
+    model,
+    nfinite,
+    sfinite[nfinite],
+    sfinite[nfinite + 1],
+    sfinite[nfinite + 2];
+    model_kwargs...,
   )
   orthogonalize!(ψfinite, nfinite)
-  energy_finite = energy(ψfinite, hnfinite, nfinite)
+  energy_finite = expect_three_site(ψfinite, hnfinite, nfinite)
 
   cutoff = 1e-8
   maxdim = 100
@@ -60,8 +56,7 @@ using Random
     )
     subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
-    space_ = fill(space_shifted(model, 1; conserve_qns=conserve_qns), nsites)
-    s = infsiteinds("S=1/2", nsites; space=space_)
+    s = infsiteinds("S=1/2", nsites; initstate)
     H = InfiniteSum{MPO}(model, s; model_kwargs...)
     ψ = InfMPS(s, initstate)
 
@@ -86,18 +81,16 @@ using Random
   end
 end
 
-# XXX: orthogonalize is broken right now
-## @testset "ITensorInfiniteMPS.jl" begin
-##   @testset "Mixed canonical gauge" begin
-##     N = 10
-##     s = siteinds("S=1/2", N; conserve_szparity=true)
-##     χ = 6
-##     @test iseven(χ)
-##     space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
-##     ψ = InfiniteMPS(ComplexF64, s; space=space)
-##     randn!.(ψ)
-##
-##     ψ = orthogonalize(ψ, :)
-##     @test prod(ψ.AL[1:N]) * ψ.C[N] ≈ ψ.C[0] * prod(ψ.AR[1:N])
-##   end
-## end
+@testset "Mixed canonical gauge" begin
+  N = 4
+  s = siteinds("S=1/2", N; conserve_szparity=true)
+  χ = 6
+  @test iseven(χ)
+  space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
+  ψ = InfiniteMPS(ComplexF64, s; space=space)
+  for n in 1:N
+    ψ[n] = randomITensor(inds(ψ[n]))
+  end
+  ψ = orthogonalize(ψ, :)
+  @test contract(ψ.AL[1:N]) * ψ.C[N] ≈ ψ.C[0] * contract(ψ.AR[1:N])
+end

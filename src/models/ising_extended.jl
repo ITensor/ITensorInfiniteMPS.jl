@@ -1,45 +1,11 @@
-nrange(::Model"ising_extended") = 3
+# The terms of the Hamiltonian in the first unit cell.
 # H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ - J₂ Σⱼ XⱼZⱼ₊₁Xⱼ₊₂
-function ITensors.MPO(::Model"ising_extended", s; J=1.0, h=1.0, J₂=0.0)
-  N = length(s)
-  a = OpSum()
-  if J != 0
-    for n in 1:(N - 1)
-      a += -J, "X", n, "X", n + 1
-    end
-  end
-  if J₂ != 0
-    for n in 1:(N - 2)
-      a += -J₂, "X", n, "Z", n + 1, "X", n + 2
-    end
-  end
-  if h != 0
-    for n in 1:N
-      a += -h, "Z", n
-    end
-  end
-  return splitblocks(linkinds, MPO(a, s))
-end
-
-# H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ - J₂ Σⱼ XⱼZⱼ₊₁Xⱼ₊₂
-function ITensors.OpSum(::Model"ising_extended", n1, n2; J=1.0, h=1.0, J₂=0.0)
+function unit_cell_terms(::Model"ising_extended"; J=1.0, h=1.0, J₂=0.0)
   opsum = OpSum()
-  if J != 0
-    opsum += -J / 2, "X", n1, "X", n2
-    opsum += -J / 2, "X", n2, "X", n2 + 1
-  end
-  if J₂ != 0
-    opsum += -J₂, "X", n1, "Z", n2, "X", n2 + 1
-  end
-  opsum += -h / 3, "Z", n1
-  opsum += -h / 3, "Z", n2
-  opsum += -h / 3, "Z", n2 + 1
+  opsum += -J, "X", 1, "X", 2
+  opsum += -J₂, "X", 1, "Z", 2, "X", 3
+  opsum += -h, "Z", 1
   return opsum
-end
-
-function ITensors.ITensor(::Model"ising_extended", s1, s2, s3; J=1.0, h=1.0, J₂=0.0)
-  opsum = OpSum(Model"ising_extended"(), 1, 2; J=J, h=h, J₂=J₂)
-  return prod(MPO(opsum, [s1, s2, s3]))
 end
 
 function reference(::Model"ising_extended", ::Observable"energy"; J=1.0, h=1.0, J₂=0.0)

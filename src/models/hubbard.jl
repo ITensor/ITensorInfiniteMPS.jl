@@ -1,41 +1,12 @@
-function ITensors.OpSum(::Model"hubbard", n1, n2; t, U, V)
+function unit_cell_terms(::Model"hubbard"; t, U, V=0.0)
   opsum = OpSum()
-  opsum += -t, "Cdagup", n1, "Cup", n2
-  opsum += -t, "Cdagup", n2, "Cup", n1
-  opsum += -t, "Cdagdn", n1, "Cdn", n2
-  opsum += -t, "Cdagdn", n2, "Cdn", n1
-  if U ≠ 0
-    opsum += U, "Nupdn", n1
-  end
-  if V ≠ 0
-    opsum += V, "Ntot", n1, "Ntot", n2
-  end
+  opsum += -t, "Cdagup", 1, "Cup", 2
+  opsum += -t, "Cdagup", 2, "Cup", 1
+  opsum += -t, "Cdagdn", 1, "Cdn", 2
+  opsum += -t, "Cdagdn", 2, "Cdn", 1
+  opsum += U, "Nupdn", 1
+  opsum += V, "Ntot", 1, "Ntot", 2
   return opsum
-end
-
-function ITensors.MPO(::Model"hubbard", s; t, U, V)
-  N = length(s)
-  opsum = OpSum()
-  for n in 1:(N - 1)
-    n1, n2 = n, n + 1
-    opsum .+= -t, "Cdagup", n1, "Cup", n2
-    opsum .+= -t, "Cdagup", n2, "Cup", n1
-    opsum .+= -t, "Cdagdn", n1, "Cdn", n2
-    opsum .+= -t, "Cdagdn", n2, "Cdn", n1
-    if V ≠ 0
-      opsum .+= V, "Ntot", n1, "Ntot", n2
-    end
-  end
-  if U ≠ 0
-    for n in 1:N
-      opsum .+= U, "Nupdn", n
-    end
-  end
-  return splitblocks(linkinds, MPO(opsum, s))
-end
-
-function ITensors.ITensor(model::Model"hubbard", s; kwargs...)
-  return prod(MPO(model, s; kwargs...))
 end
 
 """

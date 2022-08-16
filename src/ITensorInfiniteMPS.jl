@@ -16,13 +16,17 @@ using IterTools
 using HDF5
 # For integration support when computing exact reference results
 using QuadGK
+# For `groupreduce`, used when splitting up an OpSum
+# with the unit cell terms into terms acting on each
+# site.
+using SplitApplyCombine
 
 using ITensors.NDTensors: eachdiagblock
 using KrylovKit: eigsolve, linsolve, exponentiate
 
 import Base: getindex, length, setindex!, +, -, *
 
-import ITensors: AbstractMPS
+import ITensors: AbstractMPS, ⊕
 
 include("ITensors.jl")
 include("ITensorNetworks.jl")
@@ -73,6 +77,7 @@ export Cell,
   reference,
   subspace_expansion,
   translatecell,
+  translatecelltags,
   translator,
   tdvp,
   vumps,

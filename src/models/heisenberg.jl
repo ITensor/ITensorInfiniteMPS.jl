@@ -1,21 +1,10 @@
-function ITensors.OpSum(::Model"heisenberg", n1, n2)
-  opsum = OpSum()
-  opsum += 0.5, "S+", n1, "S-", n2
-  opsum += 0.5, "S-", n1, "S+", n2
-  opsum += "Sz", n1, "Sz", n2
-  return opsum
-end
-
 # H = Σⱼ (½ S⁺ⱼS⁻ⱼ₊₁ + ½ S⁻ⱼS⁺ⱼ₊₁ + SᶻⱼSᶻⱼ₊₁)
-function ITensors.MPO(::Model"heisenberg", s)
-  N = length(s)
-  os = OpSum()
-  for j in 1:(N - 1)
-    os .+= 0.5, "S+", j, "S-", j + 1
-    os .+= 0.5, "S-", j, "S+", j + 1
-    os .+= "Sz", j, "Sz", j + 1
-  end
-  return splitblocks(linkinds, MPO(os, s))
+function unit_cell_terms(::Model"heisenberg")
+  opsum = OpSum()
+  opsum += 0.5, "S+", 1, "S-", 2
+  opsum += 0.5, "S-", 1, "S+", 2
+  opsum += "Sz", 1, "Sz", 2
+  return opsum
 end
 
 """
