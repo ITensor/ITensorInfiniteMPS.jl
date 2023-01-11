@@ -7,7 +7,9 @@ function tdvp_subspace_expansion(
   H, ψ; time_step, outer_iters, subspace_expansion_kwargs, vumps_kwargs
 )
   @time for outer_iter in 1:outer_iters
-    println("\nIncrease bond dimension $(outer_iter) out of $(outer_iters), starting from dimension $(maxlinkdim(ψ))")
+    println(
+      "\nIncrease bond dimension $(outer_iter) out of $(outer_iters), starting from dimension $(maxlinkdim(ψ))",
+    )
     println(
       "cutoff = $(subspace_expansion_kwargs[:cutoff]), maxdim = $(subspace_expansion_kwargs[:maxdim])",
     )
