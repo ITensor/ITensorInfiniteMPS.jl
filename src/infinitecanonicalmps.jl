@@ -48,13 +48,28 @@ function shift_flux(i::Index, flux_density::QN)
   return ITensors.setspace(i, shift_flux(space(i), flux_density))
 end
 
+function multiply_flux(qnblock::Pair{QN,Int}, flux_factor::Int64)
+  return ((ITensors.qn(qnblock)) => ITensors.blockdim(qnblock))
+end
+function multiply_flux(space::Vector{Pair{QN,Int}}, flux_factor::Int64)
+  return map(qnblock -> multiply_flux(qnblock, flux_factor), space)
+end
+function multiply_flux(i::Index, flux_factor::Int64)
+  return ITensors.setspace(i, multiply_flux(space(i), flux_factor))
+end
+
 function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
   if iszero(flux)
     return s
   end
   n = length(s)
-  flux_density = flux / n
-  return map(sₙ -> shift_flux(sₙ, flux_density), s)
+  try
+    flux_density = flux / n
+    return map(sₙ -> shift_flux(sₙ, flux_density), s)
+  catch e
+    s = map(sₙ -> multiply_flux(sₙ, n), s)
+    return map(sₙ -> shift_flux(sₙ, flux), s)
+  end
 end
 
 function infsiteinds(
