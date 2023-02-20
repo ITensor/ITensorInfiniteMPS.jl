@@ -87,7 +87,7 @@ export Cell,
 
 function __init__()
   # This is used for debugging using visualizations
-  @require ITensorsVisualization="f2aed53d-2f32-47c3-a7b9-1ee253853786" @eval using ITensorsVisualization
+  @require ITensorsVisualization = "f2aed53d-2f32-47c3-a7b9-1ee253853786" @eval using ITensorsVisualization
 end
 
 end
