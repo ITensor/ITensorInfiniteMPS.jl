@@ -172,7 +172,7 @@ function tdvp(
     flush(stderr)
   end
   for iter in 1:maxiter
-    ψ, (eᴸ, eᴿ) = tdvp_iteration(
+    iteration_time = @elapsed ψ, (eᴸ, eᴿ) = tdvp_iteration(
       solver,
       ∑h,
       ψ;
@@ -187,7 +187,7 @@ function tdvp(
     maxdimψ = maxlinkdim(ψ[0:(N + 1)])
     if outputlevel > 0
       println(
-        "VUMPS iteration $iter (out of maximum $maxiter). Bond dimension = $maxdimψ, energy = $((eᴸ, eᴿ)), ϵᵖʳᵉˢ = $ϵᵖʳᵉˢ, tol = $tol",
+        "VUMPS iteration $iter (out of maximum $maxiter). Bond dimension = $maxdimψ, energy = $((eᴸ, eᴿ)), ϵᵖʳᵉˢ = $ϵᵖʳᵉˢ, tol = $tol, iteration time = $iteration_time seconds",
       )
       flush(stdout)
       flush(stderr)
