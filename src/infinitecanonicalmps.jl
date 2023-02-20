@@ -12,9 +12,21 @@ function Base.:/(qnval::ITensors.QNVal, n::Int)
   return setval(qnval, Int(div_val))
 end
 
+function Base.:*(qnval::ITensors.QNVal, n::Int)
+  div_val = ITensors.val(qnval) * n
+  if !isinteger(div_val)
+    error("Multiplying $qnval by $n, the resulting QN value is not an integer")
+  end
+  return setval(qnval, Int(div_val))
+end
+
 # TODO: Move to ITensors.jl
 function Base.:/(qn::QN, n::Int)
   return QN(map(qnval -> qnval / n, qn.data))
+end
+
+function Base.:*(qn::QN, n::Int)
+  return QN(map(qnval -> qnval * n, qn.data))
 end
 
 # of Index (Tuple, Vector, ITensor, etc.)
@@ -49,7 +61,7 @@ function shift_flux(i::Index, flux_density::QN)
 end
 
 function multiply_flux(qnblock::Pair{QN,Int}, flux_factor::Int64)
-  return ((ITensors.qn(qnblock)) => ITensors.blockdim(qnblock))
+  return ((ITensors.qn(qnblock)*flux_factor) => ITensors.blockdim(qnblock))
 end
 function multiply_flux(space::Vector{Pair{QN,Int}}, flux_factor::Int64)
   return map(qnblock -> multiply_flux(qnblock, flux_factor), space)
