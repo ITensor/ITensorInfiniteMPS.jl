@@ -23,13 +23,16 @@ nsite = 2 # Number of sites in the unit cell
 localham_type = ITensor # Can choose `ITensor` or `MPO`
 
 # Parameters of the transverse field Ising model
-#model_params = (J=1.0, h=0.9)
-model_params = (t=1.0, U=10.0, V=0.0)
+model_params = (J=1.0, h=0.9)
 
-model = Model("hubbard")
+##############################################################################
+# CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
+#
 
-initstate(n) = isodd(n) ? "Up" : "0"
-s = infsiteinds("Electron", nsite; initstate, conserve_qns=conserve_qns)
+model = Model("ising")
+
+initstate(n) = "↑"
+s = infsiteinds("S=1/2", nsite; initstate, conserve_szparity=conserve_qns)
 ψ = InfMPS(s, initstate)
 
 # Form the Hamiltonian
@@ -111,7 +114,7 @@ function correlation_matrix_gates(ψ::MPS, op1, op2, start, stop)
     return C + C'
 end
 
-start = 1; stop = 5 #where to slice the infiniteMPS
+start = 1; stop = 6 #where to slice the infiniteMPS
 
 psi = toMPS(ψ, start, stop)
 
