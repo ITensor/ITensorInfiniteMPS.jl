@@ -148,6 +148,17 @@ function InfMPS(s::CelledVector, f::Function)
   return ψ = InfiniteCanonicalMPS(ψL, ψC, ψR)
 end
 
+function finite_mps(ψ::InfiniteCanonicalMPS, range::AbstractRange)
+  @assert isone(step(range))
+  ψ_finite = ψ.AL[range]
+  ψ_finite[last(range)] *= ψ.C[last(range)]
+  l0 = linkind(ψ.AL, first(range) - 1 => first(range))
+  lN = linkind(ψ.AR, last(range) => last(range) + 1)
+  ψ_finite = MPS([δ(l0, dag(l0)'); [ψ_finiteᵢ for ψ_finiteᵢ in ψ_finite]; δ(dag(lN), lN')])
+  set_ortho_lims!(ψ_finite, (last(range) + 1):(last(range) + 1))
+  return ψ_finite
+end
+
 function ITensors.expect(ψ::InfiniteCanonicalMPS, o::String, n::Int)
   s = siteinds(only, ψ.AL)
   O = op(o, s[n])
