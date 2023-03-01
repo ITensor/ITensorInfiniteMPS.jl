@@ -15,7 +15,7 @@ maxdim = 20 # Maximum bond dimension
 cutoff = 1e-6 # Singular value cutoff when increasing the bond dimension
 max_vumps_iters = 10 # Maximum number of iterations of the VUMPS/TDVP algorithm at a fixed bond dimension
 tol = 1e-5 # Precision error tolerance for outer loop of VUMPS or TDVP
-outer_iters = 5 # Number of times to increase the bond dimension
+outer_iters = 5 # Number of tims to increase the bond dimension
 time_step = -Inf # -Inf corresponds to VUMPS, finite time_step corresponds to TDVP
 solver_tol = (x -> x / 100) # Tolerance for the local solver (eigsolve in VUMPS and exponentiate in TDVP)
 multisite_update_alg = "parallel" # Choose between ["sequential", "parallel"]. Only parallel works with TDVP.
@@ -102,3 +102,72 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 
 @show Sz1_finite, Sz2_finite
 @show Sz1_infinite, Sz2_infinite
+
+##############################################################################
+#Extract a finite MPS from an InfiniteCanonicalMPS by slicing
+
+function finite_mps(ψ::InfiniteCanonicalMPS, range::AbstractRange)
+  @assert isone(step(range))
+  ψ_finite = ψ.AL[range]
+  ψ_finite[last(range)] *= ψ.C[last(range)]
+  l0 = linkind(ψ.AL, first(range) - 1 => first(range))
+  lN = linkind(ψ.AR, last(range) => last(range) + 1)
+  ψ_finite = MPS([δ(l0, dag(l0)'); [ψ_finiteᵢ for ψ_finiteᵢ in ψ_finite]; δ(dag(lN), lN')])
+  set_ortho_lims!(ψ_finite, (last(range) + 1):(last(range) + 1))
+  return ψ_finite
+end
+
+
+##########################################################
+#Correlation matrix for infinite MPS
+
+function correlation_matrix(ψ::InfiniteCanonicalMPS, op1, op2, dim)
+  C = zeros(ComplexF64, dim, dim)
+  for i in 1:dim
+      for j in (i+1):dim
+          h = op(op1, siteinds(ψ)[i]) * op(op2, siteinds(ψ)[j])
+          ϕ = ψ.AL[i]
+          for k in (i+1):(j)
+              ϕ *= ψ.AL[k]
+          end
+          ϕ *= ψ.C[j]
+          C[i,j] = (noprime(ϕ * h) * dag(ϕ))[]
+      end
+  end
+  return C + C'
+end
+
+##########################################################
+#Correlation matrix for finite MPS using explicit contraction of operator
+
+function correlation_matrix_gates(ψ::MPS, op1, op2, start, stop)
+  C = zeros(ComplexF64, stop-start+1, stop-start+1)
+  for i in start:stop
+      orthogonalize!(ψ, i)
+      for j in (i+1):stop
+          h = op(op1, siteinds(ψ)[i]) * op(op2, siteinds(ψ)[j])
+          ϕ = ψ[i]
+          for k in (i+1):(j)
+              ϕ *= ψ[k]
+          end
+          C[i-start+1,j-start+1] = (noprime(ϕ * h) * dag(ϕ))[]
+      end
+  end
+  return C + C'
+end
+
+start = 1; stop = 6 #where to slice the infiniteMPS
+psi = finite_mps(ψ, start:stop)
+
+A = correlation_matrix_gates(psi, "Sz", "Sz", start+1, stop+1)
+B = ITensors.correlation_matrix(psi, "Sz", "Sz", sites=(start+1):(stop+1))
+C = correlation_matrix(ψ, "Sz", "Sz", stop-start+1)
+
+println("correlation matrix with finite MPS + explicit contraction = ")
+display(A)
+display("correlation matrix with finite MPS + optimized routine = ")
+display(B)
+display("correlation matrix with infinite MPS = ")
+display(C)
+display("difference = ")
+display(B-C)
