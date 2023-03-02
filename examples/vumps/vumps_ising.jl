@@ -102,19 +102,3 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 
 @show Sz1_finite, Sz2_finite
 @show Sz1_infinite, Sz2_infinite
-
-start = 1; stop = 6 #where to slice the infiniteMPS
-psi = finite_mps(ψ, start:stop)
-
-A = correlation_matrix_gates(psi, "Sz", "Sz", start+1, stop+1)
-B = ITensors.correlation_matrix(psi, "Sz", "Sz", sites=(start+1):(stop+1))
-C = correlation_matrix(ψ, "Sz", "Sz", stop-start+1)
-
-println("correlation matrix with finite MPS + explicit contraction = ")
-display(A)
-display("correlation matrix with finite MPS + optimized routine = ")
-display(B)
-display("correlation matrix with infinite MPS = ")
-display(C)
-display("difference = ")
-display(B-C)
