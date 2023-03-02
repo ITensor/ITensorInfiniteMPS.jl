@@ -150,15 +150,21 @@ end
 
 function finite_mps(ψ::InfiniteCanonicalMPS, range::AbstractRange)
   @assert isone(step(range))
+  N = length(range)
   ψ_finite = ψ.AL[range]
-  ψ_finite[last(range)] *= ψ.C[last(range)]
+  ψ_finite[N] *= ψ.C[last(range)]
   l0 = linkind(ψ.AL, first(range) - 1 => first(range))
+  l̃0 = sim(l0)
   lN = linkind(ψ.AR, last(range) => last(range) + 1)
-  ψ_finite = MPS([δ(l0, dag(l0)'); [ψ_finiteᵢ for ψ_finiteᵢ in ψ_finite]; δ(dag(lN), lN')])
-  set_ortho_lims!(ψ_finite, (last(range) + 1):(last(range) + 1))
+  l̃N = sim(lN)
+  δl0 = δ(dag(l̃0), l0)
+  δlN = δ(dag(l̃N), lN)
+  ψ_finite[1] *= δl0
+  ψ_finite[N] *= dag(δlN)
+  ψ_finite = MPS([dag(δl0); [ψ_finiteᵢ for ψ_finiteᵢ in ψ_finite]; δlN])
+  set_ortho_lims!(ψ_finite, (N + 1):(N + 1))
   return ψ_finite
 end
-
 function ITensors.expect(ψ::InfiniteCanonicalMPS, o::String, n::Int)
   s = siteinds(only, ψ.AL)
   O = op(o, s[n])
