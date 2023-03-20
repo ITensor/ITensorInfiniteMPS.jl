@@ -81,6 +81,7 @@ export Cell,
   translator,
   tdvp,
   vumps,
+  finite_mps,
   ⊕,
   ⊗,
   ×

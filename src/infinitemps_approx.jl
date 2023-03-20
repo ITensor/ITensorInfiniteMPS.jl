@@ -51,7 +51,7 @@ function infinitemps_approx(
 
   ψ = replace_siteinds(ψ, s∞)
 
-  for sweep in 1:10
+  for sweep in 1:nsweeps
     # XXX: these are just used for testing
     TL = ITensor(1)
     for n in 1:N

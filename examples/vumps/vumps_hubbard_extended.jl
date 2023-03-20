@@ -120,6 +120,11 @@ Sz_finite = ITensors.expect(ψfinite, "Sz")[nfinite:(nfinite + 1)]
 
 energy_exact = reference(model, Observable("energy"); U=model_params.U / model_params.t)
 
+corr_infinite = correlation_matrix(finite_mps(ψ, 1:10), "Cdagup", "Cup"; sites=2:11)
+corr_finite = correlation_matrix(
+  ψfinite, "Cdagup", "Cup"; sites=Int(Nfinite / 2):Int(Nfinite / 2 + 9)
+)
+
 println("\nResults from VUMPS")
 @show energy_infinite
 @show energy_exact
@@ -127,6 +132,7 @@ println("\nResults from VUMPS")
 @show Ndn
 @show Nup .+ Ndn
 @show Sz
+@show corr_infinite
 
 println("\nResults from DMRG")
 @show energy_finite
@@ -134,5 +140,6 @@ println("\nResults from DMRG")
 @show Ndn_finite
 @show Nup_finite .+ Ndn_finite
 @show Sz_finite
+@show corr_finite
 
 nothing
