@@ -61,7 +61,7 @@ function shift_flux(i::Index, flux_density::QN)
 end
 
 function multiply_flux(qnblock::Pair{QN,Int}, flux_factor::Int64)
-  return ((ITensors.qn(qnblock)*flux_factor) => ITensors.blockdim(qnblock))
+  return ((ITensors.qn(qnblock) * flux_factor) => ITensors.blockdim(qnblock))
 end
 function multiply_flux(space::Vector{Pair{QN,Int}}, flux_factor::Int64)
   return map(qnblock -> multiply_flux(qnblock, flux_factor), space)
