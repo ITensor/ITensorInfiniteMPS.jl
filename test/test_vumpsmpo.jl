@@ -9,7 +9,6 @@ function expect_three_site(ψ::MPS, h::ITensor, n::Int)
 end
 
 #Ref time is 21.6s with negligible compilation time
-@time
 @testset "vumpsmpo_ising" begin
   Random.seed!(1234)
 
