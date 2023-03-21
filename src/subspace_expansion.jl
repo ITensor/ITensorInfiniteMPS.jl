@@ -18,7 +18,7 @@ function generate_twobody_nullspace(
 
   range_H = nrange(ψ, H[1])
 
-  @assert range_H > 1 "Not defined for purely local Hamiltonians"
+  @assert range_H > 1 "Subspace expansion for InfiniteSum{MPO} is not defined for purely local Hamiltonians"
 
   if range_H > 2
     ψᴴ = dag(ψ)
@@ -181,7 +181,7 @@ function subspace_expansion(
   @assert dˡ == dʳ
   if dˡ ≥ maxdim
     println(
-      "Current bond dimension at bond $b is $dˡ while desired maximum dimension is $maxdim, skipping bond dimension increase",
+      "Current bond dimension at bond $b is $dˡ while desired maximum dimension is $maxdim, skipping bond dimension increase at $b",
     )
     flush(stdout)
     flush(stderr)
@@ -199,7 +199,7 @@ function subspace_expansion(
   #Added due to crash during testing
   if norm(ψHN2.tensor) < 1e-12
     println(
-      "Impossible to do a subspace expansion, probably due to conservation constraints"
+      "The two-site subspace expansion produced a zero-norm expansion at $b. This is likely due to the long-range nature of the QN conserving Hamiltonian.",
     )
     flush(stdout)
     flush(stderr)
