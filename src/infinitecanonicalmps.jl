@@ -60,28 +60,84 @@ function shift_flux(i::Index, flux_density::QN)
   return ITensors.setspace(i, shift_flux(space(i), flux_density))
 end
 
-function multiply_flux(qnblock::Pair{QN,Int}, flux_factor::Int64)
-  return ((ITensors.qn(qnblock) * flux_factor) => ITensors.blockdim(qnblock))
+function multiply_flux(qn::ITensors.QNVal, flux_factor::Int64)
+  if qn.modulus == 0 #is undefined, so remains undefined
+    return (qn.name, qn.val, qn.modulus) #qn
+  elseif qn.modulus == 1 || qn.modulus == -1 #U(1) symmetry, should remain a U(1) symmetry
+    return (qn.name, qn.val * flux_factor, qn.modulus) #qn * flux_factor
+  else #To get the same algebra, multiplying the modulus by flux_factor works
+    return (qn.name, qn.val * flux_factor, qn.modulus * flux_factor)
+  end
 end
-function multiply_flux(space::Vector{Pair{QN,Int}}, flux_factor::Int64)
+
+function multiply_flux(qn::QN, flux_factor::Int64)
+  flux_factor == 1 && return qn
+  return QN(multiply_flux.(filter(x -> x.modulus != 0, qn.data), flux_factor)...)
+end
+
+function multiply_flux(qn::QN, flux_factor::Dict{ITensors.SmallString,Int64})
+  return QN(
+    [multiply_flux(q, flux_factor[q.name]) for q in filter(x -> x.modulus != 0, qn.data)]...
+  )
+end
+
+function multiply_flux(
+  qnblock::Pair{QN,Int}, flux_factor::Union{Int64,Dict{ITensors.SmallString,Int64}}
+)
+  flux_factor == 1 && return qnblock
+  return (multiply_flux(ITensors.qn(qnblock), flux_factor) => ITensors.blockdim(qnblock))
+end
+
+function multiply_flux(
+  space::Vector{Pair{QN,Int}}, flux_factor::Union{Int64,Dict{ITensors.SmallString,Int64}}
+)
+  flux_factor == 1 && return space
   return map(qnblock -> multiply_flux(qnblock, flux_factor), space)
 end
-function multiply_flux(i::Index, flux_factor::Int64)
+
+function multiply_flux(i::Index, flux_factor::Union{Int64,Dict{ITensors.SmallString,Int64}})
+  flux_factor == 1 && return i
   return ITensors.setspace(i, multiply_flux(space(i), flux_factor))
 end
+
+#= Alternative version where we do not try to optimize the multiplier for each QN
+function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
+  if iszero(flux)
+    return s
+  end
+  #For simplicity, we are not introducing a factor per QN
+  n = length(s)
+  multiplier = 1
+  for qn in flux
+    if qn.val == 0
+      continue
+    end
+    multiplier = lcm(lcm(qn.val, n)÷qn.val, multiplier)
+  end
+  s = map(sₙ -> multiply_flux(sₙ, multiplier), s)
+  flux = multiply_flux(flux, multiplier)
+  flux_density = flux / n
+  return map(sₙ -> shift_flux(sₙ, flux_density), s)
+end
+=#
 
 function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
   if iszero(flux)
     return s
   end
+  #For simplicity, we are not introducing a factor per QN
   n = length(s)
-  try
-    flux_density = flux / n
-    return map(sₙ -> shift_flux(sₙ, flux_density), s)
-  catch e
-    s = map(sₙ -> multiply_flux(sₙ, n), s)
-    return map(sₙ -> shift_flux(sₙ, flux), s)
+  multipliers = Dict{ITensors.SmallString,Int64}() #multipliers is assigned using the names
+  for qn in flux.data
+    if qn.modulus == 0
+      continue
+    end
+    multipliers[qn.name] = qn.val != 0 ? lcm(qn.val, n) ÷ qn.val : 1
   end
+  s = map(sₙ -> multiply_flux(sₙ, multipliers), s)
+  flux = multiply_flux(flux, multipliers)
+  flux_density = flux / n
+  return map(sₙ -> shift_flux(sₙ, flux_density), s)
 end
 
 function infsiteinds(
