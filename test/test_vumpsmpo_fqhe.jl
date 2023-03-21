@@ -21,7 +21,6 @@ end
 
 #Currently, VUMPS cannot give the right result as the subspace expansion is too small
 #This is meant to test the generalized translation rules
-@time
 @testset "vumpsmpo_fqhe" begin
   Random.seed!(1234)
   function initstate(n)
