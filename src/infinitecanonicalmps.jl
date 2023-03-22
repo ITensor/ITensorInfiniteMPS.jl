@@ -104,7 +104,7 @@ function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
     if qn.modulus == 0
       continue
     end
-    multipliers[qn.name] = qn.val != 0 ? lcm(qn.val, n) ÷ qn.val : 1
+    multipliers[qn.name] = qn.val != 0 ? abs(lcm(qn.val, n) ÷ qn.val) : 1 #It is a bit more readable to keep multipliers positive.
   end
   s = map(sₙ -> scale_flux(sₙ, multipliers), s)
   flux = scale_flux(flux, multipliers)
