@@ -58,10 +58,8 @@ function shift_flux(i::Index, flux_density::QN)
 end
 
 function scale_flux(qn::ITensors.QNVal, flux_factor::Int)
-  flux_factor == 1 && return qn
-  if qn.modulus == 0 #should not be called directly, but is a better safety
-    return qn #qn
-  elseif qn.modulus == 1 || qn.modulus == -1 #U(1) symmetry, should remain a U(1) symmetry
+  flux_factor == 1 && return qn #This test could occur earlier
+  if -1 <= qn.modulus <= 1  #U(1) symmetry, should remain a U(1) symmetry, if qn.modulus = 0, it is a dummy term and the code does nothing
     return qn * flux_factor
   else #To get the same algebra, multiplying the modulus by flux_factor works
     return ITensors.QNVal(qn.name, qn.val * flux_factor, qn.modulus * flux_factor)
@@ -69,7 +67,7 @@ function scale_flux(qn::ITensors.QNVal, flux_factor::Int)
 end
 
 function scale_flux(qn::ITensors.QNVal, flux_factor::Dict{ITensors.SmallString,Int})
-  qn.name == ITensors.SmallString() && return qn #Ensure that we do not touch empty QNs
+  !haskey(flux_factor, qn.name) && return qn #Ensure that we do not touch empty QNs or QNs that we do not need to rescale because the shift is 0
   return scale_flux(qn, flux_factor[qn.name])
 end
 
@@ -97,14 +95,14 @@ function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
   if iszero(flux)
     return s
   end
-  #For simplicity, we are not introducing a factor per QN
+  #We are introducing a factor per QN
   n = length(s)
   multipliers = Dict{ITensors.SmallString,Int}() #multipliers is assigned using the names
   for qn in flux.data
-    if qn.modulus == 0
+    if qn.val == 0 #We do not need to multiply in this case. It also takes into account the empty QNs which have val and modulus 0
       continue
     end
-    multipliers[qn.name] = qn.val != 0 ? abs(lcm(qn.val, n) ÷ qn.val) : 1 #It is a bit more readable to keep multipliers positive.
+    multipliers[qn.name] = abs(lcm(qn.val, n) ÷ qn.val) #It is a bit more readable to keep multipliers positive.
   end
   s = map(sₙ -> scale_flux(sₙ, multipliers), s)
   flux = scale_flux(flux, multipliers)
