@@ -5,11 +5,31 @@ end
 
 # TODO: Move to ITensors.jl
 function Base.:/(qnval::ITensors.QNVal, n::Int)
-  div_val = ITensors.val(qnval) / n
-  if !isinteger(div_val)
-    error("Dividing $qnval by $n, the resulting QN value is not an integer")
+  if abs(qnval.modulus) <= 1
+    div_val = ITensors.val(qnval) / n
+    if !isinteger(div_val)
+      error("Dividing $qnval by $n, the resulting QN value is not an integer")
+    end
+    return setval(qnval, Int(div_val))
+  else
+    if mod(qnval.val, gcd(qnval.modulus, n)) != 0
+      error("Dividing $qnval by $n, no solution to the Chinese remainder theorem")
+    end
+    #We perform a brute force sieving solution -> should be ok for all reasonnable n
+    sol = qnval.val
+    for x in 1:n
+      if mod(sol, n) != 0
+        sol += qnval.modulus
+      else
+        break
+      end
+      x == n && error("Failed to find solution") #Bezut identity would be a better solver
+    end
+    modulus = lcm(qnval.modulus, n)
+    sol = mod(sol, modulus)
+    sol = sol < abs(sol - modulus) ? sol : sol - modulus
+    return setval(qnval, Int(sol / n))
   end
-  return setval(qnval, Int(div_val))
 end
 
 function Base.:*(qnval::ITensors.QNVal, n::Int)
@@ -102,7 +122,21 @@ function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
     if qn.val == 0 #We do not need to multiply in this case. It also takes into account the empty QNs which have val and modulus 0
       continue
     end
-    multipliers[qn.name] = abs(lcm(qn.val, n) ÷ qn.val) #It is a bit more readable to keep multipliers positive.
+    multipliers[qn.name] = abs(lcm(qn.val, n) ÷ qn.val)#default solution with positive multiplier
+    if abs(qn.modulus) > 1
+      #We find a multiplier which guarantees a solution of the Chinese theorem
+      #For now, brute force:
+      multipliers[qn.name] = abs(lcm(qn.val, n) ÷ qn.val)
+      for x in 1:(multipliers[qn.name] - 1)
+        if mod(n, x) != 0
+          continue
+        end
+        if mod(qn.val * x, gcd(n, x * qn.modulus)) == 0
+          multipliers[qn.name] = x
+          break
+        end
+      end
+    end
   end
   s = map(sₙ -> scale_flux(sₙ, multipliers), s)
   flux = scale_flux(flux, multipliers)
