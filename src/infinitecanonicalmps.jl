@@ -15,6 +15,8 @@ function Base.:/(qnval::ITensors.QNVal, n::Int)
     if mod(qnval.val, gcd(qnval.modulus, n)) != 0
       error("Dividing $qnval by $n, no solution to the Chinese remainder theorem")
     end
+    #We look for the inverse of n in the equation n x = qnval.val mod qn.modulus.
+    #The Chinese remainder theorem guarantees it exists
     #We perform a brute force sieving solution -> should be ok for all reasonnable n
     sol = qnval.val
     for x in 1:n
@@ -23,7 +25,7 @@ function Base.:/(qnval::ITensors.QNVal, n::Int)
       else
         break
       end
-      x == n && error("Failed to find solution") #Bezut identity would be a better solver
+      x == n && error("Failed to find solution") #Bezut identity would be a better solver here
     end
     modulus = lcm(qnval.modulus, n)
     sol = mod(sol, modulus)
@@ -124,15 +126,27 @@ function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
     end
     multipliers[qn.name] = abs(lcm(qn.val, n) ÷ qn.val)#default solution with positive multiplier
     if abs(qn.modulus) > 1
-      #We find a multiplier which guarantees a solution of the Chinese theorem
-      #For now, brute force:
+      #=
+      for Zp symmetries, we use the Chinese remainder theorem to find an optimal solution.
+      We try to find y such that  y = 0 mod n and y = qn.val mod qn.modulus. Then we just need to find x such that y = n x.
+
+      This system admits a solution iff qn.val = 0 mod( gcd(qn.modulus, n)), which is not necessarily true.
+      In order to avoid this problem, we introduce a global multiplier b: qn.val -> b qn.val, qn.modulus -> b qn.modulus.
+      If b = n, we always have  n qn.val = 0 mod(  gcd(n qn.modulus, n) = n )
+      We can do better: I try to find the smallest b such that:
+      b qn.val = 0 mod gcd(n, qn.modulus b).
+
+      Case when things changed: n = 3, initstate = +--, flux = 1 mod 2.
+      Previous version: 1 is not divisible by 3, so we mutiply everything by 3. Gives QN ( 4 mod 6, 1 mod 6)
+      Current version: gcd(2, 3) = 1, so a solution actually exists: 3 x 1 = 1 mod 2 => work with QN (0 mod 2, 1 mod 2)
+      =#
       multipliers[qn.name] = abs(lcm(qn.val, n) ÷ qn.val)
-      for x in 1:(multipliers[qn.name] - 1)
-        if mod(n, x) != 0
+      for b in 1:(multipliers[qn.name] - 1)
+        if mod(n, b) != 0 #It is easy to show that the optimal b divides n
           continue
         end
-        if mod(qn.val * x, gcd(n, x * qn.modulus)) == 0
-          multipliers[qn.name] = x
+        if mod(qn.val * b, gcd(n, b * qn.modulus)) == 0
+          multipliers[qn.name] = b
           break
         end
       end

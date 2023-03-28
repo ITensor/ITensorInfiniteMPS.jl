@@ -40,8 +40,9 @@ using Random
 
   for N in 1:6
     s = infsiteinds("S=1/2", N; conserve_szparity=true, initstate)
-    ψ = InfMPS(s, initstate)
     @show N
     @show s
+    ψ = InfMPS(s, initstate)
+    @test iszero(flux(ψ.AL))
   end
 end
