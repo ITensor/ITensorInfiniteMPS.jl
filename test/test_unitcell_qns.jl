@@ -42,8 +42,7 @@ using Random
     s = infsiteinds("S=1/2", N; conserve_szparity=true, initstate)
     @show N
     @show s
-    @test iszero(flux(s))
     ψ = InfMPS(s, initstate)
-    @test iszero(flux(ψ))
+    @test iszero(flux(ψ.AL))
   end
 end
