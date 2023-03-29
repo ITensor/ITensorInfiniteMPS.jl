@@ -82,6 +82,14 @@ end
 import ITensors: op
 op(::OpName"Zero", ::SiteType, s::Index) = ITensor(s', dag(s))
 
+function InfiniteMPO(model::Model, s::CelledVector; kwargs...)
+  return InfiniteMPO(model, s, translator(s); kwargs...)
+end
+
+function InfiniteMPO(model::Model, s::CelledVector, translator::Function; kwargs...)
+  InfiniteMPO(InfiniteMPOMatrix(model,s,translator;kwargs...))
+end
+
 function InfiniteMPOMatrix(model::Model, s::CelledVector; kwargs...)
   return InfiniteMPOMatrix(model, s, translator(s); kwargs...)
 end
