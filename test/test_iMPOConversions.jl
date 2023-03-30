@@ -94,14 +94,18 @@ end
     ferro(n) = "↑"
     antiferro(n) = isodd(n) ? "↑" : "↓"
 
-    models=[(Model"heisenbergNNN"(),"S=1/2"),(Model"hubbardNNN"(),"Electron")]
-    @testset "H=$model, Ncell=$Ncell, NNN=$NNN, Antiferro=$Af" for (model,site) in models, Ncell in 2:6, NNN in 1:Ncell-1, Af in [true,false]
-        if isodd(Ncell) && Af #skip test since Af state does fit inside odd cells.
+    models=[
+        (Model"heisenbergNNN"(),"S=1/2"),
+        (Model"hubbardNNN"(),"Electron")
+        ]
+    @testset "H=$model, Ncell=$Ncell, NNN=$NNN, Antiferro=$Af, qns=$qns" for (model,site) in models, qns=[false,true], Ncell in 2:6, NNN in 1:Ncell-1, Af in [true,false]
+#     @testset "H=$model, Ncell=$Ncell, NNN=$NNN, Antiferro=$Af" for (model,site) in models, qns in [true], Ncell in 3:3, NNN in 2:2, Af in [false]
+            if isodd(Ncell) && Af #skip test since Af state does fit inside odd cells.
             continue
         end
         initstate(n) = Af ? antiferro(n) : ferro(n) 
         model_kwargs=(NNN=NNN,)
-        s = infsiteinds(site, Ncell; initstate,conserve_qns=true);
+        s = infsiteinds(site, Ncell; initstate,conserve_qns=qns);
         ψ = InfMPS(s, initstate) 
         Hi=InfiniteMPO(model, s;model_kwargs...)
         Hs=InfiniteSum{MPO}(model, s;model_kwargs...)
