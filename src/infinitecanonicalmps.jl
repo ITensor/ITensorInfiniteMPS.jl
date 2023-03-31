@@ -5,16 +5,47 @@ end
 
 # TODO: Move to ITensors.jl
 function Base.:/(qnval::ITensors.QNVal, n::Int)
-  div_val = ITensors.val(qnval) / n
-  if !isinteger(div_val)
-    error("Dividing $qnval by $n, the resulting QN value is not an integer")
+  if abs(qnval.modulus) <= 1
+    div_val = ITensors.val(qnval) / n
+    if !isinteger(div_val)
+      error("Dividing $qnval by $n, the resulting QN value is not an integer")
+    end
+    return setval(qnval, Int(div_val))
+  else
+    if mod(qnval.val, gcd(qnval.modulus, n)) != 0
+      error("Dividing $qnval by $n, no solution to the Chinese remainder theorem")
+    end
+    #We look for the inverse of n in the equation n x = qnval.val mod qn.modulus.
+    #The Chinese remainder theorem guarantees it exists
+    #We perform a brute force sieving solution -> should be ok for all reasonnable n
+    sol = qnval.val
+    for x in 1:n
+      if mod(sol, n) != 0
+        sol += qnval.modulus
+      else
+        break
+      end
+      x == n && error("Failed to find solution") #Bezut identity would be a better solver here
+    end
+    modulus = lcm(qnval.modulus, n)
+    sol = mod(sol, modulus)
+    sol = sol < abs(sol - modulus) ? sol : sol - modulus
+    return setval(qnval, Int(sol / n))
   end
-  return setval(qnval, Int(div_val))
+end
+
+function Base.:*(qnval::ITensors.QNVal, n::Int)
+  prod_val = ITensors.val(qnval) * n
+  return setval(qnval, Int(prod_val))
 end
 
 # TODO: Move to ITensors.jl
 function Base.:/(qn::QN, n::Int)
   return QN(map(qnval -> qnval / n, qn.data))
+end
+
+function Base.:*(qn::QN, n::Int)
+  return QN(map(qnval -> qnval * n, qn.data))
 end
 
 # of Index (Tuple, Vector, ITensor, etc.)
@@ -48,11 +79,81 @@ function shift_flux(i::Index, flux_density::QN)
   return ITensors.setspace(i, shift_flux(space(i), flux_density))
 end
 
+function scale_flux(qn::ITensors.QNVal, flux_factor::Int)
+  flux_factor == 1 && return qn #This test could occur earlier
+  if -1 <= qn.modulus <= 1  #U(1) symmetry, should remain a U(1) symmetry, if qn.modulus = 0, it is a dummy term and the code does nothing
+    return qn * flux_factor
+  else #To get the same algebra, multiplying the modulus by flux_factor works
+    return ITensors.QNVal(qn.name, qn.val * flux_factor, qn.modulus * flux_factor)
+  end
+end
+
+function scale_flux(qn::ITensors.QNVal, flux_factor::Dict{ITensors.SmallString,Int})
+  !haskey(flux_factor, qn.name) && return qn #Ensure that we do not touch empty QNs or QNs that we do not need to rescale because the shift is 0
+  return scale_flux(qn, flux_factor[qn.name])
+end
+
+function scale_flux(qn::QN, flux_factor::Union{Int,Dict{ITensors.SmallString,Int}})
+  return QN(map(qnval -> scale_flux(qnval, flux_factor), qn.data))
+end
+
+function scale_flux(
+  qnblock::Pair{QN,Int}, flux_factor::Union{Int,Dict{ITensors.SmallString,Int}}
+)
+  return (scale_flux(ITensors.qn(qnblock), flux_factor) => ITensors.blockdim(qnblock))
+end
+
+function scale_flux(
+  space::Vector{Pair{QN,Int}}, flux_factor::Union{Int,Dict{ITensors.SmallString,Int}}
+)
+  return map(qnblock -> scale_flux(qnblock, flux_factor), space)
+end
+
+function scale_flux(i::Index, flux_factor::Union{Int,Dict{ITensors.SmallString,Int}})
+  return ITensors.setspace(i, scale_flux(space(i), flux_factor))
+end
+
 function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
   if iszero(flux)
     return s
   end
+  #We are introducing a factor per QN
   n = length(s)
+  multipliers = Dict{ITensors.SmallString,Int}() #multipliers is assigned using the names
+  for qn in flux.data
+    if qn.val == 0 #We do not need to multiply in this case. It also takes into account the empty QNs which have val and modulus 0
+      continue
+    end
+    multipliers[qn.name] = abs(lcm(qn.val, n) ÷ qn.val)#default solution with positive multiplier
+    if abs(qn.modulus) > 1
+      #=
+      for Zp symmetries, we use the Chinese remainder theorem to find an optimal solution.
+      We try to find y such that  y = 0 mod n and y = qn.val mod qn.modulus. Then we just need to find x such that y = n x.
+
+      This system admits a solution iff qn.val = 0 mod( gcd(qn.modulus, n)), which is not necessarily true.
+      In order to avoid this problem, we introduce a global multiplier b: qn.val -> b qn.val, qn.modulus -> b qn.modulus.
+      If b = n, we always have  n qn.val = 0 mod(  gcd(n qn.modulus, n) = n )
+      We can do better: I try to find the smallest b such that:
+      b qn.val = 0 mod gcd(n, qn.modulus b).
+
+      Case when things changed: n = 3, initstate = +--, flux = 1 mod 2.
+      Previous version: 1 is not divisible by 3, so we mutiply everything by 3. Gives QN ( 4 mod 6, 1 mod 6)
+      Current version: gcd(2, 3) = 1, so a solution actually exists: 3 x 1 = 1 mod 2 => work with QN (0 mod 2, 1 mod 2)
+      =#
+      multipliers[qn.name] = abs(lcm(qn.val, n) ÷ qn.val)
+      for b in 1:(multipliers[qn.name] - 1)
+        if mod(n, b) != 0 #It is easy to show that the optimal b divides n
+          continue
+        end
+        if mod(qn.val * b, gcd(n, b * qn.modulus)) == 0
+          multipliers[qn.name] = b
+          break
+        end
+      end
+    end
+  end
+  s = map(sₙ -> scale_flux(sₙ, multipliers), s)
+  flux = scale_flux(flux, multipliers)
   flux_density = flux / n
   return map(sₙ -> shift_flux(sₙ, flux_density), s)
 end
