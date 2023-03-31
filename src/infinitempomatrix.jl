@@ -47,13 +47,13 @@ function matrixITensorToITensor(
   H::Matrix{ITensor}; kwargs...
 )
   com_inds = commoninds(H[1, 1], H[end, end])
-  left_inds,right_inds=find_links(H)
+  left_inds1,right_inds1,Ms=find_links(H)
   qns=hasqns(H[1,1])
   sample_index=com_inds[1]
   tspace=ITensors.trivial_space(sample_index)
   
-  left_inds=reverse(left_inds)
-  right_inds=reverse(right_inds)
+  left_inds=reverse(left_inds1)
+  right_inds=reverse(right_inds1)
   @assert length(left_inds)>0
   @assert length(right_inds)>0
   
@@ -119,7 +119,45 @@ function matrixITensorToITensor(
      xf+=Dx
   end #for x
   Hf=noprime(Hf,tags="Link")
-  return itensor(Hf), new_left_index, new_right_index
+  
+  #@show left_inds1 right_inds1 inds(Ms[1])
+  ils,irs=left_inds1,right_inds1
+  Ncell=lx
+  @assert length(Ms)==Ncell-1
+  i0=Index(tspace;dir=left_dir,tags="Link,l=0")
+  in=Index(tspace;dir=right_dir,tags="Link,l=$Ncell")
+  T=eltype(Ms[1])
+  Ms[1]*=onehot(T, i0 => 1)
+  Ms[Ncell-1]*=onehot(T, in => 1)
+
+  Hf1=H[end,end]*onehot(T, left_basis[end] => 1)*onehot(T, in => 1)
+  ih= left_basis[end],in
+  ilm=ils[Ncell-2],in
+  Hf1,ih=directsum(Hf1=>left_basis[end],Ms[Ncell-1]=>ils[Ncell-2])
+  ih=ih,in
+ # @show ih
+    #@show inds(Hf1,tags="Link") ih
+    for i in length(Ms)-1:-1:2
+       @assert hasind(Ms[i],ils[i-1])
+       @assert hasind(Ms[i],irs[i])
+       ilm=ils[i-1],irs[i]
+    #   #@show dim.(ih) dir.(ih) dim.(ilm) dir.(ilm)
+       Hf1,ih=directsum(Hf1=>ih,Ms[i]=>ilm,tags=["Link,l=0","Link,l=$Ncell"])
+    end
+    ilm=i0,irs[1]
+    Hf1,ih=directsum(Hf1=>ih,Ms[1]=>ilm,tags=["Link,l=1","Link,l=2"])
+  #  @show ih i0 
+    M=H[1,1]*onehot(T, dag(i0) => 1)*onehot(T, ih[1] => dim(ih[1]))
+   # @show inds(M,tags="Link") inds(Hf1,tags="Link") right_basis[1] right_basis[2]
+    #@show inds(M,tags="Link") dir.(inds(M,tags="Link")) dir.(inds(Hf1,tags="Link"))
+    Hf1,ih1=directsum(Hf1=>ih[2],M=>i0,tags="Link,l=2")
+
+    ih=inds(Hf1,tags="Link")
+    #@show ih
+    #@show new_left_index new_right_index ih
+  # #@show ih typeof(Hf1)
+  return Hf1,ih[1],ih[2]
+#  return itensor(Hf), new_left_index, new_right_index
 end
 
 #
@@ -131,6 +169,7 @@ function find_links(H::Matrix{ITensor})
   @assert lx==ly
   
   Ms=map(n->H[lx-n+1,ly-n],1:lx-1) #Get the sub diagonal into an array.
+  #Ms=map(n->H[n+1,n],1:lx-1) #Get the sub diagonal into an array.
   
   indexT=typeof(inds(Ms[1],tags="Link")[1])
   left_inds,right_inds=indexT[],indexT[]
@@ -146,7 +185,7 @@ function find_links(H::Matrix{ITensor})
       push!(right_inds,ir)      
     end
   end 
-  return left_inds,right_inds
+  return left_inds,right_inds,Ms
 end
 
 #
