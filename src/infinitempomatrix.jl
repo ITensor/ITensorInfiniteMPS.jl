@@ -43,120 +43,89 @@ function InfiniteMPOMatrix(data::Vector{Matrix{ITensor}}, translator::Function)
   return InfiniteMPOMatrix(CelledVector(data, translator), 0, size(data)[1], false)
 end
 
+#
+#  H should have the form below.  Only link indices are shown.
+#
+#    I         0                     0           0      0
+#  M-->l=n     0                     0           0      0
+#    0    l=n-->M-->l=n-1 ...        0           0      0
+#    :         :                     :           :      :
+#    0         0          ...  l=2-->M-->l=1     0      0
+#    0         0          ...        0        l=1-->M   I
+#
+# We need to capture the corner I's and the sub-diagonal Ms, and paste them together into on ITensor.
+# In addition we need make all elements of H into order(4) tensors by adding dummy Dw=1 indices.
+#
 function matrixITensorToITensor(
-  H::Matrix{ITensor}; kwargs...
+  Hm::Matrix{ITensor}; kwargs...
 )
-  com_inds = commoninds(H[1, 1], H[end, end])
-  left_inds1,right_inds1,Ms=find_links(H)
-  qns=hasqns(H[1,1])
-  sample_index=com_inds[1]
-  tspace=ITensors.trivial_space(sample_index)
+  indexT=typeof(inds(Hm[1,1])[1])
+  T=eltype(Hm[1,1])
   
-  left_inds=reverse(left_inds1)
-  right_inds=reverse(right_inds1)
-  @assert length(left_inds)>0
-  @assert length(right_inds)>0
-  
-  left_dir=dir(left_inds[1])
-  right_dir=dir(right_inds[1])
-  # Should we check that all dirs are consistent?
-
-  lx, ly = size(H)
-  left_basis = [
-    Index(tspace;dir=left_dir,tags= tags(left_inds[1]) ),
-    left_inds...,
-    Index(tspace;dir=left_dir,tags= tags(left_inds[1]) )
-  ]
-
-  right_basis = [
-    Index(tspace;dir=right_dir,tags=tags(right_inds[1]) ),
-    right_inds...,
-    Index(tspace;dir=right_dir,tags=tags(right_inds[1]) )
-  ]
-  
-  # 
-  if qns
-    left_block = vcat(space.(left_basis)...) #like directsum()
-    right_block = vcat(space.(right_basis)...)
-  else
-    left_block=sum(dim.(left_basis))
-    right_block=sum(dim.(right_basis))
-  end
-  new_left_index=Index(left_block; dir=left_dir, tags=tags(left_basis[1]))
-  new_right_index=Index(right_block; dir=right_dir, tags=tags(right_basis[1]))
-  
-  Hf=ITensor(0.0,new_left_index,new_right_index',com_inds)
-  @assert length(left_basis)==lx
-  @assert length(right_basis)==ly
-  xf=1 #coordinates into Hf1
-  for x in 1:lx
-    ilb=left_basis[x]
-    Dx=dim(ilb)
-    yf=1
-    for y in 1:ly
-       W=copy(H[x,y])
-      irb=right_basis[y]
-      Dy=dim(irb)
-      if !isempty(W)
-        if !hasind(W,ilb)
-          @assert Dx==1
-          W*=onehot(eltype(W), ilb => 1)
-        end
-        if !hasind(W,irb)
-          @assert Dy==1
-          W*=onehot(eltype(W), irb => 1)
-        end
-        prime!(W,irb)
-        @assert dim(inds(W,tags=tags(ilb),plev=0)[1])==Dx
-        @assert dim(inds(W,tags=tags(irb),plev=1))[1]==Dy
-        W=replacetags(W,tags(ilb),tags(new_left_index),plev=0)
-        W=replacetags(W,tags(irb),tags(new_right_index),plev=1)
-        Hf[new_left_index=>xf:xf+Dx-1,new_right_index'=>yf:yf+Dy-1]=W
-        
-      end #isempty
-      yf+=Dy
-     end #for y
-     xf+=Dx
-  end #for x
-  Hf=noprime(Hf,tags="Link")
-  
-  #@show left_inds1 right_inds1 inds(Ms[1])
-  ils,irs=left_inds1,right_inds1
-  Ncell=lx
-  @assert length(Ms)==Ncell-1
+  lx, ly = size(Hm)
+  @assert lx==ly
+  #
+  #  Extract the sub diagonal
+  #
+  Ms=map(n->Hm[lx-n+1,ly-n],1:lx-1) #Get the sub diagonal into an array.
+  #Ms=map(n->H[n+1,n],1:lx-1) #Get the sub diagonal into an array, reverse order.
+  #
+  #  Create list of all left and right link indices on the Ms.  In orefr to support dense storage we 
+  #  can't QN directions to decide left/right.  Instead we look for common tags among the neighbourinf Ms.
+  #
+  N=length(Ms)
+  @assert N==lx-1
+  ils,irs=indexT[],indexT[]
+  @assert length(inds(Ms[1],tags="Link"))==1
+  ir,=inds(Ms[1],tags="Link")
+  push!(irs,ir)
+  for n in 2:N
+    il,=inds(Ms[n],tags=tags(ir))
+    ir=noncommonind(Ms[n],il,tags="Link")
+    push!(ils,il)
+    if !isnothing(ir) # ir==nothing on the last M
+      push!(irs,ir)      
+    end
+  end 
+  #
+  # Make some dummy indices 
+  #
+  left_dir=dir(ils[1])
+  right_dir=dir(irs[1])
+  tspace=ITensors.trivial_space(ils[1])
   i0=Index(tspace;dir=left_dir,tags="Link,l=0")
-  in=Index(tspace;dir=right_dir,tags="Link,l=$Ncell")
-  T=eltype(Ms[1])
+  in=Index(tspace;dir=right_dir,tags="Link,l=$N")
+  inp=prime(dag(in))
+  
   Ms[1]*=onehot(T, i0 => 1)
-  Ms[Ncell-1]*=onehot(T, in => 1)
+  Ms[N]*=onehot(T, in => 1)
+  @show inds(Ms[1]) inds(Ms[N])
 
-  Hf1=H[end,end]*onehot(T, left_basis[end] => 1)*onehot(T, in => 1)
-  ih= left_basis[end],in
-  ilm=ils[Ncell-2],in
-  Hf1,ih=directsum(Hf1=>left_basis[end],Ms[Ncell-1]=>ils[Ncell-2])
+  H=Hm[1,1]*onehot(T, inp => 1)*onehot(T, in => 1) #I op in the top left of Hm
+  H,ih=directsum(H=>inp,Ms[N]=>ils[N-1])
   ih=ih,in
  # @show ih
     #@show inds(Hf1,tags="Link") ih
-    for i in length(Ms)-1:-1:2
+    for i in N-1:-1:2
        @assert hasind(Ms[i],ils[i-1])
        @assert hasind(Ms[i],irs[i])
        ilm=ils[i-1],irs[i]
     #   #@show dim.(ih) dir.(ih) dim.(ilm) dir.(ilm)
-       Hf1,ih=directsum(Hf1=>ih,Ms[i]=>ilm,tags=["Link,l=0","Link,l=$Ncell"])
+       H,ih=directsum(H=>ih,Ms[i]=>ilm,tags=["Link,l=0","Link,l=$N"])
     end
     ilm=i0,irs[1]
-    Hf1,ih=directsum(Hf1=>ih,Ms[1]=>ilm,tags=["Link,l=1","Link,l=2"])
+    H,ih=directsum(H=>ih,Ms[1]=>ilm,tags=["Link,l=1","Link,l=2"])
   #  @show ih i0 
-    M=H[1,1]*onehot(T, dag(i0) => 1)*onehot(T, ih[1] => dim(ih[1]))
+    M=Hm[N+1,N+1]*onehot(T, dag(i0) => 1)*onehot(T, ih[1] => dim(ih[1]))
    # @show inds(M,tags="Link") inds(Hf1,tags="Link") right_basis[1] right_basis[2]
     #@show inds(M,tags="Link") dir.(inds(M,tags="Link")) dir.(inds(Hf1,tags="Link"))
-    Hf1,ih1=directsum(Hf1=>ih[2],M=>i0,tags="Link,l=2")
+    H,ih1=directsum(H=>ih[2],M=>i0,tags="Link,l=2")
 
-    ih=inds(Hf1,tags="Link")
+    ih=inds(H,tags="Link")
     #@show ih
     #@show new_left_index new_right_index ih
   # #@show ih typeof(Hf1)
-  return Hf1,ih[1],ih[2]
+  return H,ih[1],ih[2]
 #  return itensor(Hf), new_left_index, new_right_index
 end
 
