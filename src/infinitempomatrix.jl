@@ -61,7 +61,6 @@ function matrixITensorToITensor(
 )
   indexT=typeof(inds(Hm[1,1])[1])
   T=eltype(Hm[1,1])
-  
   lx, ly = size(Hm)
   @assert lx==ly
   #
@@ -88,45 +87,31 @@ function matrixITensorToITensor(
     end
   end 
   #
-  # Make some dummy indices 
+  # Make some dummy indices.  Details of the Link indices do not matter from here on.
   #
   left_dir=dir(ils[1])
   right_dir=dir(irs[1])
   tspace=ITensors.trivial_space(ils[1])
-  i0=Index(tspace;dir=left_dir,tags="Link,l=0")
-  in=Index(tspace;dir=right_dir,tags="Link,l=$N")
+  i0=Index(tspace;dir=left_dir,tags="Link")
+  in=Index(tspace;dir=right_dir,tags="Link")
   inp=prime(dag(in))
+  ils=[i0,ils...]
   
   Ms[1]*=onehot(T, i0 => 1)
   Ms[N]*=onehot(T, in => 1)
-  @show inds(Ms[1]) inds(Ms[N])
 
-  H=Hm[1,1]*onehot(T, inp => 1)*onehot(T, in => 1) #I op in the top left of Hm
-  H,ih=directsum(H=>inp,Ms[N]=>ils[N-1])
+  H=Hm[1,1]*onehot(T, inp => 1)*onehot(T, in => 1) #Bootstrap with the I op in the top left of Hm
+  H,ih=directsum(H=>inp,Ms[N]=>ils[N]) #1-D directsum to put M[N] directly below the I op
   ih=ih,in
- # @show ih
-    #@show inds(Hf1,tags="Link") ih
-    for i in N-1:-1:2
-       @assert hasind(Ms[i],ils[i-1])
-       @assert hasind(Ms[i],irs[i])
-       ilm=ils[i-1],irs[i]
-    #   #@show dim.(ih) dir.(ih) dim.(ilm) dir.(ilm)
-       H,ih=directsum(H=>ih,Ms[i]=>ilm,tags=["Link,l=0","Link,l=$N"])
-    end
-    ilm=i0,irs[1]
-    H,ih=directsum(H=>ih,Ms[1]=>ilm,tags=["Link,l=1","Link,l=2"])
-  #  @show ih i0 
-    M=Hm[N+1,N+1]*onehot(T, dag(i0) => 1)*onehot(T, ih[1] => dim(ih[1]))
-   # @show inds(M,tags="Link") inds(Hf1,tags="Link") right_basis[1] right_basis[2]
-    #@show inds(M,tags="Link") dir.(inds(M,tags="Link")) dir.(inds(Hf1,tags="Link"))
-    H,ih1=directsum(H=>ih[2],M=>i0,tags="Link,l=2")
+  for i in N-1:-1:1
+      ilm=ils[i],irs[i]
+      H,ih=directsum(H=>ih,Ms[i]=>ilm,tags=["Link","Link"]) #2-D directsums to place new blocks below and to the right.
+  end
+  IN=Hm[N+1,N+1]*onehot(T, dag(i0) => 1)*onehot(T, ih[1] => dim(ih[1])) #I op in the bottom left of Hm
+  H,_=directsum(H=>ih[2],IN=>i0,tags="Link") #1-D directsum to the put I in the bottom row, to the right of M[1]
 
-    ih=inds(H,tags="Link")
-    #@show ih
-    #@show new_left_index new_right_index ih
-  # #@show ih typeof(Hf1)
+  ih=inds(H,tags="Link")
   return H,ih[1],ih[2]
-#  return itensor(Hf), new_left_index, new_right_index
 end
 
 #
