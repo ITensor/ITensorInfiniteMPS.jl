@@ -44,7 +44,7 @@ function InfiniteMPOMatrix(data::Vector{Matrix{ITensor}}, translator::Function)
 end
 
 #
-#  H should have the form below.  Only link indices are shown.
+#  Hm should have the form below.  Only link indices are shown.
 #
 #    I         0                     0           0      0
 #  M-->l=n     0                     0           0      0
@@ -54,11 +54,9 @@ end
 #    0         0          ...        0        l=1-->M   I
 #
 # We need to capture the corner I's and the sub-diagonal Ms, and paste them together into on ITensor.
-# In addition we need make all elements of H into order(4) tensors by adding dummy Dw=1 indices.
+# In addition we need make all elements of Hm into order(4) tensors by adding dummy Dw=1 indices.
 #
-function matrixITensorToITensor(
-  Hm::Matrix{ITensor}; kwargs...
-)
+function matrixITensorToITensor(Hm::Matrix{ITensor})
   indexT=typeof(inds(Hm[1,1])[1])
   T=eltype(Hm[1,1])
   lx, ly = size(Hm)
@@ -68,90 +66,52 @@ function matrixITensorToITensor(
   #
   Ms=map(n->Hm[lx-n+1,ly-n],1:lx-1) #Get the sub diagonal into an array.
   #Ms=map(n->H[n+1,n],1:lx-1) #Get the sub diagonal into an array, reverse order.
-  #
-  #  Create list of all left and right link indices on the Ms.  In orefr to support dense storage we 
-  #  can't QN directions to decide left/right.  Instead we look for common tags among the neighbourinf Ms.
-  #
   N=length(Ms)
   @assert N==lx-1
-  ils,irs=indexT[],indexT[]
+  #
+  #  We need a dummy link index, but it has to have the right direction.  
+  #  Ms[1] should only have one link index, and it should be to the right.
+  #
   @assert length(inds(Ms[1],tags="Link"))==1
   ir,=inds(Ms[1],tags="Link")
-  push!(irs,ir)
-  for n in 2:N
-    il,=inds(Ms[n],tags=tags(ir))
-    ir=noncommonind(Ms[n],il,tags="Link")
+  left_dir=dir(dag(ir))
+  tspace=ITensors.trivial_space(ir)
+  il0=Index(tspace;dir=left_dir,tags="Link,l=0") #Dw=1 left dummy index.
+  #
+  # Convert edge Ms to order 4 ITensors using the dummy index.
+  #
+  Ms[1]*=onehot(T, il0 => 1)
+  Ms[N]*=onehot(T, dag(il0) => 1) #We don't need distinct index IDs for this.  directsum makes all new index anyway.
+  #
+  #  Create list of all left and right link indices on the Ms.  In order to support dense storage we 
+  #  can't use QN directions to decide left/right.  Instead we look for common tags among the neighbouring Ms.
+  #  Right now the code assumes plev=0 for all Ms.
+  #
+  ils,irs=indexT[],indexT[] #left the right link indices.
+  ir=il0 #set up recursion below.  ir from the previous M, should have the same tags as il on the next M.
+  for n in 1:N
+    il,=inds(Ms[n],tags=tags(ir)) #Find the left index
+    ir=noncommonind(Ms[n],il,tags="Link") #New right index by elimination
     push!(ils,il)
-    if !isnothing(ir) # ir==nothing on the last M
-      push!(irs,ir)      
-    end
+    push!(irs,ir)      
   end 
   #
-  # Make some dummy indices.  Details of the Link indices do not matter from here on.
+  # Now direct sum everything non-empty in Hm, including those I ops in the corners.
+  # Order is critical.   
+  # Details of the Link index tags like "l=n" do not matter from here on.
   #
-  left_dir=dir(ils[1])
-  right_dir=dir(irs[1])
-  tspace=ITensors.trivial_space(ils[1])
-  i0=Index(tspace;dir=left_dir,tags="Link")
-  in=Index(tspace;dir=right_dir,tags="Link")
-  inp=prime(dag(in))
-  ils=[i0,ils...]
-  
-  Ms[1]*=onehot(T, i0 => 1)
-  Ms[N]*=onehot(T, in => 1)
-
-  H=Hm[1,1]*onehot(T, inp => 1)*onehot(T, in => 1) #Bootstrap with the I op in the top left of Hm
-  H,ih=directsum(H=>inp,Ms[N]=>ils[N]) #1-D directsum to put M[N] directly below the I op
-  ih=ih,in
-  for i in N-1:-1:1
-      ilm=ils[i],irs[i]
-      H,ih=directsum(H=>ih,Ms[i]=>ilm,tags=["Link","Link"]) #2-D directsums to place new blocks below and to the right.
+  H=Hm[1,1]*onehot(T, il0' => 1)*onehot(T, dag(il0) => 1) #Bootstrap with the I op in the top left of Hm
+  H,ih=directsum(H=>il0',Ms[N]=>ils[N]) #1-D directsum to put M[N] directly below the I op
+  ih=ih,dag(il0) #setup recusion.
+  for i in N-1:-1:1 #2-D directsums to place new blocks below and to the right.
+      H,ih=directsum(H=>ih,Ms[i]=>(ils[i],irs[i]),tags=["Link","Link"]) 
   end
-  IN=Hm[N+1,N+1]*onehot(T, dag(i0) => 1)*onehot(T, ih[1] => dim(ih[1])) #I op in the bottom left of Hm
-  H,_=directsum(H=>ih[2],IN=>i0,tags="Link") #1-D directsum to the put I in the bottom row, to the right of M[1]
+  IN=Hm[N+1,N+1]*onehot(T, dag(il0) => 1)*onehot(T, ih[1] => dim(ih[1])) #I op in the bottom left of Hm
+  H,_=directsum(H=>ih[2],IN=>il0,tags="Link") #1-D directsum to the put I in the bottom row, to the right of M[1]
 
   ih=inds(H,tags="Link")
   return H,ih[1],ih[2]
 end
-
-#
-#  Find all the right and left pointing link indices.  Index IDs don't line up from one
-#  tensor to the next, so we have to rely on tags to decide what to do.
-#
-function find_links(H::Matrix{ITensor})
-  lx, ly = size(H)
-  @assert lx==ly
-  
-  Ms=map(n->H[lx-n+1,ly-n],1:lx-1) #Get the sub diagonal into an array.
-  #Ms=map(n->H[n+1,n],1:lx-1) #Get the sub diagonal into an array.
-  
-  indexT=typeof(inds(Ms[1],tags="Link")[1])
-  left_inds,right_inds=indexT[],indexT[]
-  @assert length(inds(Ms[1],tags="Link"))==1
-  ir,=inds(Ms[1],tags="Link")
-  push!(right_inds,ir)
-  for n in 2:length(Ms)
-    il,=inds(Ms[n],tags=tags(ir))
-    #@show ir noncommonind(Ms[n],ir,tags="Link")
-    ir=noncommonind(Ms[n],il,tags="Link")
-    push!(left_inds,il)
-    if !isnothing(ir)
-      push!(right_inds,ir)      
-    end
-  end 
-  return left_inds,right_inds,Ms
-end
-
-#
-#  H should have the form below.  Only link indices are shown.
-#
-#    I        0                   0          0      0
-#  M--l=n     0                   0          0      0
-#    0    l=n--M--l=n-1 ...       0          0      0
-#    :        :                   :          :      :
-#    0        0         ...  l=2--M--l=1     0      0
-#    0        0         ...       0        l=1--M   I
-#
 
 function InfiniteMPO(H::InfiniteMPOMatrix)
   temp = matrixITensorToITensor.(H)
