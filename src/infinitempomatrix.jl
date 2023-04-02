@@ -59,7 +59,7 @@ end
 #  We ITensors.directsum() to join all the blocks into the final ITensor.
 #  This code should be 100% dense/blocks-sparse agnostic.
 #
-function matrixITensorToITensor(Hm::Matrix{ITensor})::ITensor
+function cat_to_itensor(Hm::Matrix{ITensor})::ITensor
   indexT = typeof(inds(Hm[1, 1])[1])
   T = eltype(Hm[1, 1])
   lx, ly = size(Hm)
@@ -115,7 +115,7 @@ end
 #  Hi is a CelledVector of ITensors.
 #
 function InfiniteMPO(Hm::InfiniteMPOMatrix)
-  Hs = matrixITensorToITensor.(data(Hm))
+  Hs = cat_to_itensor.(data(Hm))
   Hi = CelledVector([H for H in Hs], translator(Hm))
   lis = CelledVector([inds(H; tags="left")[1] for H in Hs], translator(Hm))
   ris = CelledVector([inds(H; tags="right")[1] for H in Hs], translator(Hm))
