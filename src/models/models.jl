@@ -87,7 +87,7 @@ function InfiniteMPO(model::Model, s::CelledVector; kwargs...)
 end
 
 function InfiniteMPO(model::Model, s::CelledVector, translator::Function; kwargs...)
-  InfiniteMPO(InfiniteMPOMatrix(model,s,translator;kwargs...))
+  return InfiniteMPO(InfiniteMPOMatrix(model, s, translator; kwargs...))
 end
 
 function InfiniteMPOMatrix(model::Model, s::CelledVector; kwargs...)
