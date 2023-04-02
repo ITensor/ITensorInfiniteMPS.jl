@@ -52,7 +52,6 @@ include("vumps_generic.jl")
 include("vumps_localham.jl")
 include("vumps_nonlocalham.jl")
 include("vumps_mpo.jl")
-include("subtensor.jl")
 
 export Cell,
   CelledVector,
