@@ -9,12 +9,12 @@ function terminate(h::InfiniteMPO)::MPO
   Ncell = nsites(h)
   # left termination vector
   il1 = commonind(h[1], h[2])
-  il0, = noncommoninds(h[1], il1; tags="Link")
+  il0, = noncommoninds(h[1], il1, tags="Link")
   l = ITensor(0.0, il0)
   l[il0 => dim(il0)] = 1.0 #assuming lower reg form in h
   # right termination vector
   iln = commonind(h[Ncell - 1], h[Ncell])
-  ilnp, = noncommoninds(h[Ncell], iln; tags="Link")
+  ilnp, = noncommoninds(h[Ncell], iln, tags="Link")
   r = ITensor(0.0, ilnp)
   r[ilnp => 1] = 1.0 #assuming lower reg form in h
   # build up a finite MPO
