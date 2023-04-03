@@ -8,15 +8,13 @@ using Test
 function terminate(h::InfiniteMPO)::MPO
   Ncell = nsites(h)
   # left termination vector
-  il1 = commonind(h[1], h[2])
-  il0, = noncommoninds(h[1], il1, tags="Link")
+  il0 = commonind(h[1], h[0])
   l = ITensor(0.0, il0)
   l[il0 => dim(il0)] = 1.0 #assuming lower reg form in h
   # right termination vector
-  iln = commonind(h[Ncell - 1], h[Ncell])
-  ilnp, = noncommoninds(h[Ncell], iln, tags="Link")
-  r = ITensor(0.0, ilnp)
-  r[ilnp => 1] = 1.0 #assuming lower reg form in h
+  iln = commonind(h[Ncell], h[Ncell + 1])
+  r = ITensor(0.0, iln)
+  r[iln => 1] = 1.0 #assuming lower reg form in h
   # build up a finite MPO
   hf = MPO(Ncell)
   hf[1] = dag(l) * h[1] #left terminate
@@ -75,6 +73,7 @@ function ITensors.space(::SiteType"FermionK", pos::Int; p=1, q=1, conserve_momen
 end
 
 function fermion_momentum_translator(i::Index, n::Integer; N=6)
+  #@show n
   ts = tags(i)
   translated_ts = ITensorInfiniteMPS.translatecelltags(ts, n)
   new_i = replacetags(i, ts => translated_ts)
@@ -101,7 +100,6 @@ end
     Ncell in 2:6,
     NNN in 1:(Ncell - 1),
     Af in [true, false]
-    #     @testset "H=$model, Ncell=$Ncell, NNN=$NNN, Antiferro=$Af" for (model,site) in models, qns in [true], Ncell in 3:3, NNN in 2:2, Af in [false]
 
     if isodd(Ncell) && Af #skip test since Af state does fit inside odd cells.
       continue
