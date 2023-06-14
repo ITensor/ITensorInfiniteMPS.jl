@@ -52,7 +52,7 @@ function shift_sites(term::Scaled{C,Prod{Op}}, shift::Int) where {C}
 end
 
 # Shift the sites of the terms of the OpSum by shift.
-# By default, it shifts 
+# By default, it shifts
 function shift_sites(opsum::OpSum, shift::Int)
   shifted_opsum = OpSum()
   for o in ITensors.terms(opsum)
@@ -101,7 +101,10 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
   ls = CelledVector([Index(1, "Link,c=1,n=$n") for n in 1:N], translator)
   mpos = [Matrix{ITensor}(undef, 1, 1) for i in 1:N]
   for j in 1:N
-    Hmat = fill(op("Zero", s[j]), range_H + 1, range_H + 1)
+    #Replacing for type stability
+    Hmat = fill(
+      ITensor(eltype(temp_H[1][1]), dag(s[j]), prime(s[j])), range_H + 1, range_H + 1
+    )
     identity = op("Id", s[j])
     Hmat[1, 1] = identity
     Hmat[end, end] = identity
@@ -110,14 +113,88 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
       if isnothing(idx)
         Hmat[range_H + 1 - n, range_H - n] = identity
       else
-        Hmat[range_H + 1 - n, range_H - n] = temp_H[j - n][idx]#replacetags(linkinds, temp_H[j - n][idx], "Link, l=$n", tags(ls[j-1]))
+        #Here, we split the local tensor into its different blocks
+        T = eltype(temp_H[j - n][idx])
+        temp_mat = convert_itensor_to_itensormatrix(temp_H[j - n][idx]; leftdir=ITensors.In)
+        if size(temp_mat) == (3, 3)
+          Hmat[range_H + 1 - n, range_H - n] = temp_mat[2, 2]
+          Hmat[end, range_H - n] = temp_mat[3, 2]
+          Hmat[range_H + 1 - n, 1] = temp_mat[2, 1]
+          Hmat[range_H + 1 - n, range_H + 1 - n] *= ITensor(
+            T, filterinds(commoninds(temp_mat[2, 2], temp_mat[2, 1]); tags="Link")
+          )
+          Hmat[range_H - n, range_H - n] *= ITensor(
+            T, filterinds(commoninds(temp_mat[2, 2], temp_mat[3, 2]); tags="Link")
+          )
+        elseif size(temp_mat) == (1, 3)
+          @assert (range_H + 1 - n) == size(Hmat, 1)
+          Hmat[range_H + 1 - n, range_H - n] = temp_mat[1, 2]
+          Hmat[range_H + 1 - n, 1] = temp_mat[1, 1]
+          Hmat[range_H - n, range_H - n] *= ITensor(
+            T, filterinds(temp_mat[1, 2]; tags="Link")
+          )
+        elseif size(temp_mat) == (3, 1)
+          @assert (range_H - n) == 1
+          @assert isempty(temp_mat[3, 1])
+          Hmat[range_H + 1 - n, range_H - n] = temp_mat[2, 1]
+          #Hmat[end, range_H - n] += temp_mat[3, 1]  #LH This should do nothing #TODO check
+          Hmat[range_H + 1 - n, range_H + 1 - n] *= ITensor(
+            T, filterinds(temp_mat[2, 1]; tags="Link")
+          )
+        else
+          error("Unexpected matrix form")
+        end
       end
     end
     mpos[j] = Hmat
     #mpos[j] += dense(Hmat) * setelt(ls[j-1] => total_dim) * setelt(ls[j] => total_dim)
   end
-  #return mpos
-  return InfiniteMPOMatrix(mpos, translator)
+  #unify_indices and add virtual indices to the empty tensors
+  mpos = InfiniteMPOMatrix(mpos, translator)
+  for x in 1:N
+    left_inds = [
+      only(filter(x -> dir(x) == ITensors.Out, filterinds(mpos[x][end, j]; tags="Link")))
+      for j in 2:(size(mpos[x], 2) - 1)
+    ]
+    right_inds = [
+      only(filter(x -> dir(x) == ITensors.In, filterinds(mpos[x + 1][j, 1]; tags="Link")))
+      for j in 2:(size(mpos[x + 1], 1) - 1)
+    ]
+    for j in 1:size(mpos[x], 1)
+      for k in 2:(size(mpos[x], 2) - 1)
+        if length(commoninds(mpos.data.data[x][j, k], left_inds[k - 1])) > 0
+          replaceinds!(mpos.data.data[x][j, k], left_inds[k - 1] => dag(right_inds[k - 1]))
+        else
+          !isempty(mpos.data.data[x][j, k]) && error("Problem in building Hamiltonians")
+          mpos.data.data[x][j, k] =
+            mpos.data.data[x][j, k] *
+            ITensor(eltype(mpos.data.data[x][j, k]), dag(right_inds[k - 1]))
+        end
+      end
+    end
+    for j in 2:(size(mpos[x + 1], 1) - 1)
+      for k in 1:size(mpos[x + 1], 2)
+        if x + 1 == N + 1
+          if length(commoninds(mpos[x + 1][j, k], right_inds[j - 1])) == 0
+            !isempty(mpos[x + 1][j, k]) && error("Problem in building Hamiltonians")
+            mpos.data.data[1][j, k] =
+              mpos.data.data[1][j, k] * ITensor(
+                eltype(mpos.data.data[1][j, k]),
+                translatecell(translator, right_inds[j - 1], -1),
+              )
+          end
+        else
+          if length(commoninds(mpos.data[x + 1][j, k], right_inds[j - 1])) == 0
+            !isempty(mpos.data[x + 1][j, k]) && error("Problem in building Hamiltonians")
+            mpos.data.data[x + 1][j, k] =
+              mpos.data.data[x + 1][j, k] *
+              ITensor(eltype(mpos.data.data[x + 1][j, k]), right_inds[j - 1])
+          end
+        end
+      end
+    end
+  end
+  return mpos
 end
 
 function ITensors.MPO(model::Model, s::Vector{<:Index}; kwargs...)
@@ -125,7 +202,7 @@ function ITensors.MPO(model::Model, s::Vector{<:Index}; kwargs...)
   return splitblocks(linkinds, MPO(opsum, s))
 end
 
-translatecell(translator, opsum::OpSum, n::Integer) = translator(opsum, n)
+translatecell(translator::Function, opsum::OpSum, n::Integer) = translator(opsum, n)
 
 function infinite_terms(model::Model; kwargs...)
   # An `OpSum` storing all of the terms in the
@@ -230,7 +307,6 @@ function ITensors.ITensor(model::Model, s::CelledVector, n::Int64; kwargs...)
   opsum = shift_sites(opsum, -first_site(opsum) + 1)
   site_range = n:(n + last_site(opsum) - 1)
   return contract(MPO(opsum, [s[j] for j in site_range]))
-
   # Deprecated version
   # return contract(MPO(model, s, n; kwargs...))
 end
