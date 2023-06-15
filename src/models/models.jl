@@ -104,7 +104,7 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
 
   mpos = [Matrix{ITensor}(undef, 1, 1) for i in 1:N]
   for j in 1:N
-    #Replacing for type stability
+    #For type stability
     Hmat = fill(
       ITensor(eltype(temp_H[1][1]), dag(s[j]), prime(s[j])), range_H + 1, range_H + 1
     )
@@ -132,7 +132,6 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
           end,
         )
         if size(temp_mat) == (3, 3)
-          #println(temp_mat][1, 2])
           @assert iszero(temp_mat[1, 2])
           @assert iszero(temp_mat[1, 3])
           @assert iszero(temp_mat[2, 3])
