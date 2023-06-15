@@ -115,8 +115,26 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
       else
         #Here, we split the local tensor into its different blocks
         T = eltype(temp_H[j - n][idx])
-        temp_mat = convert_itensor_to_itensormatrix(temp_H[j - n][idx]; leftdir=ITensors.In)
+        temp_mat = convert_itensor_to_itensormatrix(
+          temp_H[j - n][idx];
+          leftdir=ITensors.In,
+          first=n == 0 ? true : false,
+          last=n == range_H - 1 ? true : false,
+          left_tags=tags(ls[j - 1]),
+          right_tags=tags(ls[j]),
+          leftindex=if idx > 1
+            only(commoninds(temp_H[j - n][idx], temp_H[j - n][idx - 1]))
+          else
+            nothing
+          end,
+        )
         if size(temp_mat) == (3, 3)
+          #println(temp_mat][1, 2])
+          @assert iszero(temp_mat[1, 2])
+          @assert iszero(temp_mat[1, 3])
+          @assert iszero(temp_mat[2, 3])
+          @assert temp_mat[1, 1] == identity
+          @assert temp_mat[3, 3] == identity
           Hmat[range_H + 1 - n, range_H - n] = temp_mat[2, 2]
           Hmat[end, range_H - n] = temp_mat[3, 2]
           Hmat[range_H + 1 - n, 1] = temp_mat[2, 1]
@@ -127,7 +145,8 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
             T, filterinds(commoninds(temp_mat[2, 2], temp_mat[3, 2]); tags="Link")
           )
         elseif size(temp_mat) == (1, 3)
-          @assert (range_H + 1 - n) == size(Hmat, 1)
+          @assert n == 0
+          #@assert isempty(temp_mat[1, 1]) || iszero(temp_mat[1, 1])
           Hmat[range_H + 1 - n, range_H - n] = temp_mat[1, 2]
           Hmat[range_H + 1 - n, 1] = temp_mat[1, 1]
           Hmat[range_H - n, range_H - n] *= ITensor(
@@ -135,9 +154,9 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
           )
         elseif size(temp_mat) == (3, 1)
           @assert (range_H - n) == 1
-          @assert isempty(temp_mat[3, 1])
+          #@assert isempty(temp_mat[3, 1]) || iszero(temp_mat[3, 1])
           Hmat[range_H + 1 - n, range_H - n] = temp_mat[2, 1]
-          #Hmat[end, range_H - n] += temp_mat[3, 1]  #LH This should do nothing #TODO check
+          Hmat[end, range_H - n] += temp_mat[3, 1]  #LH This should do nothing #TODO check
           Hmat[range_H + 1 - n, range_H + 1 - n] *= ITensor(
             T, filterinds(temp_mat[2, 1]; tags="Link")
           )
@@ -153,12 +172,11 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
   mpos = InfiniteMPOMatrix(mpos, translator)
   for x in 1:N
     left_inds = [
-      only(filter(x -> dir(x) == ITensors.Out, filterinds(mpos[x][end, j]; tags="Link")))
-      for j in 2:(size(mpos[x], 2) - 1)
+      only(uniqueinds(mpos[x][end, j], mpos[x][1, 1])) for j in 2:(size(mpos[x], 2) - 1)
     ]
     right_inds = [
-      only(filter(x -> dir(x) == ITensors.In, filterinds(mpos[x + 1][j, 1]; tags="Link")))
-      for j in 2:(size(mpos[x + 1], 1) - 1)
+      only(uniqueinds(mpos[x + 1][j, 1], mpos[x + 1][1, 1])) for
+      j in 2:(size(mpos[x], 2) - 1)
     ]
     for j in 1:size(mpos[x], 1)
       for k in 2:(size(mpos[x], 2) - 1)

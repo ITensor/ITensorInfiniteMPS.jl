@@ -69,99 +69,6 @@ function ITensors.splitblocks(H::InfiniteMPOMatrix)
   return H
 end
 
-# #
-# #  Hm should have the form below.  Only link indices are shown.
-# #
-# #    I         0                     0           0      0
-# #  M-->l=n     0                     0           0      0
-# #    0    l=n-->M-->l=n-1 ...        0           0      0
-# #    :         :                     :           :      :
-# #    0         0          ...  l=2-->M-->l=1     0      0
-# #    0         0          ...        0        l=1-->M   I
-# #
-# #  We need to capture the corner I's and the sub-diagonal Ms, and paste them together into an ITensor.
-# #  This is facilutated by making all elements of Hm into order(4) tensors by adding dummy Dw=1 indices.
-# #  We ITensors.directsum() to join all the blocks into the final ITensor.
-# #  This code should be 100% dense/blocks-sparse agnostic.
-# #
-# function cat_to_itensor(Hm::Matrix{ITensor}, inds_array)::Tuple{ITensor,Index,Index}
-#   lx, ly = size(Hm)
-#   @assert lx == ly
-#   #
-#   #  Extract the sub diagonal
-#   #
-#   Ms = map(n -> Hm[lx - n + 1, ly - n], 1:(lx - 1)) #Get the sub diagonal into an array.
-#   N = length(Ms)
-#   @assert N == lx - 1
-#   #
-#   # Convert edge Ms to order 4 ITensors using the dummy index.
-#   #
-#   il0 = inds_array[1][1]
-#   T = eltype(Ms[1])
-#   Ms[1] *= onehot(T, il0 => 1)
-#   Ms[N] *= onehot(T, dag(il0) => 1) #We don't need distinct index IDs for this.  directsum makes all new index anyway.
-#   #
-#   # Start direct sums to build the single ITensor.  Order is critical to get the desired form.
-#   #
-#   H = Hm[1, 1] * onehot(T, il0' => 1) * onehot(T, dag(il0) => 1) #Bootstrap with the I op in the top left of Hm
-#   H, il = directsum(H => il0', Ms[N] => inds_array[N][1]) #1-D directsum to put M[N] directly below the I op
-#   ir = dag(il0) #setup recusion.
-#   for i in (N - 1):-1:1 #2-D directsums to place new blocks below and to the right.
-#     H, (il, ir) = directsum(
-#       H => (il, ir), Ms[i] => inds_array[i]; tags=["Link,left", "Link,right"]
-#     )
-#   end
-#   IN = Hm[N + 1, N + 1] * onehot(T, dag(il0) => 1) * onehot(T, il => dim(il)) #I op in the bottom left of Hm
-#   H, ir = directsum(H => ir, IN => il0; tags="Link,right") #1-D directsum to the put I in the bottom row, to the right of M[1]
-#
-#   return H, il, ir
-# end
-
-#
-#  Hm should have the form below.  Only link indices are shown.
-#
-#    I               M-->l=n                    :                :               :
-#  l=n-->M     l=n-->M-->l=n                    :                :               :
-#  l=n-1-->M l=n-1-->M-->l=n ...                ;                :               :
-#    :               :                          :                :               :
-#  l=1-->M     l=1->M-->l=n          ...  l=1-->M-->l=2    l=1-->M-->l=1   l=1-->M
-#    M              M-->l=n          ...        M-->l=2          M-->l=1         I
-#
-#  We no longer assume any specific form of the matrix of tensor, and we squash all elements together
-#  This is facilutated by making all elements of Hm into order(4) tensors by adding dummy Dw=1 indices.
-#  We use on line then columns ITensors.directsum() to join all the blocks into the final ITensor.
-#  This code should be 100% dense/blocks-sparse agnostic.
-#
-function cat_to_itensor(Hm::Matrix{ITensor})
-  lx, ly = size(Hm)
-  T = eltype(Hm[1, 1])
-  left_links, right_links = find_all_links(Hm)
-
-  #Start by fusing lines together
-  Ls = []
-  new_rs = []
-  for x in 1:lx
-    H, ir = directsum(
-      [((y == 1 || y == ly) ? Hm[x, y] * onehot(T, right_links[y] => 1) : Hm[x, y]) =>
-        right_links[y] for y in 1:ly]...;
-      tags="Link, right",
-    )
-    if x == 1
-      append!(new_rs, [ir])
-    else
-      replaceinds!(H, [ir], [new_rs[1]])
-    end
-    append!(Ls, [H])
-  end
-
-  H, new_l = directsum(
-    [((x == 1 || x == lx) ? Ls[x] * onehot(T, left_links[x] => 1) : Ls[x]) => left_links[x] for
-     x in 1:lx]...;
-    tags="Link, left",
-  )
-  return H, new_l, new_rs[1]
-end
-
 function find_all_links(Hm::Matrix{ITensor})
   is = inds(Hm[1, 1]) #site inds
   lx, ly = size(Hm)
@@ -195,100 +102,11 @@ function find_all_links(Hm::Matrix{ITensor})
   return left_links, right_links
 end
 
-#
-# function find_all_links(Hms::InfiniteMPOMatrix)
-#   is = inds(Hms[1][1, 1]) #site inds
-#   ir = noncommonind(Hms[1][2, 1], is) #This op should have one link index pointing to the right.
-#   #
-#   #  Set up return array of 2-tuples
-#   #
-#   indexT = typeof(ir)
-#   TupleT = NTuple{2,indexT}
-#   inds_array = Vector{TupleT}[]
-#   #
-#   #  Make a dummy index
-#   #
-#   il0 = Index(ITensors.trivial_space(ir); dir=dir(dag(ir)), tags="Link,l=0")
-#   #
-#   #  Loop over sites and nonzero matrix elements which are linked into the next
-#   #  and previous iMPOMatrix.
-#   #
-#   for n in 1:nsites(Hms)
-#     Hm = Hms[n]
-#     inds_n = TupleT[]
-#     lx, ly = size(Hm)
-#     @assert lx == ly
-#     for iy in (ly - 1):-1:1
-#       ix = iy + 1
-#       il = ix < lx ? commonind(Hm[ix, iy], Hms[n - 1][ix + 1, iy + 1]) : dag(il0)
-#       ir = iy > 1 ? commonind(Hm[ix, iy], Hms[n + 1][ix - 1, iy - 1]) : il0
-#       push!(inds_n, (il, ir))
-#     end
-#     push!(inds_array, inds_n)
-#   end
-#   return inds_array
-# end
-
-# #
-# #  Hm is the InfiniteMPOMatrix
-# #  Hlrs is an array of {ITensor,Index,Index}s, one for each site in the unit cell.
-# #  Hi is a CelledVector of ITensors.
-# #
-# function InfiniteMPO(Hm::InfiniteMPOMatrix)
-#   inds_array = find_all_links(Hm)
-#   Hlrs = cat_to_itensor.(Hm, inds_array) #return an array of {ITensor,Index,Index}
-#   #
-#   #  Unpack the array of tuples into three arrays.  And also get an array site indices.
-#   #
-#   Hi = CelledVector([Hlr[1] for Hlr in Hlrs], translator(Hm))
-#   ils = CelledVector([Hlr[2] for Hlr in Hlrs], translator(Hm))
-#   irs = CelledVector([Hlr[3] for Hlr in Hlrs], translator(Hm))
-#   site_inds = [commoninds(Hm[j][1, 1], Hm[j][end, end])[1] for j in 1:nsites(Hm)]
-#   #
-#   #  Create new tags with proper cell and link numbers.  Also daisy chain
-#   #  all the indices so right index at j = dag(left index at j+1)
-#   #
-#   for j in 1:nsites(Hm)
-#     newTag = "Link,c=$(getcell(site_inds[j])),l=$(getsite(site_inds[j]))"
-#     ir = replacetags(irs[j], tags(irs[j]), newTag) #new right index
-#     Hi[j] = replaceinds(Hi[j], [irs[j]], [ir])
-#     Hi[j + 1] = replaceinds(Hi[j + 1], [ils[j + 1]], [dag(ir)])
-#   end
-#   return InfiniteMPO(Hi)
-# end
-
-#
-#  Hm is the InfiniteMPOMatrix
-#  Hlrs is an array of {ITensor,Index,Index}s, one for each site in the unit cell.
-#  Hi is a CelledVector of ITensors.
-#
-function InfiniteMPO(Hm::InfiniteMPOMatrix)
-  Hlrs = cat_to_itensor.(Hm) #return an array of {ITensor,Index,Index}
-  #
-  #  Unpack the array of tuples into three arrays.  And also get an array site indices.
-  #
-  Hi = CelledVector([Hlr[1] for Hlr in Hlrs], translator(Hm))
-  ils = CelledVector([Hlr[2] for Hlr in Hlrs], translator(Hm))
-  irs = CelledVector([Hlr[3] for Hlr in Hlrs], translator(Hm))
-  s = siteinds(Hm)
-  #
-  #  Create new tags with proper cell and link numbers.  Also daisy chain
-  #  all the indices so right index at j = dag(left index at j+1)
-  #
-  for j in 1:nsites(Hm)
-    newTag = "Link,c=$(getcell(s[j])),l=$(getsite(s[j]))"
-    ir = replacetags(irs[j], tags(irs[j]), newTag) #new right index
-    Hi[j] = replaceinds(Hi[j], [irs[j]], [ir])
-    Hi[j + 1] = replaceinds(Hi[j + 1], [ils[j + 1]], [dag(ir)])
-  end
-  return InfiniteMPO(Hi)
-end
-
-function convert_itensor_to_itensormatrix(tensor; leftdir=ITensors.In)
+function convert_itensor_to_itensormatrix(tensor; kwargs...)
   if order(tensor) == 3
-    return convert_itensor_3vector(tensor; leftdir)
+    return convert_itensor_3vector(tensor; kwargs...)
   elseif order(tensor) == 4
-    return convert_itensor_33matrix(tensor; leftdir)
+    return convert_itensor_33matrix(tensor; kwargs...)
   else
     error(
       "Conversion of ITensor into matrix of ITensor not planned for this type of tensors"
@@ -296,55 +114,70 @@ function convert_itensor_to_itensormatrix(tensor; leftdir=ITensors.In)
   end
 end
 
-function convert_itensor_33matrix(tensor; leftdir=ITensors.In)
+"Build the projectors on the three parts of the itensor used to split a MPO into an InfiniteMPOMatrix"
+function build_three_projectors_from_index(is::Index; kwargs...)
+  old_dim = dim(is)
+  new_tags = get(kwargs, :tags, tags(is))
+  #Build the local projectors.
+  #We have to differentiate between the dense and the QN case
+  #Note that as far as I know, the MPO even dense is always guaranteed to have identities at both corners
+  #If it is not the case, my construction will not work
+  top = onehot(dag(is) => 1)
+  bottom = onehot(dag(is) => old_dim)
+  if length(is.space) == 1
+    new_ind = Index(is.space - 2; tags=new_tags)
+    mat = zeros(new_ind.space, is.space)
+    for x in 1:(new_ind.space)
+      mat[x, x + 1] = 1
+    end
+    middle = ITensor(copy(mat), new_ind, dag(is))
+  else
+    new_ind = Index(is.space[2:(end - 1)]; dir=dir(is), tags=new_tags)
+    middle = ITensors.BlockSparseTensor(
+      Float64,
+      undef,
+      Block{2}[Block(x, x + 1) for x in 1:length(new_ind.space)],
+      (new_ind, dag(is)),
+    )
+    for x in 1:length(new_ind.space)
+      dim_block = new_ind.space[x][2]
+      ITensors.blockview(middle, Block(x, x + 1)) .= diagm(0 => ones(dim_block))
+    end
+    middle = itensor(middle)
+  end
+  return top, middle, bottom
+end
+
+function convert_itensor_33matrix(tensor; leftdir=ITensors.In, kwargs...)
   @assert order(tensor) == 4
+  left_ind = get(kwargs, :leftindex, nothing)
   #Identify the different indices
   sit = filterinds(inds(tensor); tags="Site")
   local_sit = dag(only(filterinds(sit; plev=0)))
   #A bit roundabout as filterinds does not accept dir
-  temp = uniqueinds(tensor, sit)
-  if dir(temp[1]) == leftdir
-    left_ind = temp[1]
-    right_ind = temp[2]
+  if isnothing(left_ind)
+    temp = uniqueinds(tensor, sit)
+    if dir(temp[1]) == leftdir
+      left_ind = temp[1]
+      right_ind = temp[2]
+    else
+      left_ind = temp[2]
+      right_ind = temp[1]
+    end
   else
-    left_ind = temp[2]
-    right_ind = temp[1]
+    right_ind = only(uniqueinds(tensor, sit, left_ind))
   end
   left_dim = dim(left_ind)
   right_dim = dim(right_ind)
   #Build the local projectors.
-  top_left = onehot(dag(left_ind) => 1)
-  bottom_left = onehot(dag(left_ind) => left_dim)
-  top_right = onehot(dag(right_ind) => 1)
-  bottom_right = onehot(dag(right_ind) => right_dim)
-  new_left_index = Index(
-    left_ind.space[2:(end - 1)]; dir=dir(left_ind), tags=tags(left_ind)
+  left_tags = get(kwargs, :left_tags, tags(left_ind))
+  top_left, middle_left, bottom_left = build_three_projectors_from_index(
+    left_ind; tags=left_tags
   )
-  middle_left = ITensors.BlockSparseTensor(
-    eltype(tensor),
-    undef,
-    Block{2}[Block(x, x + 1) for x in 1:length(new_left_index.space)],
-    (new_left_index, dag(left_ind)),
+  right_tags = get(kwargs, :righ_tags, tags(right_ind))
+  top_right, middle_right, bottom_right = build_three_projectors_from_index(
+    right_ind; tags=right_tags
   )
-  for x in 1:length(new_left_index.space)
-    dim_block = new_left_index.space[x][2]
-    ITensors.blockview(middle_left, Block(x, x + 1)) .= diagm(0 => ones(dim_block))
-  end
-  middle_left = itensor(middle_left)
-  new_right_index = Index(
-    right_ind.space[2:(end - 1)]; dir=dir(right_ind), tags=tags(right_ind)
-  )
-  middle_right = ITensors.BlockSparseTensor(
-    eltype(tensor),
-    undef,
-    Block{2}[Block(x, x + 1) for x in 1:length(new_right_index.space)],
-    (new_right_index, dag(right_ind)),
-  )
-  for x in 1:length(new_right_index.space)
-    dim_block = new_right_index.space[x][2]
-    ITensors.blockview(middle_right, Block(x, x + 1)) .= diagm(0 => ones(dim_block))
-  end
-  middle_right = itensor(middle_right)
 
   matrix = fill(op("Zero", local_sit), 3, 3)
   for (idx_left, proj_left) in enumerate([top_left, middle_left, bottom_left])
@@ -355,32 +188,22 @@ function convert_itensor_33matrix(tensor; leftdir=ITensors.In)
   return matrix
 end
 
-function convert_itensor_3vector(tensor; leftdir=ITensors.In)
+function convert_itensor_3vector(
+  tensor; leftdir=ITensors.In, first=false, last=false, kwargs...
+)
   @assert order(tensor) == 3
   #Identify the different indices
   sit = filterinds(inds(tensor); tags="Site")
   local_sit = dag(only(filterinds(sit; plev=0)))
   #A bit roundabout as filterinds does not accept dir
   old_ind = only(uniqueinds(tensor, sit))
-  old_dim = dim(old_ind)
-  #Build the local projectors.
-  top = onehot(dag(old_ind) => 1)
-  bottom = onehot(dag(old_ind) => old_dim)
-  new_ind = Index(old_ind.space[2:(end - 1)]; dir=dir(old_ind), tags=tags(old_ind))
-  middle = ITensors.BlockSparseTensor(
-    eltype(tensor),
-    undef,
-    Block{2}[Block(x, x + 1) for x in 1:length(new_ind.space)],
-    (new_ind, dag(old_ind)),
-  )
-  for x in 1:length(new_ind.space)
-    dim_block = new_ind.space[x][2]
-    ITensors.blockview(middle, Block(x, x + 1)) .= diagm(0 => ones(dim_block))
-  end
-  middle = itensor(middle)
-  if dir(old_ind) == leftdir
+  if dir(old_ind) == leftdir || last
+    new_tags = get(kwargs, :left_tags, tags(old_ind))
+    top, middle, bottom = build_three_projectors_from_index(old_ind; tags=new_tags)
     vector = fill(op("Zero", local_sit), 3, 1)
   else
+    new_tags = get(kwargs, :right_tags, tags(old_ind))
+    top, middle, bottom = build_three_projectors_from_index(old_ind; tags=new_tags)
     vector = fill(op("Zero", local_sit), 1, 3)
   end
   for (idx, proj) in enumerate([top, middle, bottom])
@@ -551,4 +374,12 @@ function Base.:+(A::InfiniteMPOMatrix, B::InfiniteMPOMatrix)
   end
   #return new_MPOMatrices
   return InfiniteMPOMatrix(new_MPOMatrices, translator(A))
+end
+
+function apply_tensor(A::Array{ITensor,N}, B::ITensor...) where {N}
+  new_A = copy(A)
+  for x in 1:length(new_A)
+    new_A[x] = contract(new_A[x], B...)
+  end
+  return new_A
 end
