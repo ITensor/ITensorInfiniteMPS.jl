@@ -98,7 +98,10 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
   N = length(s)
   temp_H = InfiniteSum{MPO}(model, s; kwargs...)
   range_H = nrange(temp_H)[1]
-  ls = CelledVector([Index(1, "Link,c=1,n=$n") for n in 1:N], translator)
+  ls = CelledVector(
+    [Index(ITensors.trivial_space(s[n]), "Link,c=1,n=$n") for n in 1:N], translator
+  )
+
   mpos = [Matrix{ITensor}(undef, 1, 1) for i in 1:N]
   for j in 1:N
     #Replacing for type stability
