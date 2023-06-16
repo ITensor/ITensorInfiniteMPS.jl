@@ -13,13 +13,9 @@ end
 function ITensors.op!(Op::ITensor, opname::OpName, ::SiteType"FermionK", s::Index...)
   return ITensors.op!(Op, opname, SiteType("Fermion"), s...)
 end
-ITensors.has_fermion_string(::OpName"C", ::SiteType"FermionK") = true
-function ITensors.has_fermion_string(on::OpName"c", st::SiteType"FermionK")
-  return has_fermion_string(alias(on), st)
-end
-ITensors.has_fermion_string(::OpName"Cdag", ::SiteType"FermionK") = true
-function ITensors.has_fermion_string(on::OpName"c†", st::SiteType"FermionK")
-  return has_fermion_string(alias(on), st)
+
+function ITensors.has_fermion_string(opname::OpName, ::SiteType"FermionK")
+  return has_fermion_string(opname, SiteType("Fermion"))
 end
 
 function unit_cell_terms(
