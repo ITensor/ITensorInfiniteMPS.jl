@@ -46,7 +46,7 @@ end
       "sequential", "parallel"
     ],
     conserve_qns in [true, false],
-    nsites in [1, 2],
+    N in [1, 2],
     time_step in [-Inf]
 
     vumps_kwargs = (
@@ -58,7 +58,7 @@ end
     )
     subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
-    s = infsiteinds("S=1/2", nsites; initstate, conserve_szparity=conserve_qns)
+    s = infsiteinds("S=1/2", N; initstate, conserve_szparity=conserve_qns)
     ψ = InfMPS(s, initstate)
 
     Hmpo = InfiniteMPOMatrix(model, s; model_kwargs...)
@@ -71,17 +71,15 @@ end
       ψ = @time tdvp(Hmpo, ψ; vumps_kwargs...)
     end
 
-    @test norm(
-      contract(ψ.AL[1:nsites]..., ψ.C[nsites]) - contract(ψ.C[0], ψ.AR[1:nsites]...)
-    ) ≈ 0 atol = 1e-5
-    #@test contract(ψ.AL[1:nsites]..., ψ.C[nsites]) ≈ contract(ψ.C[0], ψ.AR[1:nsites]...)
+    @test norm(contract(ψ.AL[1:N]..., ψ.C[N]) - contract(ψ.C[0], ψ.AR[1:N]...)) ≈ 0 atol =
+      1e-5
 
     H = InfiniteSum{MPO}(model, s; model_kwargs...)
     energy_infinite = expect(ψ, H)
-    Szs_infinite = [expect(ψ, "Sz", n) for n in 1:nsites]
+    Szs_infinite = [expect(ψ, "Sz", n) for n in 1:N]
 
-    @test energy_finite ≈ sum(energy_infinite) / nsites rtol = 1e-4
-    @test Szs_finite[nfinite:(nfinite + nsites - 1)] ≈ Szs_infinite rtol = 1e-3
+    @test energy_finite ≈ sum(energy_infinite) / N rtol = 1e-4
+    @test Szs_finite[nfinite:(nfinite + N - 1)] ≈ Szs_infinite rtol = 1e-3
   end
 end
 
