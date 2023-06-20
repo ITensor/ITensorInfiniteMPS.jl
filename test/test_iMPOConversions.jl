@@ -64,21 +64,21 @@ end
 function generate_edges(h::InfiniteMPOMatrix)
   Ncell = nsites(h)
   # left termination vector
-  Ls = ITensor[]
-  append!(Ls, [ITensor(0)])
+  Ls = Matrix{ITensor}(undef, 1, size(h[1], 1))
+  Ls[1] = ITensor(0)
   for x in 2:(size(h[0], 2) - 1)
     il0 = commonind(h[0][1, x], h[1][x, 1])
-    append!(Ls, [ITensor(0, il0)])
+    Ls[x] = ITensor(0, il0)
   end
-  append!(Ls, [ITensor(1)])
+  Ls[end] = ITensor(1)
 
-  Rs = ITensor[]
-  append!(Rs, [ITensor(1)])
+  Rs = Vector{ITensor}(undef, size(h[Ncell], 2))
+  Rs[1] = ITensor(1)
   for x in 2:(size(h[Ncell + 1], 1) - 1)
     ir0 = commonind(h[Ncell + 1][x, 1], h[Ncell][1, x])
-    append!(Rs, [ITensor(0, ir0)])
+    Rs[x] = ITensor(0, ir0)
   end
-  append!(Rs, [ITensor(0)])
+  Rs[end] = ITensor(0)
   return Ls, Rs
 end
 
@@ -94,7 +94,7 @@ function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteMPOMatrix)
     temp = ITensorInfiniteMPS.apply_tensor(h[j], ψ.AR[j], dag(prime(ψ.AR[j])))
     L = L * temp
   end
-  return ITensorInfiniteMPS.scalar_product(L, R)[1]
+  return (L * R)[1][1]#ITensorInfiniteMPS.scalar_product(L, R)[1]
 end
 
 #H = ΣⱼΣn (½ S⁺ⱼS⁻ⱼ₊n + ½ S⁻ⱼS⁺ⱼ₊n + SᶻⱼSᶻⱼ₊n)

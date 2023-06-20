@@ -212,174 +212,23 @@ function convert_itensor_3vector(
   return vector
 end
 
-#Matrix multiplication for Matrix of ITensors
-function Base.:*(A::Matrix{ITensor}, B::Matrix{ITensor})
-  size(A, 2) != size(B, 1) && error("Matrix sizes are incompatible")
-  C = Matrix{ITensor}(undef, size(A, 1), size(B, 2))
-  for i in 1:size(A, 1)
-    for j in 1:size(B, 2)
-      #TODO something more resilient
-      if isempty(A[i, 1]) || isempty(B[1, j])
-        C[i, j] = ITensor(uniqueinds(A[i, 1], B[1, j])..., uniqueinds(B[1, j], A[i, 1])...)
-      else
-        C[i, j] = A[i, 1] * B[1, j]
-      end
-      for k in 2:size(A, 2)
-        if isempty(A[i, k]) || isempty(B[k, j])
-          continue
-        end
-        C[i, j] .+= A[i, k] * B[k, j]
-      end
-    end
-  end
-  return C
-end
-
-function Base.:*(A::Matrix{ITensor}, B::Vector{ITensor})
-  size(A, 2) != length(B) && error("Matrix sizes are incompatible")
-  C = Vector{ITensor}(undef, size(A, 1))
-  for i in 1:size(A, 1)
-    if isempty(A[i, size(A, 2)]) || isempty(B[size(A, 2)])
-      C[i] = ITensor(
-        uniqueinds(A[i, size(A, 2)], B[size(A, 2)])...,
-        uniqueinds(B[size(A, 2)], A[i, size(A, 2)])...,
-      )
-      if length(inds(C[i])) == 0
-        C[i] = ITensor(0)
-      end
-    else
-      C[i] = A[i, size(A, 2)] * B[size(A, 2)]
-    end
-    for k in reverse(1:(size(A, 2) - 1))
-      if isempty(A[i, k]) || isempty(B[k])
-        continue
-      end
-      #This is due to some stuff missing in NDTensors
-      if length(inds(C[i])) == 0
-        temp = A[i, k] * B[k]
-        if !isempty(temp)
-          C[i] .+= temp[1]
-        end
-      else
-        C[i] .+= A[i, k] * B[k]
-      end
-    end
-  end
-  return C
-end
-
-function Base.:*(A::Vector{ITensor}, B::Matrix{ITensor})
-  length(A) != size(B, 1) && error("Matrix sizes are incompatible")
-  C = Vector{ITensor}(undef, size(B, 2))
-  for j in 1:size(B, 2)
-    if isempty(A[1]) || isempty(B[1, j])
-      C[j] = ITensor(uniqueinds(A[1], B[1, j])..., uniqueinds(B[1, j], A[1])...)
-      if length(dims(C[j])) == 0
-        C[j] = ITensor(0)
-      end
-    else
-      C[j] = A[1] * B[1, j]
-    end
-    for k in 2:size(B, 1)
-      if isempty(A[k]) || isempty(B[k, j])
-        continue
-      end
-      if length(inds(C[j])) == 0
-        temp = A[k] * B[k, j]
-        if !isempty(temp)
-          C[j] .+= temp[1]
-        end
-      else
-        C[j] .+= A[k] * B[k, j]
-      end
-    end
-  end
-  return C
-end
-
-function scalar_product(A::Vector{ITensor}, B::Vector{ITensor})
-  length(A) != length(B) && error("Vector sizes are incompatible")
-  C = A[1] * B[1]
-  for k in 2:length(B)
-    if isempty(A[k]) || isempty(B[k])
-      continue
-    end
-    C .+= A[k] * B[k]
-  end
-  return C
-end
-
-function Base.:+(A::InfiniteMPOMatrix, B::InfiniteMPOMatrix)
-  #Asserts
-  nsites(A) != nsites(B) && error("The two MPOs have different lengths, not implemented")
-  N = nsites(A)
-  s_A = siteinds(A)
-  s_B = siteinds(B)
-  for x in 1:N
-    s_A[x] != s_B[x] && error("The site index are different, impossible to sum")
-  end
-  translator(A) != translator(B) && error("The two MPOs have different translation rules")
-  #Building the sum
-  sizes_A = size.(A)
-  sizes_B = size.(B)
-  new_MPOMatrices = Matrix{ITensor}[
-    Matrix{ITensor}(
-      undef, sizes_A[x][1] + sizes_B[x][1] - 2, sizes_A[x][2] + sizes_B[x][2] - 2
-    ) for x in 1:N
-  ] #The identities at the top corner are unchanged
-  for j in 1:N
-    #Filling up the A part
-    for x in 1:(sizes_A[j][1] - 1), y in 1:(sizes_A[j][2] - 1)
-      new_MPOMatrices[j][x, y] = A[j][x, y]
-    end
-    for x in 1:(sizes_A[j][1] - 1)
-      new_MPOMatrices[j][x, end] = A[j][x, end]
-    end
-    for y in 1:(sizes_A[j][2] - 1)
-      new_MPOMatrices[j][end, y] = A[j][end, y]
-    end
-    #new_MPOMatrices[j][end, end] = A[j][end, end] Not needed as B automatically gives it
-    #Filling up the B part
-    x_shift, y_shift = sizes_A[j] .- 2
-    for x in 2:sizes_B[j][1], y in 2:sizes_B[j][2]
-      new_MPOMatrices[j][x_shift + x, y_shift + y] = B[j][x, y]
-    end
-    for x in 2:sizes_B[j][1]
-      new_MPOMatrices[j][x_shift + x, 1] = B[j][x, 1]
-    end
-    for y in 2:sizes_B[j][2]
-      new_MPOMatrices[j][1, y_shift + y] = B[j][1, y]
-    end
-  end
-  #Filling up the rest
-  for j in 1:N
-    s_inds = inds(A[j][1, 1])
-    new_MPOMatrices[j][1, end] = A[j][1, end] + B[j][1, end] #ITensor(s_inds)
-    new_MPOMatrices[j][end, 1] = A[j][end, 1] + B[j][end, 1] #ITensor(s_inds)
-    x_shift, y_shift = sizes_A[j] .- 2
-    for x in 2:(sizes_A[j][1] - 1)
-      left_index = only(commoninds(A[j][x, x], A[j - 1][x, x]))
-      for y in 2:(sizes_B[j][2] - 1)
-        right_index = only(commoninds(B[j][y, y], B[j + 1][y, y]))
-        new_MPOMatrices[j][x, y_shift + y] = ITensor(left_index, s_inds..., right_index)
-      end
-    end
-    for x in 2:(sizes_B[j][1] - 1)
-      left_index = only(commoninds(B[j][x, x], B[j - 1][x, x]))
-      for y in 2:(sizes_A[j][2] - 1)
-        right_index = only(commoninds(A[j][y, y], A[j + 1][y, y]))
-        new_MPOMatrices[j][x_shift + x, y] = ITensor(left_index, s_inds..., right_index)
-      end
-    end
-  end
-  #return new_MPOMatrices
-  return InfiniteMPOMatrix(new_MPOMatrices, translator(A))
-end
-
 function apply_tensor(A::Array{ITensor,N}, B::ITensor...) where {N}
   new_A = copy(A)
   for x in 1:length(new_A)
     new_A[x] = contract(new_A[x], B...)
   end
   return new_A
+end
+
+import ITensors._add
+function ITensors._add(
+  A::T1, B::T2
+) where {T1<:ITensors.NDTensors.EmptyTensor,T2<:ITensors.NDTensors.EmptyTensor}
+  ndims(A) != ndims(B) && throw(
+    ITensors.DimensionMismatch("cannot add ITensors with different numbers of indices")
+  )
+  indices = inds(A)
+  length(commoninds(indices, B)) != length(inds(B)) &&
+    error("cannot add ITensors with different indices")
+  return ITensor(promote_type(eltype(A), eltype(B)), indices)
 end
