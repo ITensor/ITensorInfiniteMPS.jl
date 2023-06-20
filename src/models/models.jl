@@ -140,28 +140,18 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
           Hmat[range_H + 1 - n, range_H - n] = temp_mat[2, 2]
           Hmat[end, range_H - n] = temp_mat[3, 2]
           Hmat[range_H + 1 - n, 1] = temp_mat[2, 1]
-          Hmat[range_H + 1 - n, range_H + 1 - n] *= ITensor(
-            T, filterinds(commoninds(temp_mat[2, 2], temp_mat[2, 1]); tags="Link")
-          )
-          Hmat[range_H - n, range_H - n] *= ITensor(
-            T, filterinds(commoninds(temp_mat[2, 2], temp_mat[3, 2]); tags="Link")
-          )
         elseif size(temp_mat) == (1, 3)
           @assert n == 0
+          @assert temp_mat[1, 3] == identity
           #@assert isempty(temp_mat[1, 1]) || iszero(temp_mat[1, 1])
           Hmat[range_H + 1 - n, range_H - n] = temp_mat[1, 2]
           Hmat[range_H + 1 - n, 1] = temp_mat[1, 1]
-          Hmat[range_H - n, range_H - n] *= ITensor(
-            T, filterinds(temp_mat[1, 2]; tags="Link")
-          )
         elseif size(temp_mat) == (3, 1)
           @assert (range_H - n) == 1
+          @assert temp_mat[1, 1] == identity
           #@assert isempty(temp_mat[3, 1]) || iszero(temp_mat[3, 1])
           Hmat[range_H + 1 - n, range_H - n] = temp_mat[2, 1]
           Hmat[end, range_H - n] += temp_mat[3, 1]  #LH This should do nothing #TODO check
-          Hmat[range_H + 1 - n, range_H + 1 - n] *= ITensor(
-            T, filterinds(temp_mat[2, 1]; tags="Link")
-          )
         else
           error("Unexpected matrix form")
         end
