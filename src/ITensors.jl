@@ -183,13 +183,13 @@ end
 # Handle orthogonality center correctly
 Base.getindex(ψ::MPS, r::UnitRange{Int}) = MPS([ψ[n] for n in r])
 
-Base.zero(T::ITensor) = false * T
-
-function ITensors.NDTensors.datatype(
-  ::ITensors.EmptyStorage{Float64,ITensors.NDTensors.BlockSparse{Float64,Vector{Float64},N}}
-) where {N}
-  return Vector{Float64}
-end
+# Base.zero(T::ITensor) = false * T
+#
+# function ITensors.NDTensors.datatype(
+#   ::ITensors.EmptyStorage{Float64,ITensors.NDTensors.BlockSparse{Float64,Vector{Float64},N}}
+# ) where {N}
+#   return Vector{Float64}
+# end
 #
 # function ITensors.NDTensors.datatype(T::ITensors.NDTensors.TensorStorage{Float64})
 #   return typeof(data(T))

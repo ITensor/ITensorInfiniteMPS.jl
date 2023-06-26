@@ -44,11 +44,6 @@ function cat_to_itensor(Hm::Matrix{ITensor})
     end
     append!(input, [Hm[x, ly] * onehot(T, right_links[ly] => 1) => right_links[ly]])
     H, ir = directsum(input...; tags="Link, right")
-    # H, ir = directsum(
-    #   [((y == 1 || y == ly) ? Hm[x, y] * onehot(T, right_links[y] => 1) : Hm[x, y]) =>
-    #     right_links[y] for y in 1:ly]...;
-    #   tags="Link, right",
-    # )
     if x == 1
       append!(new_rs, [ir])
     else
@@ -62,11 +57,6 @@ function cat_to_itensor(Hm::Matrix{ITensor})
   end
   append!(input, [Ls[lx] * onehot(T, left_links[lx] => 1) => left_links[lx]])
   H, new_l = directsum(input...; tags="Link, left")
-  # H, new_l = directsum(
-  #   [((x == 1 || x == lx) ? Ls[x] * onehot(T, left_links[x] => 1) : Ls[x]) => left_links[x] for
-  #    x in 1:lx]...;
-  #   tags="Link, left",
-  # )
   return H, new_l, new_rs[1]
 end
 #
