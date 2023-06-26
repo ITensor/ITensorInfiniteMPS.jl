@@ -194,3 +194,5 @@ Base.getindex(ψ::MPS, r::UnitRange{Int}) = MPS([ψ[n] for n in r])
 # function ITensors.NDTensors.datatype(T::ITensors.NDTensors.TensorStorage{Float64})
 #   return typeof(data(T))
 # end
+
+Base.fill!(::NDTensors.NoData, ::Any) = 0
