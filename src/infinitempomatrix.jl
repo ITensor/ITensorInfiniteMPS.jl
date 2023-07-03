@@ -220,15 +220,15 @@ function apply_tensor(A::Array{ITensor,N}, B::ITensor...) where {N}
   return new_A
 end
 
-import ITensors._add
-function ITensors._add(
-  A::T1, B::T2
-) where {T1<:ITensors.NDTensors.EmptyTensor,T2<:ITensors.NDTensors.EmptyTensor}
-  ndims(A) != ndims(B) && throw(
-    ITensors.DimensionMismatch("cannot add ITensors with different numbers of indices")
-  )
-  indices = inds(A)
-  length(commoninds(indices, B)) != length(inds(B)) &&
-    error("cannot add ITensors with different indices")
-  return ITensor(promote_type(eltype(A), eltype(B)), indices)
-end
+# import ITensors._add
+# function ITensors._add(
+#   A::T1, B::T2
+# ) where {T1<:ITensors.NDTensors.EmptyTensor,T2<:ITensors.NDTensors.EmptyTensor}
+#   ndims(A) != ndims(B) && throw(
+#     ITensors.DimensionMismatch("cannot add ITensors with different numbers of indices")
+#   )
+#   indices = inds(A)
+#   length(commoninds(indices, B)) != length(inds(B)) &&
+#     error("cannot add ITensors with different indices")
+#   return ITensor(promote_type(eltype(A), eltype(B)), indices)
+# end
