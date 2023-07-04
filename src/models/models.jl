@@ -97,14 +97,14 @@ end
 function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; kwargs...)
   N = length(s)
   temp_H = InfiniteSum{MPO}(model, s; kwargs...)
-  range_H = nrange(temp_H)[1]
+  range_H = maximum(nrange(temp_H)) #Should be improved
   ls = CelledVector(
     [Index(ITensors.trivial_space(s[n]), "Link,c=1,n=$n") for n in 1:N], translator
   )
-
   mpos = [Matrix{ITensor}(undef, 1, 1) for i in 1:N]
   for j in 1:N
     #For type stability
+
     Hmat = fill(
       ITensor(eltype(temp_H[1][1]), dag(s[j]), prime(s[j])), range_H + 1, range_H + 1
     )
@@ -163,43 +163,52 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
   #unify_indices and add virtual indices to the empty tensors
   mpos = InfiniteMPOMatrix(mpos, translator)
   for x in 1:N
+    sp = prime(s[x])
+    sd = dag(s[x])
     left_inds = [
-      only(uniqueinds(mpos[x][end, j], mpos[x][1, 1])) for j in 2:(size(mpos[x], 2) - 1)
+      only(uniqueinds(mpos.data.data[x][j, 1], mpos.data.data[x][1, 1])) for
+      j in 2:(size(mpos.data.data[x], 1) - 1)
     ]
     right_inds = [
-      only(uniqueinds(mpos[x + 1][j, 1], mpos[x + 1][1, 1])) for
-      j in 2:(size(mpos[x], 2) - 1)
+      only(uniqueinds(mpos.data.data[x][end, j], mpos.data.data[x][1, 1])) for
+      j in 2:(size(mpos.data.data[x], 2) - 1)
     ]
-    for j in 1:size(mpos[x], 1)
-      for k in 2:(size(mpos[x], 2) - 1)
-        if length(commoninds(mpos.data.data[x][j, k], left_inds[k - 1])) > 0
-          replaceinds!(mpos.data.data[x][j, k], left_inds[k - 1] => dag(right_inds[k - 1]))
+    if x == N
+      new_right_inds = [
+        dag(only(uniqueinds(mpos.data.data[1][j, 1], mpos.data.data[1][1, 1]))) for
+        j in 2:(size(mpos.data.data[1], 1) - 1)
+      ]
+      for j in 1:length(new_right_inds)
+        new_right_inds[j] = translatecell(translator, new_right_inds[j], 1)
+      end
+    else
+      new_right_inds = [
+        dag(only(uniqueinds(mpos.data.data[x + 1][j, 1], mpos.data.data[x + 1][1, 1]))) for
+        j in 2:(size(mpos.data.data[x], 2) - 1)
+      ]
+    end
+    for j in 2:(size(mpos.data.data[x], 1) - 1)
+      for k in 2:(size(mpos.data.data[x], 2) - 1)
+        if isempty(mpos.data.data[x][j, k])
+          mpos.data.data[x][j, k] = ITensor(left_inds[j - 1], sd, sp, new_right_inds[k - 1])
         else
-          !isempty(mpos.data.data[x][j, k]) && error("Problem in building Hamiltonians")
-          mpos.data.data[x][j, k] =
-            mpos.data.data[x][j, k] *
-            ITensor(eltype(mpos.data.data[x][j, k]), dag(right_inds[k - 1]))
+          replaceinds!(mpos.data.data[x][j, k], right_inds[k - 1] => new_right_inds[k - 1])
         end
       end
     end
-    for j in 2:(size(mpos[x + 1], 1) - 1)
-      for k in 1:size(mpos[x + 1], 2)
-        if x + 1 == N + 1
-          if length(commoninds(mpos[x + 1][j, k], right_inds[j - 1])) == 0
-            !isempty(mpos[x + 1][j, k]) && error("Problem in building Hamiltonians")
-            mpos.data.data[1][j, k] =
-              mpos.data.data[1][j, k] * ITensor(
-                eltype(mpos.data.data[1][j, k]),
-                translatecell(translator, right_inds[j - 1], -1),
-              )
-          end
+    for j in [1, size(mpos.data.data[x], 1)]
+      for k in 2:(size(mpos.data.data[x], 2) - 1)
+        if isempty(mpos.data.data[x][j, k])
+          mpos.data.data[x][j, k] = ITensor(sd, sp, new_right_inds[k - 1])
         else
-          if length(commoninds(mpos.data[x + 1][j, k], right_inds[j - 1])) == 0
-            !isempty(mpos.data[x + 1][j, k]) && error("Problem in building Hamiltonians")
-            mpos.data.data[x + 1][j, k] =
-              mpos.data.data[x + 1][j, k] *
-              ITensor(eltype(mpos.data.data[x + 1][j, k]), right_inds[j - 1])
-          end
+          replaceinds!(mpos.data.data[x][j, k], right_inds[k - 1] => new_right_inds[k - 1])
+        end
+      end
+    end
+    for j in 2:(size(mpos.data.data[x], 1) - 1)
+      for k in [1, size(mpos.data.data[x], 2)]
+        if isempty(mpos.data.data[x][j, k])
+          mpos.data.data[x][j, k] = ITensor(left_inds[j - 1], sd, sp)
         end
       end
     end
