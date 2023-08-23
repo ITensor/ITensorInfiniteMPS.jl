@@ -1,7 +1,7 @@
 function ITensors.NDTensors.contraction_output(
   A::NDTensors.EmptyTensor, B::NDTensors.DiagBlockSparseTensor, label
 )
-  return ITensor(eltype(B), label)
+  return NDTensors.EmptyTensor(eltype(B), label)
 end
 
 # Struct for use in linear system solver

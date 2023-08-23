@@ -183,16 +183,11 @@ end
 # Handle orthogonality center correctly
 Base.getindex(ψ::MPS, r::UnitRange{Int}) = MPS([ψ[n] for n in r])
 
-# Base.zero(T::ITensor) = false * T
-#
-# function ITensors.NDTensors.datatype(
-#   ::ITensors.EmptyStorage{Float64,ITensors.NDTensors.BlockSparse{Float64,Vector{Float64},N}}
-# ) where {N}
-#   return Vector{Float64}
-# end
-#
-# function ITensors.NDTensors.datatype(T::ITensors.NDTensors.TensorStorage{Float64})
-#   return typeof(data(T))
-# end
+#TODO Remove if everything is working nicely
+#Base.fill!(::NDTensors.NoData, ::Any) = NoData()
 
-Base.fill!(::NDTensors.NoData, ::Any) = 0
+function ITensors.NDTensors.contraction_output(
+  A::NDTensors.EmptyTensor, B::NDTensors.DiagBlockSparseTensor, label
+)
+  return NDTensors.EmptyTensor(eltype(B), label)
+end

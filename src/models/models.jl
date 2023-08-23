@@ -166,48 +166,48 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
     sp = prime(s[x])
     sd = dag(s[x])
     left_inds = [
-      only(uniqueinds(mpos.data.data[x][j, 1], mpos.data.data[x][1, 1])) for
-      j in 2:(size(mpos.data.data[x], 1) - 1)
+      only(uniqueinds(mpos[x][j, 1], mpos[x][1, 1])) for
+      j in 2:(size(mpos[x], 1) - 1)
     ]
     right_inds = [
-      only(uniqueinds(mpos.data.data[x][end, j], mpos.data.data[x][1, 1])) for
-      j in 2:(size(mpos.data.data[x], 2) - 1)
+      only(uniqueinds(mpos[x][end, j], mpos[x][1, 1])) for
+      j in 2:(size(mpos[x], 2) - 1)
     ]
     if x == N
       new_right_inds = [
-        dag(only(uniqueinds(mpos.data.data[1][j, 1], mpos.data.data[1][1, 1]))) for
-        j in 2:(size(mpos.data.data[1], 1) - 1)
+        dag(only(uniqueinds(mpos[1][j, 1], mpos[1][1, 1]))) for
+        j in 2:(size(mpos[1], 1) - 1)
       ]
       for j in 1:length(new_right_inds)
         new_right_inds[j] = translatecell(translator, new_right_inds[j], 1)
       end
     else
       new_right_inds = [
-        dag(only(uniqueinds(mpos.data.data[x + 1][j, 1], mpos.data.data[x + 1][1, 1]))) for
-        j in 2:(size(mpos.data.data[x], 2) - 1)
+        dag(only(uniqueinds(mpos[x + 1][j, 1], mpos[x + 1][1, 1]))) for
+        j in 2:(size(mpos[x], 2) - 1)
       ]
     end
-    for j in 2:(size(mpos.data.data[x], 1) - 1)
-      for k in 2:(size(mpos.data.data[x], 2) - 1)
-        if isempty(mpos.data.data[x][j, k])
+    for j in 2:(size(mpos[x], 1) - 1)
+      for k in 2:(size(mpos[x], 2) - 1)
+        if isempty(mpos[x][j, k])
           mpos.data.data[x][j, k] = ITensor(left_inds[j - 1], sd, sp, new_right_inds[k - 1])
         else
           replaceinds!(mpos.data.data[x][j, k], right_inds[k - 1] => new_right_inds[k - 1])
         end
       end
     end
-    for j in [1, size(mpos.data.data[x], 1)]
-      for k in 2:(size(mpos.data.data[x], 2) - 1)
-        if isempty(mpos.data.data[x][j, k])
+    for j in [1, size(mpos[x], 1)]
+      for k in 2:(size(mpos[x], 2) - 1)
+        if isempty(mpos[x][j, k])
           mpos.data.data[x][j, k] = ITensor(sd, sp, new_right_inds[k - 1])
         else
           replaceinds!(mpos.data.data[x][j, k], right_inds[k - 1] => new_right_inds[k - 1])
         end
       end
     end
-    for j in 2:(size(mpos.data.data[x], 1) - 1)
-      for k in [1, size(mpos.data.data[x], 2)]
-        if isempty(mpos.data.data[x][j, k])
+    for j in 2:(size(mpos[x], 1) - 1)
+      for k in [1, size(mpos[x], 2)]
+        if isempty(mpos[x][j, k])
           mpos.data.data[x][j, k] = ITensor(left_inds[j - 1], sd, sp)
         end
       end
