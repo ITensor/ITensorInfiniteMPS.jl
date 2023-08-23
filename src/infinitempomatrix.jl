@@ -156,7 +156,6 @@ function build_three_projectors_from_index(is::Index; kwargs...)
   return top, middle, bottom
 end
 
-
 """
     convert_itensor_33matrix(tensor; leftdir=ITensors.In, kwargs...)
 
@@ -180,7 +179,7 @@ function convert_itensor_33matrix(tensor; kwargs...)
   leftind = get(kwargs, :leftindex, nothing)
   leftdir = get(kwargs, :leftdir, ITensors.In)
   #Identify the different indices
-  sit = get(kwargs, :siteindex, filterinds(inds(tensor); tags="Site") )
+  sit = get(kwargs, :siteindex, filterinds(inds(tensor); tags="Site"))
   local_sit = dag(only(filterinds(sit; plev=0)))
   #A bit roundabout as filterinds does not accept dir
   if isnothing(leftind)
@@ -236,7 +235,7 @@ function convert_itensor_3vector(
 )
   @assert order(tensor) == 3
   #Identify the different indices
-  sit = get(kwargs, :siteindex, filterinds(inds(tensor); tags="Site") )
+  sit = get(kwargs, :siteindex, filterinds(inds(tensor); tags="Site"))
   local_sit = dag(only(filterinds(sit; plev=0)))
   #A bit roundabout as filterinds does not accept dir
   old_ind = only(uniqueinds(tensor, sit))

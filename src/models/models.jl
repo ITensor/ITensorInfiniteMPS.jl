@@ -166,12 +166,10 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
     sp = prime(s[x])
     sd = dag(s[x])
     left_inds = [
-      only(uniqueinds(mpos[x][j, 1], mpos[x][1, 1])) for
-      j in 2:(size(mpos[x], 1) - 1)
+      only(uniqueinds(mpos[x][j, 1], mpos[x][1, 1])) for j in 2:(size(mpos[x], 1) - 1)
     ]
     right_inds = [
-      only(uniqueinds(mpos[x][end, j], mpos[x][1, 1])) for
-      j in 2:(size(mpos[x], 2) - 1)
+      only(uniqueinds(mpos[x][end, j], mpos[x][1, 1])) for j in 2:(size(mpos[x], 2) - 1)
     ]
     if x == N
       new_right_inds = [
