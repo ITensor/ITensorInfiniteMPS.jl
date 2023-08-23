@@ -85,3 +85,37 @@ function InfiniteMPO(Hm::InfiniteMPOMatrix)
   end
   return InfiniteMPO(Hi)
 end
+
+
+"""
+	fuse_legs!(Hcl::InfiniteMPO, L, R)
+
+    Fuse the non-site legs of the infiniteMPO Hcl and the corresponding left L and right R environments.
+		Essentially the inverse of splitblocks. It becomes useful for the very dense MPOs once get after compression sometimes.
+		Hcl is modified on site, L and R are not.
+		Input: Hcl the infinite MPO
+		       L   the left environment (an ITensor)
+					 R   the right environment (an ITensor)
+		Output: the tuple (newL, newR) the updated environments
+"""
+function fuse_legs!(Hcl::InfiniteMPO, L, R)
+	N = nsites(Hcl)
+	for j in 1:N-1
+		right_link = only(commoninds(Hcl[j], Hcl[j+1]))
+		comb = combiner(right_link, tags = tags(right_link), dir = dir(right_link))
+		comb_ind = combinedind(comb)
+		Hcl.data.data[j] = Hcl[j] * comb
+		Hcl.data.data[j+1] = dag(comb) * Hcl[j+1]
+	end
+	right_link = only(commoninds(Hcl[N],  Hcl[N+1]))
+	right_link2 = translatecell(fermion_momentum_translator, right_link, -1)
+	comb = combiner(right_link, tags = tags(right_link), dir = dir(right_link))
+	comb_ind = combinedind(comb)
+	comb2 = translatecell(fermion_momentum_translator, comb, -1)
+	comb2_ind = combinedind(comb2)
+	Hcl.data.data[N] = Hcl[N] * comb
+	Hcl.data.data[1] = dag(comb2) * Hcl[1]
+	L = L * comb2
+	R = dag(comb) * R
+	return L, R
+end
