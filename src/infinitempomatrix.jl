@@ -114,7 +114,15 @@ function convert_itensor_to_itensormatrix(tensor; kwargs...)
   end
 end
 
-"Build the projectors on the three parts of the itensor used to split a MPO into an InfiniteMPOMatrix"
+"""
+    build_three_projectors_from_index(is::Index; kwargs...)
+
+  Build the projectors on the three parts of the itensor used to split a MPO into an InfiniteMPOMatrix
+  More precisely, create projectors on the first dimension, the 2:end-1 and the last dimension of the index
+  Input: is the Index to split
+  Output: the triplet of projectors (first, middle, last)
+  Optional arguments: tags: if we want to change the tags of the index. Else default to tags(is)
+"""
 function build_three_projectors_from_index(is::Index; kwargs...)
   old_dim = dim(is)
   new_tags = get(kwargs, :tags, tags(is))
@@ -148,31 +156,50 @@ function build_three_projectors_from_index(is::Index; kwargs...)
   return top, middle, bottom
 end
 
-function convert_itensor_33matrix(tensor; leftdir=ITensors.In, kwargs...)
+"""
+    convert_itensor_33matrix(tensor; leftdir=ITensors.In, kwargs...)
+
+  Converts a 4-legged tensor (coming from an (infinite) MPO) with two site indices and a left and a right leg into a 3 x 3 matrix of ITensor.
+  We assume the normal form for MPO (before full compression) where the top left and bottom right corners are identity matrices.
+  The goal is to write the tensor in the form
+         1      M_12   M_13
+         M_21   M_22   M_23
+         M_31   M_32   1
+  such that we can then easily compress it. Note that for most of our tensors, the upper triangular part will be 0.
+  Input: tensor the four leg tensors
+  Output: the 3x3 matrix of tensors
+  Optional arguments: leftdir: the direction of the left_index of the matrix to select it properly. Default to Itensors.In
+                      leftindex: instead one can directly provide the left index. Default to nothing
+                      siteindex: instead of relying on the tag, one can provide the two site indices. Default to tag filtering.
+                      left_tags: if we want to change the tags of the left indices. Default to tags(leftindex).
+                      right_tags: if we want to change the tags of the right indices. Default to tags(rightindex).
+"""
+function convert_itensor_33matrix(tensor; kwargs...)
   @assert order(tensor) == 4
-  left_ind = get(kwargs, :leftindex, nothing)
+  leftind = get(kwargs, :leftindex, nothing)
+  leftdir = get(kwargs, :leftdir, ITensors.In)
   #Identify the different indices
-  sit = filterinds(inds(tensor); tags="Site")
+  sit = get(kwargs, :siteindex, filterinds(inds(tensor); tags="Site"))
   local_sit = dag(only(filterinds(sit; plev=0)))
   #A bit roundabout as filterinds does not accept dir
-  if isnothing(left_ind)
+  if isnothing(leftind)
     temp = uniqueinds(tensor, sit)
     if dir(temp[1]) == leftdir
-      left_ind = temp[1]
+      leftind = temp[1]
       right_ind = temp[2]
     else
-      left_ind = temp[2]
+      leftind = temp[2]
       right_ind = temp[1]
     end
   else
-    right_ind = only(uniqueinds(tensor, sit, left_ind))
+    right_ind = only(uniqueinds(tensor, sit, leftind))
   end
-  left_dim = dim(left_ind)
+  left_dim = dim(leftind)
   right_dim = dim(right_ind)
   #Build the local projectors.
-  left_tags = get(kwargs, :left_tags, tags(left_ind))
+  left_tags = get(kwargs, :left_tags, tags(leftind))
   top_left, middle_left, bottom_left = build_three_projectors_from_index(
-    left_ind; tags=left_tags
+    leftind; tags=left_tags
   )
   right_tags = get(kwargs, :righ_tags, tags(right_ind))
   top_right, middle_right, bottom_right = build_three_projectors_from_index(
@@ -188,12 +215,27 @@ function convert_itensor_33matrix(tensor; leftdir=ITensors.In, kwargs...)
   return matrix
 end
 
+"""
+    convert_itensor_3vector(tensor; leftdir=ITensors.In, kwargs...)
+
+  Converts a 3-legged tensor (the extremity of a MPO) with two site indices and one leg into a 3 Vector of ITensor.
+  We assume the normal form for MPO (before full compression) where the top left and bottom right corners are identity matrices in the bulk.
+
+  Input: tensor the three leg tensors
+  Output: the 3x1 or 1x3 vector of tensors
+  Optional arguments: leftdir: the direction of the left_index of the matrix to decide whether we get a 3x1 or 1x3 vector. Default to Itensors.In
+                      first: Alternative way to specify the shape, where it is the first tensor of the MPO. Default to false
+                      last:  Alternative way to specify the shape, where it is the last tensor of the MPO. Default to false
+                      siteindex: instead of relying on the tag, one can provide the two site indices.
+                      left_tags: if we want to change the tags of the left indices. Else default to tags(leftindex)
+                      right_tags: if we want to change the tags of the right indices. Else default to tags(rightindex)
+"""
 function convert_itensor_3vector(
   tensor; leftdir=ITensors.In, first=false, last=false, kwargs...
 )
   @assert order(tensor) == 3
   #Identify the different indices
-  sit = filterinds(inds(tensor); tags="Site")
+  sit = get(kwargs, :siteindex, filterinds(inds(tensor); tags="Site"))
   local_sit = dag(only(filterinds(sit; plev=0)))
   #A bit roundabout as filterinds does not accept dir
   old_ind = only(uniqueinds(tensor, sit))
@@ -211,24 +253,3 @@ function convert_itensor_3vector(
   end
   return vector
 end
-
-function apply_tensor(A::Array{ITensor,N}, B::ITensor...) where {N}
-  new_A = copy(A)
-  for x in 1:length(new_A)
-    new_A[x] = contract(new_A[x], B...)
-  end
-  return new_A
-end
-
-# import ITensors._add
-# function ITensors._add(
-#   A::T1, B::T2
-# ) where {T1<:ITensors.NDTensors.EmptyTensor,T2<:ITensors.NDTensors.EmptyTensor}
-#   ndims(A) != ndims(B) && throw(
-#     ITensors.DimensionMismatch("cannot add ITensors with different numbers of indices")
-#   )
-#   indices = inds(A)
-#   length(commoninds(indices, B)) != length(inds(B)) &&
-#     error("cannot add ITensors with different indices")
-#   return ITensor(promote_type(eltype(A), eltype(B)), indices)
-# end

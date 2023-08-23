@@ -86,12 +86,12 @@ function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteMPOMatrix)
   Ncell = nsites(h)
   L, R = generate_edges(h)
   l = commoninds(ψ.AL[0], ψ.AL[1])
-  L = ITensorInfiniteMPS.apply_tensor(L, δ(l, dag(prime(l))))
+  L = map(a -> contract(a, δ(l, dag(prime(l)))), L)
   r = commoninds(ψ.AR[Ncell + 1], ψ.AR[Ncell])
-  R = ITensorInfiniteMPS.apply_tensor(R, δ(r, dag(prime(r))))
-  L = ITensorInfiniteMPS.apply_tensor(L, ψ.C[0], dag(prime(ψ.C[0])))
+  R = map(a -> contract(a, δ(r, dag(prime(r)))), R)
+  L = map(a -> contract(a, ψ.C[0], dag(prime(ψ.C[0]))), L)
   for j in 1:nsites(ψ)
-    temp = ITensorInfiniteMPS.apply_tensor(h[j], ψ.AR[j], dag(prime(ψ.AR[j])))
+    temp = map(a -> contract(a, ψ.AR[j], dag(prime(ψ.AR[j]))), h[j])
     L = L * temp
   end
   return (L * R)[1][1]#ITensorInfiniteMPS.scalar_product(L, R)[1]
