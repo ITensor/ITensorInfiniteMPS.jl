@@ -3,7 +3,7 @@ using ITensorInfiniteMPS
 using Test
 
 #With the new definition of InfiniteMPOMatrix, the MPO is better behaved, and hence we need to be a bit more careful
-function special_expect(ψ::InfiniteCanonicalMPS, h::InfiniteSum{MPO})
+function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteSum{MPO})
   s = siteinds(ψ)
   Ncell = nsites(h)
 
@@ -25,7 +25,7 @@ function special_expect(ψ::InfiniteCanonicalMPS, h::InfiniteSum{MPO})
         hf[x] = op("Id", s[x])
       end
     end
-    energy += expect(ψ, hf)
+    energy += ITensors.expect(ψ, hf)
   end
   return energy
 end
@@ -161,7 +161,7 @@ end
     Hi = InfiniteMPO(model, s; model_kwargs...)
     Hm = InfiniteMPOMatrix(model, s; model_kwargs...)
     Hs = InfiniteSum{MPO}(model, s; model_kwargs...)
-    Es = special_expect(ψ, Hs)
+    Es = expect(ψ, Hs)
     Ei = expect(ψ, Hi)
     Em = expect(ψ, Hm)
     #@show Es Ei
@@ -185,7 +185,7 @@ end
     ψ = InfMPS(s, initstate)
     Hs = InfiniteSum{MPO}(model, s; model_params...)
     Hi = InfiniteMPO(model, s, trf; model_params...)
-    Es = special_expect(ψ, Hs)
+    Es = expect(ψ, Hs)
     Ei = expect(ψ, Hi)
     #@show Es Ei
     @test Es ≈ Ei atol = 1e-14

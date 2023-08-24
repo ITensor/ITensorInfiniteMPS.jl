@@ -118,19 +118,26 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
       else
         #Here, we split the local tensor into its different blocks
         T = eltype(temp_H[j - n][idx])
-        temp_mat = convert_itensor_to_itensormatrix(
-          temp_H[j - n][idx];
-          leftdir=ITensors.In,
-          first=n == 0 ? true : false,
-          last=n == range_H - 1 ? true : false,
-          left_tags=tags(ls[j - 1]),
-          right_tags=tags(ls[j]),
-          leftindex=if idx > 1
-            only(commoninds(temp_H[j - n][idx], temp_H[j - n][idx - 1]))
-          else
-            nothing
-          end,
-        )
+        if n == 0
+          ind_to_change = only(commoninds(temp_H[j - n][idx], temp_H[j - n][idx + 1]))
+          temp_mat = local_mpo_blocks(
+            temp_H[j - n][idx], ind_to_change; position=:first, new_tags=tags(ls[j])
+          )
+        elseif n == range_H - 1
+          ind_to_change = only(commoninds(temp_H[j - n][idx], temp_H[j - n][idx - 1]))
+          temp_mat = local_mpo_blocks(
+            temp_H[j - n][idx], ind_to_change; position=:last, new_tags=tags(ls[j - 1])
+          )
+        else
+          left_dir = only(commoninds(temp_H[j - n][idx], temp_H[j - n][idx - 1]))
+          right_dir = only(commoninds(temp_H[j - n][idx], temp_H[j - n][idx + 1]))
+          temp_mat = local_mpo_blocks(
+            temp_H[j - n][idx],
+            (left_dir, right_dir);
+            left_tags=tags(ls[j - 1]),
+            right_tags=tags(ls[j]),
+          )
+        end
         if size(temp_mat) == (3, 3)
           @assert iszero(temp_mat[1, 2])
           @assert iszero(temp_mat[1, 3])

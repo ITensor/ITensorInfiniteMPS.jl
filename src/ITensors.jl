@@ -190,5 +190,5 @@ Base.fill!(::NDTensors.NoData, ::Any) = NDTensors.NoData()
 function ITensors.NDTensors.contraction_output(
   A::NDTensors.EmptyTensor, B::NDTensors.DiagBlockSparseTensor, label
 )
-  return NDTensors.EmptyTensor(eltype(B), label)
+  return NDTensors.EmptyTensor(promote_type(eltype(A), eltype(B)), label)
 end
