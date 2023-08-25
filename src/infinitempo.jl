@@ -90,6 +90,7 @@ end
 	fuse_legs!(Hcl::InfiniteMPO, L, R)
 
     Fuse the non-site legs of the infiniteMPO Hcl and the corresponding left L and right R environments.
+    Preserve the corner structure.
 		Essentially the inverse of splitblocks. It becomes useful for the very dense MPOs once get after compression sometimes.
 		Hcl is modified on site, L and R are not.
 		Input: Hcl the infinite MPO
@@ -98,20 +99,43 @@ end
 		Output: the tuple (newL, newR) the updated environments
 """
 function fuse_legs!(Hcl::InfiniteMPO, L, R)
+  Hcl = copy(Hcl)
   N = nsites(Hcl)
   for j in 1:(N - 1)
     right_link = only(commoninds(Hcl[j], Hcl[j + 1]))
-    comb = combiner(right_link; tags=tags(right_link), dir=dir(right_link))
-    comb_ind = combinedind(comb)
+    top, middle, bottom = local_mpo_block_projectors(right_link)
+    top = top * onehot(Index(QN() => 1) => 1)
+    bottom = bottom * onehot(Index(QN() => 1) => 1)
+    cb = combiner(
+      only(uniqueinds(middle, dag(right_link))); dir=dir(right_link), tags=tags(right_link)
+    )
+    middle = cb * middle
+    comb, comb_ind = directsum(
+      top => uniqueinds(top, dag(right_link)),
+      middle => uniqueinds(middle, dag(right_link)),
+      bottom => uniqueinds(bottom, dag(right_link));
+      tags=[tags(right_link)],
+    )
     Hcl.data.data[j] = Hcl[j] * comb
     Hcl.data.data[j + 1] = dag(comb) * Hcl[j + 1]
   end
   right_link = only(commoninds(Hcl[N], Hcl[N + 1]))
-  right_link2 = translatecell(fermion_momentum_translator, right_link, -1)
-  comb = combiner(right_link; tags=tags(right_link), dir=dir(right_link))
-  comb_ind = combinedind(comb)
-  comb2 = translatecell(fermion_momentum_translator, comb, -1)
-  comb2_ind = combinedind(comb2)
+  right_link2 = translatecell(translator(Hcl), right_link, -1)
+  top, middle, bottom = local_mpo_block_projectors(right_link)
+  top = top * onehot(Index(QN() => 1) => 1)
+  bottom = bottom * onehot(Index(QN() => 1) => 1)
+  cb = combiner(
+    only(uniqueinds(middle, dag(right_link))); dir=dir(right_link), tags=tags(right_link)
+  )
+  middle = cb * middle
+  comb, comb_ind = directsum(
+    top => uniqueinds(top, dag(right_link)),
+    middle => uniqueinds(middle, dag(right_link)),
+    bottom => uniqueinds(bottom, dag(right_link));
+    tags=[tags(right_link)],
+  )
+  comb2 = translatecell(translator(Hcl), comb, -1)
+  comb2_ind = translatecell(translator(Hcl), comb2, -1)
   Hcl.data.data[N] = Hcl[N] * comb
   Hcl.data.data[1] = dag(comb2) * Hcl[1]
   L = L * comb2
