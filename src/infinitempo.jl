@@ -99,7 +99,6 @@ end
 		Output: the tuple (newL, newR) the updated environments
 """
 function fuse_legs!(Hcl::InfiniteMPO, L, R)
-  Hcl = copy(Hcl)
   N = nsites(Hcl)
   for j in 1:(N - 1)
     right_link = only(commoninds(Hcl[j], Hcl[j + 1]))
