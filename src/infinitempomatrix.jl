@@ -53,13 +53,26 @@ function InfiniteMPOMatrix(data::CelledVector{Matrix{ITensor}})
 end
 
 function ITensors.siteinds(A::InfiniteMPOMatrix)
-  return CelledVector(
-    [dag(only(filterinds(A[x][1, 1]; plev=0, tags="Site"))) for x in 1:nsites(A)],
-    translator(A),
+  data = [dag(only(filterinds(uniqueinds(A[1][1, 1], A[2][1, 1]); plev=0)))]
+  for x in 2:(nsites(A) - 1)
+    append!(
+      data,
+      [
+        dag(
+          only(filterinds(uniqueinds(A[x][1, 1], A[x - 1][1, 1], A[x + 1][1, 1]); plev=0))
+        ),
+      ],
+    )
+  end
+  append!(
+    data,
+    [dag(only(filterinds(uniqueinds(A[nsites(A)][1, 1], A[nsites(A) - 1][1, 1]); plev=0)))],
   )
+  return CelledVector(data, translator(A))
 end
 
 function ITensors.splitblocks(H::InfiniteMPOMatrix)
+  H = copy(H)
   N = nsites(H)
   for j in 1:N
     for n in 1:length(H)
@@ -102,30 +115,29 @@ function find_all_links(Hm::Matrix{ITensor})
   return left_links, right_links
 end
 
-function convert_itensor_to_itensormatrix(tensor; kwargs...)
-  if order(tensor) == 3
-    return convert_itensor_3vector(tensor; kwargs...)
-  elseif order(tensor) == 4
-    return convert_itensor_33matrix(tensor; kwargs...)
-  else
-    error(
-      "Conversion of ITensor into matrix of ITensor not planned for this type of tensors"
-    )
-  end
-end
+# function convert_itensor_to_itensormatrix(tensor; kwargs...)
+#   if order(tensor) == 3
+#     return convert_itensor_3vector(tensor; kwargs...)
+#   elseif order(tensor) == 4
+#     return convert_itensor_33matrix(tensor; kwargs...)
+#   else
+#     error(
+#       "Conversion of ITensor into matrix of ITensor not planned for this type of tensors"
+#     )
+#   end
+# end
 
 """
-    build_three_projectors_from_index(is::Index; kwargs...)
+    local_mpo_block_projectors(is::Index; new_tags = tags(is))
 
   Build the projectors on the three parts of the itensor used to split a MPO into an InfiniteMPOMatrix
   More precisely, create projectors on the first dimension, the 2:end-1 and the last dimension of the index
   Input: is the Index to split
   Output: the triplet of projectors (first, middle, last)
-  Optional arguments: tags: if we want to change the tags of the index. Else default to tags(is)
+  Optional arguments: new_tags: if we want to change the tags of the index.
 """
-function build_three_projectors_from_index(is::Index; kwargs...)
+function local_mpo_block_projectors(is::Index; tags=tags(is))
   old_dim = dim(is)
-  new_tags = get(kwargs, :tags, tags(is))
   #Build the local projectors.
   #We have to differentiate between the dense and the QN case
   #Note that as far as I know, the MPO even dense is always guaranteed to have identities at both corners
@@ -133,14 +145,14 @@ function build_three_projectors_from_index(is::Index; kwargs...)
   top = onehot(dag(is) => 1)
   bottom = onehot(dag(is) => old_dim)
   if length(is.space) == 1
-    new_ind = Index(is.space - 2; tags=new_tags)
+    new_ind = Index(is.space - 2; tags=tags)
     mat = zeros(new_ind.space, is.space)
     for x in 1:(new_ind.space)
       mat[x, x + 1] = 1
     end
     middle = ITensor(copy(mat), new_ind, dag(is))
   else
-    new_ind = Index(is.space[2:(end - 1)]; dir=dir(is), tags=new_tags)
+    new_ind = Index(is.space[2:(end - 1)]; dir=dir(is), tags=tags)
     middle = ITensors.BlockSparseTensor(
       Float64,
       undef,
@@ -157,7 +169,7 @@ function build_three_projectors_from_index(is::Index; kwargs...)
 end
 
 """
-    convert_itensor_33matrix(tensor; leftdir=ITensors.In, kwargs...)
+    local_mpo_blocks(tensor, inds::NTuple{2, Index}; left_tags = tags(inds[1]), right_tags = tags(inds[2]), ...)
 
   Converts a 4-legged tensor (coming from an (infinite) MPO) with two site indices and a left and a right leg into a 3 x 3 matrix of ITensor.
   We assume the normal form for MPO (before full compression) where the top left and bottom right corners are identity matrices.
@@ -166,90 +178,63 @@ end
          M_21   M_22   M_23
          M_31   M_32   1
   such that we can then easily compress it. Note that for most of our tensors, the upper triangular part will be 0.
-  Input: tensor the four leg tensors
+  Input: tensor the four leg tensors and the pair of Index (left_ind, right_ind)
   Output: the 3x3 matrix of tensors
-  Optional arguments: leftdir: the direction of the left_index of the matrix to select it properly. Default to Itensors.In
-                      leftindex: instead one can directly provide the left index. Default to nothing
-                      siteindex: instead of relying on the tag, one can provide the two site indices. Default to tag filtering.
-                      left_tags: if we want to change the tags of the left indices. Default to tags(leftindex).
-                      right_tags: if we want to change the tags of the right indices. Default to tags(rightindex).
+  Optional arguments: left_tags: if we want to change the tags of the left indices.
+                      right_tags: if we want to change the tags of the right indices.
 """
-function convert_itensor_33matrix(tensor; kwargs...)
-  @assert order(tensor) == 4
-  leftind = get(kwargs, :leftindex, nothing)
-  leftdir = get(kwargs, :leftdir, ITensors.In)
-  #Identify the different indices
-  sit = get(kwargs, :siteindex, filterinds(inds(tensor); tags="Site"))
-  local_sit = dag(only(filterinds(sit; plev=0)))
-  #A bit roundabout as filterinds does not accept dir
-  if isnothing(leftind)
-    temp = uniqueinds(tensor, sit)
-    if dir(temp[1]) == leftdir
-      leftind = temp[1]
-      right_ind = temp[2]
-    else
-      leftind = temp[2]
-      right_ind = temp[1]
-    end
-  else
-    right_ind = only(uniqueinds(tensor, sit, leftind))
-  end
-  left_dim = dim(leftind)
+function local_mpo_blocks(
+  t::ITensor,
+  inds::NTuple{2,Index};
+  left_tags=tags(inds[1]),
+  right_tags=tags(inds[2]),
+  kwargs...,
+)
+  @assert order(t) == 4
+  left_ind = inds[1]
+  right_ind = inds[2]
+
+  left_dim = dim(left_ind)
   right_dim = dim(right_ind)
   #Build the local projectors.
-  left_tags = get(kwargs, :left_tags, tags(leftind))
-  top_left, middle_left, bottom_left = build_three_projectors_from_index(
-    leftind; tags=left_tags
-  )
-  right_tags = get(kwargs, :righ_tags, tags(right_ind))
-  top_right, middle_right, bottom_right = build_three_projectors_from_index(
+  top_left, middle_left, bottom_left = local_mpo_block_projectors(left_ind; tags=left_tags)
+  top_right, middle_right, bottom_right = local_mpo_block_projectors(
     right_ind; tags=right_tags
   )
 
-  matrix = fill(op("Zero", local_sit), 3, 3)
+  matrix = Matrix{ITensor}(undef, 3, 3)
   for (idx_left, proj_left) in enumerate([top_left, middle_left, bottom_left])
     for (idx_right, proj_right) in enumerate([top_right, middle_right, bottom_right])
-      matrix[idx_left, idx_right] = proj_left * tensor * proj_right
+      matrix[idx_left, idx_right] = proj_left * t * proj_right
     end
   end
   return matrix
 end
 
 """
-    convert_itensor_3vector(tensor; leftdir=ITensors.In, kwargs...)
+    local_mpo_blocks(t::ITensor, ind::Index; new_tags = tags(ind), position = :first, ...)
 
   Converts a 3-legged tensor (the extremity of a MPO) with two site indices and one leg into a 3 Vector of ITensor.
   We assume the normal form for MPO (before full compression) where the top left and bottom right corners are identity matrices in the bulk.
 
-  Input: tensor the three leg tensors
+  Input: tensor the three leg tensors and the index connecting to the rest of the MPO
   Output: the 3x1 or 1x3 vector of tensors
-  Optional arguments: leftdir: the direction of the left_index of the matrix to decide whether we get a 3x1 or 1x3 vector. Default to Itensors.In
-                      first: Alternative way to specify the shape, where it is the first tensor of the MPO. Default to false
-                      last:  Alternative way to specify the shape, where it is the last tensor of the MPO. Default to false
-                      siteindex: instead of relying on the tag, one can provide the two site indices.
-                      left_tags: if we want to change the tags of the left indices. Else default to tags(leftindex)
-                      right_tags: if we want to change the tags of the right indices. Else default to tags(rightindex)
+  Optional arguments: new_tags: if we want to change the tags of the indices.
+                      position: whether we consider the first term in the MPO or the last.
 """
-function convert_itensor_3vector(
-  tensor; leftdir=ITensors.In, first=false, last=false, kwargs...
+function local_mpo_blocks(
+  t::ITensor, ind::Index; new_tags=tags(ind), position=:first, kwargs...
 )
-  @assert order(tensor) == 3
-  #Identify the different indices
-  sit = get(kwargs, :siteindex, filterinds(inds(tensor); tags="Site"))
-  local_sit = dag(only(filterinds(sit; plev=0)))
-  #A bit roundabout as filterinds does not accept dir
-  old_ind = only(uniqueinds(tensor, sit))
-  if dir(old_ind) == leftdir || last
-    new_tags = get(kwargs, :left_tags, tags(old_ind))
-    top, middle, bottom = build_three_projectors_from_index(old_ind; tags=new_tags)
-    vector = fill(op("Zero", local_sit), 3, 1)
+  @assert order(t) == 3
+  top, middle, bottom = local_mpo_block_projectors(ind; tags=new_tags)
+
+  if position == :first
+    vector = Matrix{ITensor}(undef, 1, 3)
   else
-    new_tags = get(kwargs, :right_tags, tags(old_ind))
-    top, middle, bottom = build_three_projectors_from_index(old_ind; tags=new_tags)
-    vector = fill(op("Zero", local_sit), 1, 3)
+    vector = Matrix{ITensor}(undef, 3, 1)
   end
   for (idx, proj) in enumerate([top, middle, bottom])
-    vector[idx] = proj * tensor
+    vector[idx] = proj * t
   end
   return vector
 end
