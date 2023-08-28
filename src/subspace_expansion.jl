@@ -118,7 +118,7 @@ function generate_twobody_nullspace(
 end
 
 function generate_twobody_nullspace(
-  ψ::InfiniteCanonicalMPS, H::InfiniteMPOMatrix, b::Tuple{Int,Int}; atol=1e-2
+  ψ::InfiniteCanonicalMPS, H::InfiniteBlockMPO, b::Tuple{Int,Int}; atol=1e-2
 )
   n_1, n_2 = b
   L, _ = left_environment(H, ψ)

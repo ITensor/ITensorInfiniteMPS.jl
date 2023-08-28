@@ -60,11 +60,11 @@ function cat_to_itensor(Hm::Matrix{ITensor})
   return H, new_l, new_rs[1]
 end
 #
-#  Hm is the InfiniteMPOMatrix
+#  Hm is the InfiniteBlockMPO
 #  Hlrs is an array of {ITensor,Index,Index}s, one for each site in the unit cell.
 #  Hi is a CelledVector of ITensors.
 #
-function InfiniteMPO(Hm::InfiniteMPOMatrix)
+function InfiniteMPO(Hm::InfiniteBlockMPO)
   Hlrs = cat_to_itensor.(Hm) #return an array of {ITensor,Index,Index}
   #
   #  Unpack the array of tuples into three arrays.  And also get an array site indices.

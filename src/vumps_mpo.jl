@@ -1,7 +1,7 @@
 # Struct for use in linear system solver
 struct AOᴸ
   ψ::InfiniteCanonicalMPS
-  H::InfiniteMPOMatrix
+  H::InfiniteBlockMPO
   n::Int
 end
 
@@ -29,7 +29,7 @@ function (A::AOᴸ)(x)
 end
 
 function initialize_left_environment(
-  H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n::Int64; init_last=false
+  H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n::Int64; init_last=false
 )
   dₕ = size(H[n + 1], 1)
   sit = inds(H[n + 1][1, 1])
@@ -49,7 +49,7 @@ function initialize_left_environment(
 end
 
 function apply_local_left_transfer_matrix(
-  Lstart::Vector{ITensor}, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
+  Lstart::Vector{ITensor}, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   dₕ = length(Lstart)
   ψ′ = dag(ψ)'
@@ -67,7 +67,7 @@ end
 
 # apply the left transfer matrix at position n1 to the vector Lstart considering it at position m, adding to Ltarget
 function apply_local_left_transfer_matrix(
-  Lstart::ITensor, m::Int64, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64;
+  Lstart::ITensor, m::Int64, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64;
 )
   Ltarget = initialize_left_environment(H, ψ, n_1; init_last=false)
   for j in 1:m
@@ -78,7 +78,7 @@ end
 
 #apply the left transfer matrix n1:n1+nsites(ψ)-1
 function apply_left_transfer_matrix(
-  Lstart::ITensor, m::Int64, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
+  Lstart::ITensor, m::Int64, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   Ltarget = apply_local_left_transfer_matrix(Lstart, m, H, ψ, n_1)
   for j in 1:(nsites(ψ) - 1)
@@ -89,7 +89,7 @@ end
 
 # Also input C bond matrices to help compute the right fixed points
 # of ψ (R ≈ C * dag(C))
-function left_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1e-10)
+function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-10)
   N = nsites(H)
   @assert N == nsites(ψ)
 
@@ -151,7 +151,7 @@ end
 # Struct for use in linear system solver
 struct AOᴿ
   ψ::InfiniteCanonicalMPS
-  H::InfiniteMPOMatrix
+  H::InfiniteBlockMPO
   n::Int
 end
 
@@ -179,7 +179,7 @@ function (A::AOᴿ)(x)
 end
 
 function initialize_right_environment(
-  H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n::Int64; init_first=false
+  H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n::Int64; init_first=false
 )
   dₕ = size(H[n - 1], 2)
   sit = inds(H[n - 1][1, 1])
@@ -199,7 +199,7 @@ function initialize_right_environment(
 end
 
 function apply_local_right_transfer_matrix(
-  Lstart::Vector{ITensor}, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
+  Lstart::Vector{ITensor}, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   dₕ = length(Lstart)
   ψ′ = dag(ψ)'
@@ -218,7 +218,7 @@ end
 function apply_local_right_transfer_matrix(
   Lstart::ITensor,
   m::Int64,
-  H::InfiniteMPOMatrix,
+  H::InfiniteBlockMPO,
   ψ::InfiniteCanonicalMPS,
   n_1::Int64;
   reset=true,
@@ -236,7 +236,7 @@ end
 
 #apply the right transfer matrix n1:n1+nsites(ψ)-1
 function apply_right_transfer_matrix(
-  Lstart::ITensor, m::Int64, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
+  Lstart::ITensor, m::Int64, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   Ltarget = apply_local_right_transfer_matrix(Lstart, m, H, ψ, n_1)
   for j in 1:(nsites(ψ) - 1)
@@ -245,7 +245,7 @@ function apply_right_transfer_matrix(
   return Ltarget
 end
 
-function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1e-10)
+function right_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-10)
   N = nsites(H)
   @assert N == nsites(ψ)
 
@@ -303,7 +303,7 @@ function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1
   return CelledVector(Rs), eᵣ[1]
 end
 
-function vumps(H::InfiniteMPOMatrix, ψ::InfiniteMPS; kwargs...)
+function vumps(H::InfiniteBlockMPO, ψ::InfiniteMPS; kwargs...)
   return vumps(H, orthogonalize(ψ, :); kwargs...)
 end
 
@@ -347,7 +347,7 @@ end
 
 function tdvp_iteration_sequential(
   solver::Function,
-  H::InfiniteMPOMatrix,
+  H::InfiniteBlockMPO,
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
@@ -409,7 +409,7 @@ end
 
 function tdvp_iteration_parallel(
   solver::Function,
-  H::InfiniteMPOMatrix,
+  H::InfiniteBlockMPO,
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),

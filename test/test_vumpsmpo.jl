@@ -61,7 +61,7 @@ end
     s = infsiteinds("S=1/2", N; initstate, conserve_szparity=conserve_qns)
     ψ = InfMPS(s, initstate)
 
-    Hmpo = InfiniteMPOMatrix(model, s; model_kwargs...)
+    Hmpo = InfiniteBlockMPO(model, s; model_kwargs...)
     # Alternate steps of running VUMPS and increasing the bond dimension
     ψ = tdvp(Hmpo, ψ; vumps_kwargs...)
     for _ in 1:outer_iters
@@ -133,7 +133,7 @@ end
     s = infsiteinds("S=1/2", nsites; conserve_szparity=conserve_qns, initstate)
     ψ = InfMPS(s, initstate)
 
-    Hmpo = InfiniteMPOMatrix(model, s; model_kwargs...)
+    Hmpo = InfiniteBlockMPO(model, s; model_kwargs...)
     # Alternate steps of running VUMPS and increasing the bond dimension
     ψ = tdvp(Hmpo, ψ; vumps_kwargs...)
     for _ in 1:outer_iters
@@ -218,7 +218,7 @@ end
     )
     ψ = InfMPS(s, initstate)
 
-    Hmpo = InfiniteMPOMatrix(model, s; model_kwargs...)
+    Hmpo = InfiniteBlockMPO(model, s; model_kwargs...)
     # Alternate steps of running VUMPS and increasing the bond dimension
     ψ = tdvp(Hmpo, ψ; vumps_kwargs...)
     for _ in 1:outer_iters

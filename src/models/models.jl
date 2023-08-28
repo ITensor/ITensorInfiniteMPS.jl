@@ -87,14 +87,14 @@ function InfiniteMPO(model::Model, s::CelledVector; kwargs...)
 end
 
 function InfiniteMPO(model::Model, s::CelledVector, translator::Function; kwargs...)
-  return InfiniteMPO(InfiniteMPOMatrix(model, s, translator; kwargs...))
+  return InfiniteMPO(InfiniteBlockMPO(model, s, translator; kwargs...))
 end
 
-function InfiniteMPOMatrix(model::Model, s::CelledVector; kwargs...)
-  return InfiniteMPOMatrix(model, s, translator(s); kwargs...)
+function InfiniteBlockMPO(model::Model, s::CelledVector; kwargs...)
+  return InfiniteBlockMPO(model, s, translator(s); kwargs...)
 end
 
-function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; kwargs...)
+function InfiniteBlockMPO(model::Model, s::CelledVector, translator::Function; kwargs...)
   N = length(s)
   temp_H = InfiniteSum{MPO}(model, s; kwargs...)
   range_H = maximum(nrange(temp_H)) #Should be improved
@@ -168,7 +168,7 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
     #mpos[j] += dense(Hmat) * setelt(ls[j-1] => total_dim) * setelt(ls[j] => total_dim)
   end
   #unify_indices and add virtual indices to the empty tensors
-  mpos = InfiniteMPOMatrix(mpos, translator)
+  mpos = InfiniteBlockMPO(mpos, translator)
   for x in 1:N
     sp = prime(s[x])
     sd = dag(s[x])
