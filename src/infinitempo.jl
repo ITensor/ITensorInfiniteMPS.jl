@@ -60,11 +60,11 @@ function cat_to_itensor(Hm::Matrix{ITensor})
   return H, new_l, new_rs[1]
 end
 #
-#  Hm is the InfiniteMPOMatrix
+#  Hm is the InfiniteBlockMPO
 #  Hlrs is an array of {ITensor,Index,Index}s, one for each site in the unit cell.
 #  Hi is a CelledVector of ITensors.
 #
-function InfiniteMPO(Hm::InfiniteMPOMatrix)
+function InfiniteMPO(Hm::InfiniteBlockMPO)
   Hlrs = cat_to_itensor.(Hm) #return an array of {ITensor,Index,Index}
   #
   #  Unpack the array of tuples into three arrays.  And also get an array site indices.
@@ -115,8 +115,8 @@ function fuse_legs!(Hcl::InfiniteMPO, L, R)
       bottom => uniqueinds(bottom, dag(right_link));
       tags=[tags(right_link)],
     )
-    Hcl.data.data[j] = Hcl[j] * comb
-    Hcl.data.data[j + 1] = dag(comb) * Hcl[j + 1]
+    Hcl[j] = Hcl[j] * comb
+    Hcl[j + 1] = dag(comb) * Hcl[j + 1]
   end
   right_link = only(commoninds(Hcl[N], Hcl[N + 1]))
   right_link2 = translatecell(translator(Hcl), right_link, -1)
@@ -135,8 +135,8 @@ function fuse_legs!(Hcl::InfiniteMPO, L, R)
   )
   comb2 = translatecell(translator(Hcl), comb, -1)
   comb2_ind = translatecell(translator(Hcl), comb2, -1)
-  Hcl.data.data[N] = Hcl[N] * comb
-  Hcl.data.data[1] = dag(comb2) * Hcl[1]
+  Hcl[N] = Hcl[N] * comb
+  Hcl[1] = dag(comb2) * Hcl[1]
   L = L * comb2
   R = dag(comb) * R
   return L, R

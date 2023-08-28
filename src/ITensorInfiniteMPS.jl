@@ -35,7 +35,7 @@ include("celledvectors.jl")
 include("abstractinfinitemps.jl")
 include("infinitemps.jl")
 include("infinitecanonicalmps.jl")
-include("infinitempomatrix.jl")
+include("infinitempoblock.jl")
 include("infinitempo.jl")
 include("transfermatrix.jl")
 include("models/models.jl")
@@ -60,7 +60,7 @@ export Cell,
   InfMPS,
   InfiniteSum,
   InfiniteMPO,
-  InfiniteMPOMatrix,
+  InfiniteBlockMPO,
   InfiniteSumLocalOps,
   ITensorMap,
   ITensorNetwork,

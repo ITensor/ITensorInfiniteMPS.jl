@@ -1,16 +1,16 @@
 
-mutable struct InfiniteMPOMatrix <: AbstractInfiniteMPS
+mutable struct InfiniteBlockMPO <: AbstractInfiniteMPS
   data::CelledVector{Matrix{ITensor}}
   llim::Int #RealInfinity
   rlim::Int #RealInfinity
   reverse::Bool
 end
 
-translator(mpo::InfiniteMPOMatrix) = mpo.data.translator
-data(mpo::InfiniteMPOMatrix) = mpo.data
+translator(mpo::InfiniteBlockMPO) = mpo.data.translator
+data(mpo::InfiniteBlockMPO) = mpo.data
 
 # TODO better printing?
-function Base.show(io::IO, M::InfiniteMPOMatrix)
+function Base.show(io::IO, M::InfiniteBlockMPO)
   print(io, "$(typeof(M))")
   (length(M) > 0) && print(io, "\n")
   for i in eachindex(M)
@@ -19,8 +19,8 @@ function Base.show(io::IO, M::InfiniteMPOMatrix)
     else
       A = M[i]
       println(io, "Matrix tensor of size $(size(A))")
-      for k in 1:size(A)[1], l in 1:size(A)[2]
-        if !isassigned(A, k + (size(A)[1] - 1) * l)
+      for k in 1:size(A, 1), l in 1:size(A, 2)
+        if !isassigned(A, k + (size(A, 1) - 1) * l)
           println(io, "[($k, $l)] #undef")
         elseif isempty(A[k, l])
           println(io, "[($k, $l)] empty")
@@ -32,27 +32,27 @@ function Base.show(io::IO, M::InfiniteMPOMatrix)
   end
 end
 
-function getindex(ψ::InfiniteMPOMatrix, n::Integer)
+function getindex(ψ::InfiniteBlockMPO, n::Integer)
   return ψ.data[n]
 end
 
-function InfiniteMPOMatrix(arrMat::Vector{Matrix{ITensor}})
-  return InfiniteMPOMatrix(arrMat, 0, size(arrMat)[1], false)
+function InfiniteBlockMPO(arrMat::Vector{Matrix{ITensor}})
+  return InfiniteBlockMPO(arrMat, 0, size(arrMat, 1), false)
 end
 
-function InfiniteMPOMatrix(data::Vector{Matrix{ITensor}}, translator::Function)
-  return InfiniteMPOMatrix(CelledVector(data, translator), 0, size(data)[1], false)
+function InfiniteBlockMPO(data::Vector{Matrix{ITensor}}, translator::Function)
+  return InfiniteBlockMPO(CelledVector(data, translator), 0, size(data, 1), false)
 end
 
-function InfiniteMPOMatrix(data::CelledVector{Matrix{ITensor}}, m::Int64, n::Int64)
-  return InfiniteMPOMatrix(data, m, n, false)
+function InfiniteBlockMPO(data::CelledVector{Matrix{ITensor}}, m::Int64, n::Int64)
+  return InfiniteBlockMPO(data, m, n, false)
 end
 
-function InfiniteMPOMatrix(data::CelledVector{Matrix{ITensor}})
-  return InfiniteMPOMatrix(data, 0, size(data)[1], false)
+function InfiniteBlockMPO(data::CelledVector{Matrix{ITensor}})
+  return InfiniteBlockMPO(data, 0, size(data, 1), false)
 end
 
-function ITensors.siteinds(A::InfiniteMPOMatrix)
+function ITensors.siteinds(A::InfiniteBlockMPO)
   data = [dag(only(filterinds(uniqueinds(A[1][1, 1], A[2][1, 1]); plev=0)))]
   for x in 2:(nsites(A) - 1)
     append!(
@@ -71,7 +71,7 @@ function ITensors.siteinds(A::InfiniteMPOMatrix)
   return CelledVector(data, translator(A))
 end
 
-function ITensors.splitblocks(H::InfiniteMPOMatrix)
+function ITensors.splitblocks(H::InfiniteBlockMPO)
   H = copy(H)
   N = nsites(H)
   for j in 1:N
@@ -115,22 +115,10 @@ function find_all_links(Hm::Matrix{ITensor})
   return left_links, right_links
 end
 
-# function convert_itensor_to_itensormatrix(tensor; kwargs...)
-#   if order(tensor) == 3
-#     return convert_itensor_3vector(tensor; kwargs...)
-#   elseif order(tensor) == 4
-#     return convert_itensor_33matrix(tensor; kwargs...)
-#   else
-#     error(
-#       "Conversion of ITensor into matrix of ITensor not planned for this type of tensors"
-#     )
-#   end
-# end
-
 """
     local_mpo_block_projectors(is::Index; new_tags = tags(is))
 
-  Build the projectors on the three parts of the itensor used to split a MPO into an InfiniteMPOMatrix
+  Build the projectors on the three parts of the itensor used to split a MPO into an InfiniteBlockMPO
   More precisely, create projectors on the first dimension, the 2:end-1 and the last dimension of the index
   Input: is the Index to split
   Output: the triplet of projectors (first, middle, last)

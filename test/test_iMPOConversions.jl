@@ -2,7 +2,7 @@ using ITensors
 using ITensorInfiniteMPS
 using Test
 
-#With the new definition of InfiniteMPOMatrix, the MPO is better behaved, and hence we need to be a bit more careful
+#With the new definition of InfiniteBlockMPO, the MPO is better behaved, and hence we need to be a bit more careful
 function expect_over_unit_cell(ψ::InfiniteCanonicalMPS, h::InfiniteSum{MPO})
   s = siteinds(ψ)
   Ncell = nsites(h)
@@ -61,7 +61,7 @@ function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteMPO)
   return expect(ψ, terminate(h)) #defer to src/infinitecanonicalmps.jl
 end
 
-function generate_edges(h::InfiniteMPOMatrix)
+function generate_edges(h::InfiniteBlockMPO)
   Ncell = nsites(h)
   # left termination vector
   Ls = Matrix{ITensor}(undef, 1, size(h[1], 1))
@@ -82,7 +82,7 @@ function generate_edges(h::InfiniteMPOMatrix)
   return Ls, Rs
 end
 
-function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteMPOMatrix)
+function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteBlockMPO)
   Ncell = nsites(h)
   L, R = generate_edges(h)
   l = commoninds(ψ.AL[0], ψ.AL[1])
@@ -94,7 +94,7 @@ function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteMPOMatrix)
     temp = map(a -> contract(a, ψ.AR[j], dag(prime(ψ.AR[j]))), h[j])
     L = L * temp
   end
-  return (L * R)[1][1]#ITensorInfiniteMPS.scalar_product(L, R)[1]
+  return (L * R)[][]
 end
 
 #H = ΣⱼΣn (½ S⁺ⱼS⁻ⱼ₊n + ½ S⁻ⱼS⁺ⱼ₊n + SᶻⱼSᶻⱼ₊n)
@@ -139,7 +139,7 @@ function fermion_momentum_translator(i::Index, n::Integer; N=6)
   return new_i
 end
 
-@testset verbose = true "InfiniteMPOMatrix -> InfiniteMPO" begin
+@testset verbose = true "InfiniteBlockMPO -> InfiniteMPO" begin
   ferro(n) = "↑"
   antiferro(n) = isodd(n) ? "↑" : "↓"
 
@@ -159,7 +159,7 @@ end
     s = infsiteinds(site, Ncell; initstate, conserve_qns=qns)
     ψ = InfMPS(s, initstate)
     Hi = InfiniteMPO(model, s; model_kwargs...)
-    Hm = InfiniteMPOMatrix(model, s; model_kwargs...)
+    Hm = InfiniteBlockMPO(model, s; model_kwargs...)
     Hs = InfiniteSum{MPO}(model, s; model_kwargs...)
     Es = expect_over_unit_cell(ψ, Hs)
     Ei = expect(ψ, Hi)
