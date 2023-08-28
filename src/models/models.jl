@@ -195,25 +195,25 @@ function InfiniteMPOMatrix(model::Model, s::CelledVector, translator::Function; 
     for j in 2:(size(mpos[x], 1) - 1)
       for k in 2:(size(mpos[x], 2) - 1)
         if isempty(mpos[x][j, k])
-          mpos.data.data[x][j, k] = ITensor(left_inds[j - 1], sd, sp, new_right_inds[k - 1])
+          mpos[x][j, k] = ITensor(left_inds[j - 1], sd, sp, new_right_inds[k - 1])
         else
-          replaceinds!(mpos.data.data[x][j, k], right_inds[k - 1] => new_right_inds[k - 1])
+          replaceinds!(mpos[x][j, k], right_inds[k - 1] => new_right_inds[k - 1])
         end
       end
     end
     for j in [1, size(mpos[x], 1)]
       for k in 2:(size(mpos[x], 2) - 1)
         if isempty(mpos[x][j, k])
-          mpos.data.data[x][j, k] = ITensor(sd, sp, new_right_inds[k - 1])
+          mpos[x][j, k] = ITensor(sd, sp, new_right_inds[k - 1])
         else
-          replaceinds!(mpos.data.data[x][j, k], right_inds[k - 1] => new_right_inds[k - 1])
+          replaceinds!(mpos[x][j, k], right_inds[k - 1] => new_right_inds[k - 1])
         end
       end
     end
     for j in 2:(size(mpos[x], 1) - 1)
       for k in [1, size(mpos[x], 2)]
         if isempty(mpos[x][j, k])
-          mpos.data.data[x][j, k] = ITensor(left_inds[j - 1], sd, sp)
+          mpos[x][j, k] = ITensor(left_inds[j - 1], sd, sp)
         end
       end
     end

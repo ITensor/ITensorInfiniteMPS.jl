@@ -19,8 +19,8 @@ function Base.show(io::IO, M::InfiniteMPOMatrix)
     else
       A = M[i]
       println(io, "Matrix tensor of size $(size(A))")
-      for k in 1:size(A)[1], l in 1:size(A)[2]
-        if !isassigned(A, k + (size(A)[1] - 1) * l)
+      for k in 1:size(A, 1), l in 1:size(A, 2)
+        if !isassigned(A, k + (size(A, 1) - 1) * l)
           println(io, "[($k, $l)] #undef")
         elseif isempty(A[k, l])
           println(io, "[($k, $l)] empty")
@@ -37,11 +37,11 @@ function getindex(ψ::InfiniteMPOMatrix, n::Integer)
 end
 
 function InfiniteMPOMatrix(arrMat::Vector{Matrix{ITensor}})
-  return InfiniteMPOMatrix(arrMat, 0, size(arrMat)[1], false)
+  return InfiniteMPOMatrix(arrMat, 0, size(arrMat, 1), false)
 end
 
 function InfiniteMPOMatrix(data::Vector{Matrix{ITensor}}, translator::Function)
-  return InfiniteMPOMatrix(CelledVector(data, translator), 0, size(data)[1], false)
+  return InfiniteMPOMatrix(CelledVector(data, translator), 0, size(data, 1), false)
 end
 
 function InfiniteMPOMatrix(data::CelledVector{Matrix{ITensor}}, m::Int64, n::Int64)
@@ -49,7 +49,7 @@ function InfiniteMPOMatrix(data::CelledVector{Matrix{ITensor}}, m::Int64, n::Int
 end
 
 function InfiniteMPOMatrix(data::CelledVector{Matrix{ITensor}})
-  return InfiniteMPOMatrix(data, 0, size(data)[1], false)
+  return InfiniteMPOMatrix(data, 0, size(data, 1), false)
 end
 
 function ITensors.siteinds(A::InfiniteMPOMatrix)
@@ -114,18 +114,6 @@ function find_all_links(Hm::Matrix{ITensor})
   end
   return left_links, right_links
 end
-
-# function convert_itensor_to_itensormatrix(tensor; kwargs...)
-#   if order(tensor) == 3
-#     return convert_itensor_3vector(tensor; kwargs...)
-#   elseif order(tensor) == 4
-#     return convert_itensor_33matrix(tensor; kwargs...)
-#   else
-#     error(
-#       "Conversion of ITensor into matrix of ITensor not planned for this type of tensors"
-#     )
-#   end
-# end
 
 """
     local_mpo_block_projectors(is::Index; new_tags = tags(is))

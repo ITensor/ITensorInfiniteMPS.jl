@@ -94,7 +94,7 @@ function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteMPOMatrix)
     temp = map(a -> contract(a, ψ.AR[j], dag(prime(ψ.AR[j]))), h[j])
     L = L * temp
   end
-  return (L * R)[1][1]#ITensorInfiniteMPS.scalar_product(L, R)[1]
+  return (L * R)[][]
 end
 
 #H = ΣⱼΣn (½ S⁺ⱼS⁻ⱼ₊n + ½ S⁻ⱼS⁺ⱼ₊n + SᶻⱼSᶻⱼ₊n)
