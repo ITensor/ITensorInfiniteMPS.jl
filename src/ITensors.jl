@@ -185,7 +185,7 @@ Base.getindex(ψ::MPS, r::UnitRange{Int}) = MPS([ψ[n] for n in r])
 
 #TODO Remove if everything is working nicely
 #Was still crashing on my laptop after updating ITensors
-Base.fill!(::NDTensors.NoData, ::Any) = NDTensors.NoData()
+#Base.fill!(::NDTensors.NoData, ::Any) = NDTensors.NoData()
 
 function ITensors.NDTensors.contraction_output(
   A::NDTensors.EmptyTensor, B::NDTensors.DiagBlockSparseTensor, label
