@@ -133,7 +133,8 @@ function InfiniteBlockMPO(model::Model, s::CelledVector, translator::Function; k
           right_dir = only(commoninds(temp_H[j - n][idx], temp_H[j - n][idx + 1]))
           temp_mat = local_mpo_blocks(
             temp_H[j - n][idx],
-            (left_dir, right_dir);
+            left_dir,
+            right_dir;
             left_tags=tags(ls[j - 1]),
             right_tags=tags(ls[j]),
           )

@@ -160,6 +160,7 @@ end
     ψ = InfMPS(s, initstate)
     Hi = InfiniteMPO(model, s; model_kwargs...)
     Hm = InfiniteBlockMPO(model, s; model_kwargs...)
+    Hm, = ITensorInfiniteMPS.combineblocks_linkinds(Hm)
     Hs = InfiniteSum{MPO}(model, s; model_kwargs...)
     Es = expect_over_unit_cell(ψ, Hs)
     Ei = expect(ψ, Hi)

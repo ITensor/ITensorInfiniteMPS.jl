@@ -157,7 +157,7 @@ function local_mpo_block_projectors(is::Index; tags=tags(is))
 end
 
 """
-    local_mpo_blocks(tensor, inds::NTuple{2, Index}; left_tags = tags(inds[1]), right_tags = tags(inds[2]), ...)
+    local_mpo_blocks(tensor::ITensor, left_ind::Index, right_ind::Index; left_tags = tags(inds[1]), right_tags = tags(inds[2]), ...)
 
   Converts a 4-legged tensor (coming from an (infinite) MPO) with two site indices and a left and a right leg into a 3 x 3 matrix of ITensor.
   We assume the normal form for MPO (before full compression) where the top left and bottom right corners are identity matrices.
@@ -173,14 +173,13 @@ end
 """
 function local_mpo_blocks(
   t::ITensor,
-  inds::NTuple{2,Index};
-  left_tags=tags(inds[1]),
-  right_tags=tags(inds[2]),
+  left_ind::Index,
+  right_ind::Index;
+  left_tags=tags(left_ind),
+  right_tags=tags(right_ind),
   kwargs...,
 )
   @assert order(t) == 4
-  left_ind = inds[1]
-  right_ind = inds[2]
 
   left_dim = dim(left_ind)
   right_dim = dim(right_ind)
@@ -225,4 +224,84 @@ function local_mpo_blocks(
     vector[idx] = proj * t
   end
   return vector
+end
+
+"""
+combineblocks_linkinds(Hcl::InfiniteBlockMPO, L, R)
+
+Fuse the non-site legs of the infiniteBlockMPO Hcl and the corresponding left L and right R environments.
+Preserve the corner structure.
+Essentially the inverse of splitblocks. It becomes useful for the very dense MPOs once get after compression sometimes.
+Hcl is modified on site, L and R are not.
+Input: Hcl the infinite MPO
+Optional  L   the left environment (a vector of  ITensors)
+R   the right environment (a vector of  ITensors)
+Output: Hcl, newL, newR the updated MPO and environments
+"""
+function combineblocks_linkinds(H::InfiniteBlockMPO; L=nothing, R=nothing)
+  H = copy(Hcl);
+  if !isnothing(L)
+    L = copy(L)
+  end
+  if !isnothing(R)
+    R = copy(R)
+  end
+  N = nsites(H)
+  for j in 1:(N - 1)
+    right_dim = size(H[j], 2)
+    for d in 2:(right_dim - 1)
+      right_link = only(commoninds(H[j][1, d], H[j + 1][d, 1]))
+      comb = combiner(right_link; tags=tags(right_link))
+      comb_ind = combinedind(comb)
+      for k in 1:size(H[j], 1)
+        if isempty(H[j][k, d])
+          H[j][k, d] = ITensor(Float64, uniqueinds(H[j][k, d], right_link)..., comb_ind)
+        else
+          H[j][k, d] = H[j][k, d] * comb
+        end
+      end
+      for k in 1:size(H[j + 1], 2)
+        if isempty(H[j + 1][d, k])
+          H[j + 1][d, k] = ITensor(
+            Float64, uniqueinds(H[j + 1][d, k], dag(right_link))..., dag(comb_ind)
+          )
+        else
+          H[j + 1][d, k] = H[j + 1][d, k] * dag(comb)
+        end
+      end
+    end
+  end
+  right_dim = size(H[N], 2)
+  for d in 2:(right_dim - 1)
+    right_link = only(commoninds(H[N][1, d], H[N + 1][d, 1]))
+    comb = combiner(right_link; tags=tags(right_link))
+    comb_ind = combinedind(comb)
+    comb2 = translatecell(translator(H), comb, -1)
+    comb_ind2 = translatecell(translator(H), comb_ind, -1)
+    for k in 1:size(H[N], 1)
+      if isempty(H[N][k, d])
+        H[N][k, d] = ITensor(Float64, uniqueinds(H[N][k, d], right_link)..., comb_ind)
+      else
+        H[N][k, d] = H[N][k, d] * comb
+      end
+    end
+    for k in 1:size(H[1], 2)
+      if isempty(H[1][d, k])
+        H[1][d, k] = ITensor(
+          Float64,
+          uniqueinds(H[1][d, k], dag(translatecell(translator(H), right_link, -1)))...,
+          dag(comb_ind2),
+        )
+      else
+        H[1][d, k] = H[1][d, k] * dag(comb2)
+      end
+    end
+    if !isnothing(L)
+      L[d] = L[d] * comb2
+    end
+    if !isnothing(R)
+      R[d] = R[d] * dag(comb)
+    end
+  end
+  return H, L, R
 end

@@ -87,7 +87,7 @@ function InfiniteMPO(Hm::InfiniteBlockMPO)
 end
 
 """
-	fuse_legs!(Hcl::InfiniteMPO, L, R)
+	combineblocks_linkinds(Hcl::InfiniteMPO, L, R)
 
     Fuse the non-site legs of the infiniteMPO Hcl and the corresponding left L and right R environments.
     Preserve the corner structure.
@@ -96,9 +96,10 @@ end
 		Input: Hcl the infinite MPO
 		       L   the left environment (an ITensor)
 					 R   the right environment (an ITensor)
-		Output: the tuple (newL, newR) the updated environments
+		Output: Hcl, newL, newR the updated MPO and environments
 """
-function fuse_legs!(Hcl::InfiniteMPO, L, R)
+function combineblocks_linkinds(Hcl::InfiniteMPO, L, R)
+  Hcl = copy(Hcl)
   N = nsites(Hcl)
   for j in 1:(N - 1)
     right_link = only(commoninds(Hcl[j], Hcl[j + 1]))
@@ -139,5 +140,5 @@ function fuse_legs!(Hcl::InfiniteMPO, L, R)
   Hcl[1] = dag(comb2) * Hcl[1]
   L = L * comb2
   R = dag(comb) * R
-  return L, R
+  return Hcl, L, R
 end
