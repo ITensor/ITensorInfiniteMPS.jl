@@ -239,7 +239,7 @@ R   the right environment (a vector of  ITensors)
 Output: Hcl, newL, newR the updated MPO and environments
 """
 function combineblocks_linkinds(H::InfiniteBlockMPO; L=nothing, R=nothing)
-  H = copy(Hcl);
+  H = copy(Hcl)
   if !isnothing(L)
     L = copy(L)
   end
