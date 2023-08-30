@@ -87,25 +87,28 @@ function InfiniteMPO(Hm::InfiniteBlockMPO)
 end
 
 """
-	combineblocks_linkinds(Hcl::InfiniteMPO, L, R)
+	combineblocks_linkinds_auxiliary(Hcl::InfiniteMPO)
 
+    The workhorse of combineblocks_linkinds. We separated them for ease of maintenance.
     Fuse the non-site legs of the infiniteMPO Hcl and the corresponding left L and right R environments.
     Preserve the corner structure.
 		Essentially the inverse of splitblocks. It becomes useful for the very dense MPOs once get after compression sometimes.
-		Hcl is modified on site, L and R are not.
 		Input: Hcl the infinite MPO
-		       L   the left environment (an ITensor)
-					 R   the right environment (an ITensor)
-		Output: Hcl, newL, newR the updated MPO and environments
+		Output: Hcl, the left and right combiners to use on environments
 """
-function combineblocks_linkinds(Hcl::InfiniteMPO, L, R)
+function combineblocks_linkinds_auxiliary(Hcl::InfiniteMPO)
   Hcl = copy(Hcl)
   N = nsites(Hcl)
   for j in 1:(N - 1)
     right_link = only(commoninds(Hcl[j], Hcl[j + 1]))
     top, middle, bottom = local_mpo_block_projectors(right_link)
-    top = top * onehot(Index(QN() => 1) => 1)
-    bottom = bottom * onehot(Index(QN() => 1) => 1)
+    if length(right_link.space) == 1
+      top = top * onehot(Index(1) => 1)
+      bottom = bottom * onehot(Index(1) => 1)
+    else
+      top = top * onehot(Index(QN() => 1) => 1)
+      bottom = bottom * onehot(Index(QN() => 1) => 1)
+    end
     cb = combiner(
       only(uniqueinds(middle, dag(right_link))); dir=dir(right_link), tags=tags(right_link)
     )
@@ -122,8 +125,13 @@ function combineblocks_linkinds(Hcl::InfiniteMPO, L, R)
   right_link = only(commoninds(Hcl[N], Hcl[N + 1]))
   right_link2 = translatecell(translator(Hcl), right_link, -1)
   top, middle, bottom = local_mpo_block_projectors(right_link)
-  top = top * onehot(Index(QN() => 1) => 1)
-  bottom = bottom * onehot(Index(QN() => 1) => 1)
+  if length(right_link.space) == 1
+    top = top * onehot(Index(1) => 1)
+    bottom = bottom * onehot(Index(1) => 1)
+  else
+    top = top * onehot(Index(QN() => 1) => 1)
+    bottom = bottom * onehot(Index(QN() => 1) => 1)
+  end
   cb = combiner(
     only(uniqueinds(middle, dag(right_link))); dir=dir(right_link), tags=tags(right_link)
   )
@@ -138,7 +146,39 @@ function combineblocks_linkinds(Hcl::InfiniteMPO, L, R)
   comb2_ind = translatecell(translator(Hcl), comb2, -1)
   Hcl[N] = Hcl[N] * comb
   Hcl[1] = dag(comb2) * Hcl[1]
-  L = L * comb2
-  R = dag(comb) * R
-  return Hcl, L, R
+  return Hcl, comb2, dag(comb)
+end
+
+"""
+	combineblocks_linkinds(Hcl::InfiniteMPO, left_environment::ITensor, right_environment::ITensor)
+
+    Fuse the non-site legs of the infiniteMPO Hcl and the corresponding left and right environments.
+    Preserve the corner structure.
+		Essentially the inverse of splitblocks. It becomes useful for the very dense MPOs once get after compression sometimes.
+		Hcl is modified on site, L and R are not.
+		Input: Hcl the infinite MPO
+		       left_environment   the left environment (an ITensor)
+					 right_environment   the right environment (an ITensor)
+		Output: Hcl, newL, newR the updated MPO and environments
+"""
+function combineblocks_linkinds(
+  Hcl::InfiniteMPO, left_environment::ITensor, right_environment::ITensor
+)
+  Hcl, left_comb, right_comb = combineblocks_linkinds_auxiliary(Hcl)
+  return Hcl, left_environment * left_comb, right_comb * right_environment
+end
+
+"""
+	combineblocks_linkinds(Hcl::InfiniteMPO)
+
+    Fuse the non-site legs of the infiniteMPO Hcl.
+    Preserve the corner structure.
+		Essentially the inverse of splitblocks. It becomes useful for the very dense MPOs once get after compression sometimes.
+		Hcl is modified on site, L and R are not.
+		Input: Hcl the infinite MPO
+		Output: Hcl,
+"""
+function combineblocks_linkinds(Hcl::InfiniteMPO)
+  Hcl, = combineblocks_linkinds_auxiliary(Hcl)
+  return Hcl
 end

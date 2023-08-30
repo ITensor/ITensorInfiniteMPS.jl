@@ -227,25 +227,17 @@ function local_mpo_blocks(
 end
 
 """
-combineblocks_linkinds(Hcl::InfiniteBlockMPO, L, R)
+combineblocks_linkinds_auxiliary(Hcl::InfiniteBlockMPO)
 
+The workhorse of combineblocks_linkinds. We separated them for ease of maintenance.
 Fuse the non-site legs of the infiniteBlockMPO Hcl and the corresponding left L and right R environments.
 Preserve the corner structure.
 Essentially the inverse of splitblocks. It becomes useful for the very dense MPOs once get after compression sometimes.
-Hcl is modified on site, L and R are not.
-Input: Hcl the infinite MPO
-Optional  L   the left environment (a vector of  ITensors)
-R   the right environment (a vector of  ITensors)
-Output: Hcl, newL, newR the updated MPO and environments
+Input: Hcl the infiniteBlockMPO
+Output: a copy of Hcl fused, and the two array of combiners to apply to left and right environments if needed.
 """
-function combineblocks_linkinds(H::InfiniteBlockMPO; L=nothing, R=nothing)
+function combineblocks_linkinds_auxiliary(H::InfiniteBlockMPO)
   H = copy(H)
-  if !isnothing(L)
-    L = copy(L)
-  end
-  if !isnothing(R)
-    R = copy(R)
-  end
   N = nsites(H)
   for j in 1:(N - 1)
     right_dim = size(H[j], 2)
@@ -272,6 +264,8 @@ function combineblocks_linkinds(H::InfiniteBlockMPO; L=nothing, R=nothing)
     end
   end
   right_dim = size(H[N], 2)
+  left_combs = []
+  right_combs = []
   for d in 2:(right_dim - 1)
     right_link = only(commoninds(H[N][1, d], H[N + 1][d, 1]))
     comb = combiner(right_link; tags=tags(right_link))
@@ -296,12 +290,58 @@ function combineblocks_linkinds(H::InfiniteBlockMPO; L=nothing, R=nothing)
         H[1][d, k] = H[1][d, k] * dag(comb2)
       end
     end
-    if !isnothing(L)
-      L[d] = L[d] * comb2
-    end
-    if !isnothing(R)
-      R[d] = R[d] * dag(comb)
+    append!(left_combs, [comb2])
+    append!(right_combs, [dag(comb)])
+  end
+  return H, left_combs, right_combs
+end
+
+"""
+combineblocks_linkinds(Hcl::InfiniteBlockMPO, left_environment, right_environment)
+
+Fuse the non-site legs of the infiniteBlockMPO Hcl and the corresponding left L and right R environments.
+Preserve the corner structure.
+Essentially the inverse of splitblocks. It becomes useful for the very dense MPOs once get after compression sometimes.
+Input: Hcl the infiniteBlockMPO, the left environment and right environment
+Output: Hcl, left_environment, right_environment the updated MPO and environments
+"""
+function combineblocks_linkinds(H::InfiniteBlockMPO, left_environment, right_environment)
+  H, left_combs, right_combs = combineblocks_linkinds_auxiliary(H)
+  left_environment = copy(left_environment)
+  for j in 1:length(left_combs)
+    if isempty(left_environment[j + 1])
+      left_environment[j + 1] = ITensor(
+        uniqueinds(left_environment[j + 1], left_combs[j])...,
+        uniqueinds(left_combs[j], left_environment[j + 1])...,
+      )
+    else
+      left_environment[j + 1] = left_environment[j + 1] * left_combs[j]
     end
   end
-  return H, L, R
+  right_environment = copy(right_environment)
+  for j in 1:length(right_combs)
+    if isempty(right_environment[j + 1])
+      right_environment[j + 1] = ITensor(
+        uniqueinds(right_environment[j + 1], right_combs[j])...,
+        uniqueinds(right_combs[j], right_environment[j + 1])...,
+      )
+    else
+      right_environment[j + 1] = right_environment[j + 1] * right_combs[j]
+    end
+  end
+  return H, left_environment, right_environment
+end
+
+"""
+combineblocks_linkinds(Hcl::InfiniteBlockMPO)
+
+Fuse the non-site legs of the infiniteBlockMPO Hcl.
+Preserve the corner structure.
+Essentially the inverse of splitblocks. It becomes useful for the very dense MPOs once get after compression sometimes.
+Input: Hcl the infiniteBlockMPO,
+Output: the updated MPO
+"""
+function combineblocks_linkinds(H::InfiniteBlockMPO)
+  H, _ = combineblocks_linkinds_auxiliary(H)
+  return H
 end

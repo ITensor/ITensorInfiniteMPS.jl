@@ -159,8 +159,31 @@ end
     s = infsiteinds(site, Ncell; initstate, conserve_qns=qns)
     ψ = InfMPS(s, initstate)
     Hi = InfiniteMPO(model, s; model_kwargs...)
+    L = ITensor(only(commoninds(Hi[0], Hi[1])))
+    R = ITensor(only(commoninds(Hi[Ncell + 1], Hi[Ncell])))
+    Hi, L, R = ITensorInfiniteMPS.combineblocks_linkinds(Hi, L, R)
+    temp = order(L * Hi[1])
+    @test temp ≈ 3
+    temp = order(Hi[Ncell] * R)
+    @test temp ≈ 3
     Hm = InfiniteBlockMPO(model, s; model_kwargs...)
-    Hm, = ITensorInfiniteMPS.combineblocks_linkinds(Hm)
+    L = Array{ITensor}(undef, 1, size(Hm[1], 1))
+    L[1] = ITensor()
+    L[end] = ITensor(1.0)
+    R = Vector{ITensor}(undef, size(Hm[Ncell], 2))
+    R[1] = ITensor(1)
+    R[end] = ITensor()
+    for x in 2:(length(L) - 1)
+      L[x] = ITensor(only(commoninds(Hm[0][x, x], Hm[1][x, x])))
+      R[x] = ITensor(only(commoninds(Hm[Ncell + 1][x, x], Hm[Ncell][x, x])))
+    end
+    Hm, L, R = ITensorInfiniteMPS.combineblocks_linkinds(Hm, L, R)
+    temp = order.(L * Hm[1])
+    ref = order.(L) .+ 2
+    @test temp ≈ ref
+    temp = order.(Hm[Ncell] * R)
+    ref = order.(R) .+ 2
+    @test temp ≈ ref
     Hs = InfiniteSum{MPO}(model, s; model_kwargs...)
     Es = expect_over_unit_cell(ψ, Hs)
     Ei = expect(ψ, Hi)
