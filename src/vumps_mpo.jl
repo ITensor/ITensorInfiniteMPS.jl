@@ -1,7 +1,7 @@
 # Struct for use in linear system solver
 struct AOᴸ
   ψ::InfiniteCanonicalMPS
-  H::InfiniteMPOMatrix
+  H::InfiniteBlockMPO
   n::Int
 end
 
@@ -28,23 +28,37 @@ function (A::AOᴸ)(x)
   return xT - xR
 end
 
+function initialize_left_environment(
+  H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n::Int64; init_last=false
+)
+  dₕ = size(H[n + 1], 1)
+  sit = inds(H[n + 1][1, 1])
+  link = commonind(ψ.AL[n], ψ.AL[n + 1])
+  Ls = Vector{ITensor}(undef, dₕ)
+  Ls[1] = ITensor(Float64, link, dag(prime(link)))
+  if init_last
+    Ls[end] = denseblocks(δ(link, dag(prime(link))))
+  else
+    Ls[end] = ITensor(Float64, link, dag(prime(link)))
+  end
+  for j in 2:(dₕ - 1)
+    mpo_link = only(uniqueinds(H[n + 1][j, 1], sit))
+    Ls[j] = ITensor(Float64, dag(mpo_link), link, dag(prime(link)))
+  end
+  return Ls
+end
+
 function apply_local_left_transfer_matrix(
-  Lstart::Vector{ITensor}, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
+  Lstart::Vector{ITensor}, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   dₕ = length(Lstart)
   ψ′ = dag(ψ)'
 
-  Ltarget = Vector{ITensor}(undef, size(H[n_1])[1])
+  Ltarget = initialize_left_environment(H, ψ, n_1; init_last=false)
   for j in 1:dₕ
-    init = false
     for k in reverse(j:dₕ)
-      if !isempty(H[n_1][k, j]) && isassigned(Lstart, k) && !isempty(Lstart[k])
-        if isassigned(Ltarget, j) && init
-          Ltarget[j] += Lstart[k] * ψ.AL[n_1] * ψ′.AL[n_1] * H[n_1][k, j]
-        else
-          Ltarget[j] = Lstart[k] * ψ.AL[n_1] * ψ′.AL[n_1] * H[n_1][k, j]
-          init = true
-        end
+      if !isempty(H[n_1][k, j]) && !isempty(Lstart[k])
+        Ltarget[j] .+= Lstart[k] * ψ.AL[n_1] * H[n_1][k, j] * ψ′.AL[n_1]
       end
     end
   end
@@ -53,25 +67,18 @@ end
 
 # apply the left transfer matrix at position n1 to the vector Lstart considering it at position m, adding to Ltarget
 function apply_local_left_transfer_matrix(
-  Lstart::ITensor,
-  m::Int64,
-  H::InfiniteMPOMatrix,
-  ψ::InfiniteCanonicalMPS,
-  n_1::Int64;
-  reset=true,
+  Lstart::ITensor, m::Int64, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64;
 )
-  Ltarget = Vector{ITensor}(undef, size(H[n_1])[1])
+  Ltarget = initialize_left_environment(H, ψ, n_1; init_last=false)
   for j in 1:m
-    if !isempty(H[n_1][m, j])
-      Ltarget[j] = Lstart * ψ.AL[n_1] * H[n_1][m, j] * dag(prime(ψ.AL[n_1]))
-    end
+    Ltarget[j] = Lstart * ψ.AL[n_1] * H[n_1][m, j] * dag(prime(ψ.AL[n_1]))
   end
   return Ltarget
 end
 
 #apply the left transfer matrix n1:n1+nsites(ψ)-1
 function apply_left_transfer_matrix(
-  Lstart::ITensor, m::Int64, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
+  Lstart::ITensor, m::Int64, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   Ltarget = apply_local_left_transfer_matrix(Lstart, m, H, ψ, n_1)
   for j in 1:(nsites(ψ) - 1)
@@ -82,7 +89,7 @@ end
 
 # Also input C bond matrices to help compute the right fixed points
 # of ψ (R ≈ C * dag(C))
-function left_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1e-10)
+function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-10)
   N = nsites(H)
   @assert N == nsites(ψ)
 
@@ -100,10 +107,10 @@ function left_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1e
 
   eₗ = [0.0]
   dₕ = size(H[1])[1]
-  Ls = [Vector{ITensor}(undef, dₕ) for j in 1:N]
+  #Ls = [Vector{ITensor}(undef, dₕ) for j in 1:N]
+  Ls = [initialize_left_environment(H, ψ, j; init_last=true) for j in 1:N]
   #Building the L vector for n_1 = 1
   # TM is 2 3 ... N 1
-  Ls[1][end] = δˡ(1)   # exact by construction
   localR = ψ.C[1] * δʳ(1) * ψ′.C[1] #to revise
   for n in reverse(1:(dₕ - 1))
     temp_Ls = apply_left_transfer_matrix(
@@ -144,7 +151,7 @@ end
 # Struct for use in linear system solver
 struct AOᴿ
   ψ::InfiniteCanonicalMPS
-  H::InfiniteMPOMatrix
+  H::InfiniteBlockMPO
   n::Int
 end
 
@@ -171,43 +178,36 @@ function (A::AOᴿ)(x)
   return xT - xR
 end
 
-# apply the left transfer matrix at position n1 to the vector Lstart, replacing Ltarget
-function apply_local_right_transfer_matrix!(
-  Lstart::Vector{ITensor}, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
+function initialize_right_environment(
+  H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n::Int64; init_first=false
 )
-  dₕ = length(Lstart)
-  ψ′ = dag(ψ)'
-  for j in reverse(1:dₕ)
-    init = false
-    for k in reverse(1:j)
-      if !isempty(H[n_1][j, k]) && isassigned(Lstart, k) && !isempty(Lstart[k])
-        if isassigned(Lstart, j) && init
-          Lstart[j] += Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
-        else
-          Lstart[j] = Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
-          init = true
-        end
-      end
-    end
+  dₕ = size(H[n - 1], 2)
+  sit = inds(H[n - 1][1, 1])
+  link = commonind(ψ.AR[n], ψ.AR[n - 1])
+  Rs = Vector{ITensor}(undef, dₕ)
+  Rs[end] = ITensor(Float64, link, dag(prime(link)))
+  if init_first
+    Rs[1] = denseblocks(δ(link, dag(prime(link))))
+  else
+    Rs[1] = ITensor(Float64, link, dag(prime(link)))
   end
+  for j in 2:(dₕ - 1)
+    mpo_link = only(uniqueinds(H[n - 1][1, j], sit))
+    Rs[j] = ITensor(Float64, dag(mpo_link), link, dag(prime(link)))
+  end
+  return Rs
 end
 
 function apply_local_right_transfer_matrix(
-  Lstart::Vector{ITensor}, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
+  Lstart::Vector{ITensor}, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   dₕ = length(Lstart)
   ψ′ = dag(ψ)'
-  Ltarget = Vector{ITensor}(undef, size(H[n_1])[1])
+  Ltarget = initialize_right_environment(H, ψ, n_1)
   for j in reverse(1:dₕ)
-    init = false
     for k in reverse(1:j)
       if !isempty(H[n_1][j, k]) && isassigned(Lstart, k) && !isempty(Lstart[k])
-        if isassigned(Ltarget, j) && init
-          Ltarget[j] += Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
-        else
-          Ltarget[j] = Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
-          init = true
-        end
+        Ltarget[j] += Lstart[k] * ψ.AR[n_1] * H[n_1][j, k] * ψ′.AR[n_1]
       end
     end
   end
@@ -218,17 +218,17 @@ end
 function apply_local_right_transfer_matrix(
   Lstart::ITensor,
   m::Int64,
-  H::InfiniteMPOMatrix,
+  H::InfiniteBlockMPO,
   ψ::InfiniteCanonicalMPS,
   n_1::Int64;
   reset=true,
 )
   dₕ = size(H[n_1])[1]
   ψ′ = dag(prime(ψ.AR[n_1]))
-  Ltarget = Vector{ITensor}(undef, dₕ)
+  Ltarget = initialize_right_environment(H, ψ, n_1)
   for j in m:dₕ
     if !isempty(H[n_1][j, m])
-      Ltarget[j] = Lstart * ψ.AR[n_1] * H[n_1][j, m] * ψ′ #TODO optimize
+      Ltarget[j] = Lstart * ψ.AR[n_1] * H[n_1][j, m] * ψ′
     end
   end
   return Ltarget
@@ -236,7 +236,7 @@ end
 
 #apply the right transfer matrix n1:n1+nsites(ψ)-1
 function apply_right_transfer_matrix(
-  Lstart::ITensor, m::Int64, H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS, n_1::Int64
+  Lstart::ITensor, m::Int64, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   Ltarget = apply_local_right_transfer_matrix(Lstart, m, H, ψ, n_1)
   for j in 1:(nsites(ψ) - 1)
@@ -245,7 +245,7 @@ function apply_right_transfer_matrix(
   return Ltarget
 end
 
-function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1e-10)
+function right_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-10)
   N = nsites(H)
   @assert N == nsites(ψ)
 
@@ -258,10 +258,9 @@ function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1
 
   eᵣ = [0.0]
   dₕ = size(H[1])[1]
-  Rs = [Vector{ITensor}(undef, dₕ) for j in 1:N]
-  #Building the L vector for n_1 = 1
+  Rs = [initialize_right_environment(H, ψ, j; init_first=true) for j in 1:N]
+  #Building the R vector for n_1 = 1
   # TM is 2-N 3-N ... 0
-  Rs[1][1] = δʳ(0)
   localL = ψ.C[0] * δˡ(0) * dag(prime(ψ.C[0]))
   for n in 2:dₕ
     temp_Rs = apply_right_transfer_matrix(
@@ -304,7 +303,7 @@ function right_environment(H::InfiniteMPOMatrix, ψ::InfiniteCanonicalMPS; tol=1
   return CelledVector(Rs), eᵣ[1]
 end
 
-function vumps(H::InfiniteMPOMatrix, ψ::InfiniteMPS; kwargs...)
+function vumps(H::InfiniteBlockMPO, ψ::InfiniteMPS; kwargs...)
   return vumps(H, orthogonalize(ψ, :); kwargs...)
 end
 
@@ -348,7 +347,7 @@ end
 
 function tdvp_iteration_sequential(
   solver::Function,
-  H::InfiniteMPOMatrix,
+  H::InfiniteBlockMPO,
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),
@@ -410,7 +409,7 @@ end
 
 function tdvp_iteration_parallel(
   solver::Function,
-  H::InfiniteMPOMatrix,
+  H::InfiniteBlockMPO,
   ψ::InfiniteCanonicalMPS;
   (ϵᴸ!)=fill(1e-15, nsites(ψ)),
   (ϵᴿ!)=fill(1e-15, nsites(ψ)),

@@ -1,6 +1,35 @@
 using ITensors
 using ITensorInfiniteMPS
 using Test
+
+#With the new definition of InfiniteBlockMPO, the MPO is better behaved, and hence we need to be a bit more careful
+function expect_over_unit_cell(ψ::InfiniteCanonicalMPS, h::InfiniteSum{MPO})
+  s = siteinds(ψ)
+  Ncell = nsites(h)
+
+  energy = expect(ψ, h[1])
+  for j in 2:Ncell
+    hf = MPO(Ncell)
+    for x in 1:(j - 1)
+      hf[x] = op("Id", s[x])
+    end
+    for x in j:min(j + length(h[j]) - 1, Ncell)
+      hf[x] = h[j][x + 1 - j]
+    end
+    if j + length(h[j]) - 1 > Ncell
+      right_link = commonind(h[j][Ncell + 1 - j], h[j][Ncell + 2 - j])
+      #dim_right = dim(right_link)
+      hf[end] *= onehot(dag(right_link) => 1)
+    elseif Ncell > j + length(h[j]) - 1
+      for x in (j + length(h[j])):Ncell
+        hf[x] = op("Id", s[x])
+      end
+    end
+    energy += expect(ψ, hf)
+  end
+  return energy
+end
+
 #
 # InfiniteMPO has dangling links at the end of the chain.  We contract these on the outside
 #   with l,r terminating vectors, to make a finite lattice MPO.
@@ -32,6 +61,42 @@ function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteMPO)
   return expect(ψ, terminate(h)) #defer to src/infinitecanonicalmps.jl
 end
 
+function generate_edges(h::InfiniteBlockMPO)
+  Ncell = nsites(h)
+  # left termination vector
+  Ls = Matrix{ITensor}(undef, 1, size(h[1], 1))
+  Ls[1] = ITensor(0)
+  for x in 2:(size(h[0], 2) - 1)
+    il0 = commonind(h[0][1, x], h[1][x, 1])
+    Ls[x] = ITensor(0, il0)
+  end
+  Ls[end] = ITensor(1)
+
+  Rs = Vector{ITensor}(undef, size(h[Ncell], 2))
+  Rs[1] = ITensor(1)
+  for x in 2:(size(h[Ncell + 1], 1) - 1)
+    ir0 = commonind(h[Ncell + 1][x, 1], h[Ncell][1, x])
+    Rs[x] = ITensor(0, ir0)
+  end
+  Rs[end] = ITensor(0)
+  return Ls, Rs
+end
+
+function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteBlockMPO)
+  Ncell = nsites(h)
+  L, R = generate_edges(h)
+  l = commoninds(ψ.AL[0], ψ.AL[1])
+  L = map(a -> contract(a, δ(l, dag(prime(l)))), L)
+  r = commoninds(ψ.AR[Ncell + 1], ψ.AR[Ncell])
+  R = map(a -> contract(a, δ(r, dag(prime(r)))), R)
+  L = map(a -> contract(a, ψ.C[0], dag(prime(ψ.C[0]))), L)
+  for j in 1:nsites(ψ)
+    temp = map(a -> contract(a, ψ.AR[j], dag(prime(ψ.AR[j]))), h[j])
+    L = L * temp
+  end
+  return (L * R)[][]
+end
+
 #H = ΣⱼΣn (½ S⁺ⱼS⁻ⱼ₊n + ½ S⁻ⱼS⁺ⱼ₊n + SᶻⱼSᶻⱼ₊n)
 function ITensorInfiniteMPS.unit_cell_terms(::Model"heisenbergNNN"; NNN::Int64)
   opsum = OpSum()
@@ -61,17 +126,6 @@ function ITensorInfiniteMPS.unit_cell_terms(::Model"hubbardNNN"; NNN::Int64)
   return opsum
 end
 
-function ITensors.space(::SiteType"FermionK", pos::Int; p=1, q=1, conserve_momentum=true)
-  if !conserve_momentum
-    return [QN("Nf", -p) => 1, QN("Nf", q - p) => 1]
-  else
-    return [
-      QN(("Nf", -p), ("NfMom", -p * pos)) => 1,
-      QN(("Nf", q - p), ("NfMom", (q - p) * pos)) => 1,
-    ]
-  end
-end
-
 function fermion_momentum_translator(i::Index, n::Integer; N=6)
   #@show n
   ts = tags(i)
@@ -85,11 +139,7 @@ function fermion_momentum_translator(i::Index, n::Integer; N=6)
   return new_i
 end
 
-function ITensors.op!(Op::ITensor, opname::OpName, ::SiteType"FermionK", s::Index...)
-  return ITensors.op!(Op, opname, SiteType("Fermion"), s...)
-end
-
-@testset verbose = true "InfiniteMPOMatrix -> InfiniteMPO" begin
+@testset verbose = true "InfiniteBlockMPO -> InfiniteMPO" begin
   ferro(n) = "↑"
   antiferro(n) = isodd(n) ? "↑" : "↓"
 
@@ -109,11 +159,38 @@ end
     s = infsiteinds(site, Ncell; initstate, conserve_qns=qns)
     ψ = InfMPS(s, initstate)
     Hi = InfiniteMPO(model, s; model_kwargs...)
+    L = ITensor(only(commoninds(Hi[0], Hi[1])))
+    R = ITensor(only(commoninds(Hi[Ncell + 1], Hi[Ncell])))
+    Hi, L, R = ITensorInfiniteMPS.combineblocks_linkinds(Hi, L, R)
+    temp = order(L * Hi[1])
+    @test temp ≈ 3
+    temp = order(Hi[Ncell] * R)
+    @test temp ≈ 3
+    Hm = InfiniteBlockMPO(model, s; model_kwargs...)
+    L = Array{ITensor}(undef, 1, size(Hm[1], 1))
+    L[1] = ITensor()
+    L[end] = ITensor(1.0)
+    R = Vector{ITensor}(undef, size(Hm[Ncell], 2))
+    R[1] = ITensor(1)
+    R[end] = ITensor()
+    for x in 2:(length(L) - 1)
+      L[x] = ITensor(only(commoninds(Hm[0][x, x], Hm[1][x, x])))
+      R[x] = ITensor(only(commoninds(Hm[Ncell + 1][x, x], Hm[Ncell][x, x])))
+    end
+    Hm, L, R = ITensorInfiniteMPS.combineblocks_linkinds(Hm, L, R)
+    temp = order.(L * Hm[1])
+    ref = order.(L) .+ 2
+    @test temp ≈ ref
+    temp = order.(Hm[Ncell] * R)
+    ref = order.(R) .+ 2
+    @test temp ≈ ref
     Hs = InfiniteSum{MPO}(model, s; model_kwargs...)
-    Es = expect(ψ, Hs)
+    Es = expect_over_unit_cell(ψ, Hs)
     Ei = expect(ψ, Hi)
+    Em = expect(ψ, Hm)
     #@show Es Ei
-    @test sum(Es[1:(Ncell - NNN)]) ≈ Ei atol = 1e-14
+    @test Es ≈ Ei atol = 1e-14
+    @test Em ≈ Ei atol = 1e-14
   end
 
   @testset "FQHE Hamitonian" begin
@@ -132,10 +209,10 @@ end
     ψ = InfMPS(s, initstate)
     Hs = InfiniteSum{MPO}(model, s; model_params...)
     Hi = InfiniteMPO(model, s, trf; model_params...)
-    Es = expect(ψ, Hs)
+    Es = expect_over_unit_cell(ψ, Hs)
     Ei = expect(ψ, Hi)
     #@show Es Ei
-    @test Es[1] ≈ Ei atol = 1e-14
+    @test Es ≈ Ei atol = 1e-14
   end
 end
 nothing

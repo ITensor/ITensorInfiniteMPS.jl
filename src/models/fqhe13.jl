@@ -1,12 +1,43 @@
+function ITensors.space(::SiteType"FermionK", pos::Int; p=1, q=1, conserve_momentum=true)
+  if !conserve_momentum
+    return [QN("Nf", -p) => 1, QN("Nf", q - p) => 1]
+  else
+    return [
+      QN(("Nf", -p), ("NfMom", -p * pos)) => 1,
+      QN(("Nf", q - p), ("NfMom", (q - p) * pos)) => 1,
+    ]
+  end
+end
+
+# Forward all op definitions to Fermion
+function ITensors.op!(Op::ITensor, opname::OpName, ::SiteType"FermionK", s::Index...)
+  return ITensors.op!(Op, opname, SiteType("Fermion"), s...)
+end
+
+function ITensors.has_fermion_string(opname::OpName, ::SiteType"FermionK")
+  return has_fermion_string(opname, SiteType("Fermion"))
+end
+
 function unit_cell_terms(
-  ::Model"fqhe_2b_pot"; Ly::Float64, Vs::Array{Float64,1}, prec::Float64
+  ::Model"fqhe_2b_pot"; Ly::Float64, Vs::Array{Float64,1}, prec::Float64, chemical_shift=0.0
 )
-  rough_N = round(Int64, 2 * Ly)
-  coeff = build_two_body_coefficient_pseudopotential(; N_phi=rough_N, Ly=Ly, Vs=Vs)
-  opt = optimize_coefficients(coeff; prec=prec)
-  opt = filter_optimized_Hamiltonian_by_first_site(opt)
-  #sorted_opt = sort_by_configuration(opt);
-  return generate_Hamiltonian(opt)
+  rough_N = round(Int64, 2 * Ly) - 2
+  test = round(Int64, 2 * Ly) - 2
+  while rough_N <= test
+    rough_N = test + 2
+    coeff = build_two_body_coefficient_pseudopotential(; N_phi=rough_N, Ly=Ly, Vs=Vs)
+    opt = optimize_coefficients(coeff; prec=prec)
+    opt = filter_optimized_Hamiltonian_by_first_site(opt)
+    if haskey(opt, ["N", 1])
+      opt[["N", 1]] += chemical_shift
+    elseif chemical_shift != 0
+      opt[["N", 1]] = chemical_shift
+    end
+    test = check_max_range_optimized_Hamiltonian(opt)
+    if rough_N > test
+      return generate_Hamiltonian(opt)
+    end
+  end
 end
 
 #Please contact Loic Herviou before using this part of the code for production
@@ -270,16 +301,10 @@ function optimize_coefficients(coeff::Dict; prec=1e-12)
     if abs(v) < prec
       continue
     end
-    if length(ke) == 4
-      name = ["Cdag", "Cdag", "C", "C"]
-    elseif length(ke) == 6
-      name = ["Cdag", "Cdag", "Cdag", "C", "C", "C"]
-    elseif length(ke) == 8
-      name = ["Cdag", "Cdag", "Cdag", "Cdag", "C", "C", "C", "C"]
-    else
-      println("Optimization not implemented")
-      continue
+    if mod(length(ke), 2) == 1
+      error("Odd number of operators is not implemented")
     end
+    name = vcat(fill("Cdag", length(ke) ÷ 2), fill("C", length(ke) ÷ 2))
     k = Base.copy(ke)
     sg = get_perm!(k, name)
     filter_op!(k, name)
