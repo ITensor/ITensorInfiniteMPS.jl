@@ -7,6 +7,31 @@ include(
   ),
 )
 
+function entropy_finite(ψ_,b)
+  ψ = orthogonalize(ψ_, b)
+  U,S,V = svd(ψ[b], (linkind(ψ, b-1), siteind(ψ,b)))
+  SvN = 0.0
+  for n=1:dim(S, 1)
+    p = S[n,n]^2
+    SvN -= p * log(p)
+  end
+  return SvN
+end
+
+function entropy_infinite(ψ_,b)
+
+    #calculate entropy
+    C = ψ_.C[b]
+    Ũ,S,Ṽ = svd(C,inds(C)[1])
+    SvN, tot = 0.0, 0.0
+    for n=1:dim(S, 1)
+      p = S[n,n]^2
+      SvN -= p * log(p)
+      tot += p
+    end
+    @assert tot ≈ 1.
+    return SvN
+end
 ##############################################################################
 # VUMPS parameters
 #
@@ -105,7 +130,7 @@ maxdims =
 ## setcutoff!(sweeps, cutoff)
 
 println("\nRun DMRG on $Nfinite sites")
-energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; nsweeps, maxdims, cutoff)
+energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; nsweeps, maxdim=maxdims, cutoff)
 println("\nEnergy density")
 @show energy_finite_total / Nfinite
 
@@ -125,6 +150,9 @@ corr_finite = correlation_matrix(
   ψfinite, "Cdagup", "Cup"; sites=Int(Nfinite / 2):Int(Nfinite / 2 + 9)
 )
 
+S_finite = [entropy_finite(ψfinite,b) for b=Nfinite÷2:Nfinite÷2+N-1]
+S_infinite =[entropy_infinite(ψ,b) for b=1:N]
+
 println("\nResults from VUMPS")
 @show energy_infinite
 @show energy_exact
@@ -133,6 +161,7 @@ println("\nResults from VUMPS")
 @show Nup .+ Ndn
 @show Sz
 @show corr_infinite
+@show S_infinite
 
 println("\nResults from DMRG")
 @show energy_finite
@@ -141,5 +170,6 @@ println("\nResults from DMRG")
 @show Nup_finite .+ Ndn_finite
 @show Sz_finite
 @show corr_finite
+@show S_finite
 
 nothing
