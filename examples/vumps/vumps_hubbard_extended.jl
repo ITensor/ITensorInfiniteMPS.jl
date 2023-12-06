@@ -7,30 +7,30 @@ include(
   ),
 )
 
-function entropy_finite(ψ_,b)
+function entropy_finite(ψ_, b)
   ψ = orthogonalize(ψ_, b)
-  U,S,V = svd(ψ[b], (linkind(ψ, b-1), siteind(ψ,b)))
+  U, S, V = svd(ψ[b], (linkind(ψ, b - 1), siteind(ψ, b)))
   SvN = 0.0
-  for n=1:dim(S, 1)
-    p = S[n,n]^2
+  for n in 1:dim(S, 1)
+    p = S[n, n]^2
     SvN -= p * log(p)
   end
   return SvN
 end
 
-function entropy_infinite(ψ_,b)
+function entropy_infinite(ψ_, b)
 
-    #calculate entropy
-    C = ψ_.C[b]
-    Ũ,S,Ṽ = svd(C,inds(C)[1])
-    SvN, tot = 0.0, 0.0
-    for n=1:dim(S, 1)
-      p = S[n,n]^2
-      SvN -= p * log(p)
-      tot += p
-    end
-    @assert tot ≈ 1.
-    return SvN
+  #calculate entropy
+  C = ψ_.C[b]
+  Ũ, S, Ṽ = svd(C, inds(C)[1])
+  SvN, tot = 0.0, 0.0
+  for n in 1:dim(S, 1)
+    p = S[n, n]^2
+    SvN -= p * log(p)
+    tot += p
+  end
+  @assert tot ≈ 1.0
+  return SvN
 end
 ##############################################################################
 # VUMPS parameters
@@ -150,8 +150,8 @@ corr_finite = correlation_matrix(
   ψfinite, "Cdagup", "Cup"; sites=Int(Nfinite / 2):Int(Nfinite / 2 + 9)
 )
 
-S_finite = [entropy_finite(ψfinite,b) for b=Nfinite÷2:Nfinite÷2+N-1]
-S_infinite =[entropy_infinite(ψ,b) for b=1:N]
+S_finite = [entropy_finite(ψfinite, b) for b in (Nfinite ÷ 2):(Nfinite ÷ 2 + N - 1)]
+S_infinite = [entropy_infinite(ψ, b) for b in 1:N]
 
 println("\nResults from VUMPS")
 @show energy_infinite
