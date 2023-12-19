@@ -1,38 +1,16 @@
 using ITensors
 using ITensorInfiniteMPS
 
-include(
+src_files = [
   joinpath(
     pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src", "vumps_subspace_expansion.jl"
   ),
-)
-
-function calc_vN_entropy(S)
-  SvN, norm = 0.0, 0.0
-  for n in 1:dim(S, 1)
-    p = S[n, n]^2
-    SvN -= p * log(p)
-    norm += p
-  end
-  return SvN, norm
+  joinpath(pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src", "entropy.jl"),
+]
+for f in src_files
+  include(f)
 end
 
-function entropy_finite(ψ, b)
-  ψ = orthogonalize(ψ, b)
-  U, S, V = svd(ψ[b], (linkind(ψ, b - 1), siteind(ψ, b)))
-  SvN, norm = calc_vN_entropy(S)
-  @assert norm ≈ 1.0
-  return SvN
-end
-
-function entropy_infinite(ψ, b)
-  #calculate entropy
-  C = ψ.C[b]
-  Ũ, S, Ṽ = svd(C, inds(C)[1])
-  SvN, norm = calc_vN_entropy(S)
-  @assert norm ≈ 1.0
-  return SvN
-end
 ##############################################################################
 # VUMPS parameters
 #
@@ -151,8 +129,8 @@ corr_finite = correlation_matrix(
   ψfinite, "Cdagup", "Cup"; sites=Int(Nfinite / 2):Int(Nfinite / 2 + 9)
 )
 
-S_finite = [entropy_finite(ψfinite, b) for b in (Nfinite ÷ 2):(Nfinite ÷ 2 + N - 1)]
-S_infinite = [entropy_infinite(ψ, b) for b in 1:N]
+S_finite = [entropy(ψfinite, b) for b in (Nfinite ÷ 2):(Nfinite ÷ 2 + N - 1)]
+S_infinite = [entropy(ψ, b) for b in 1:N]
 
 println("\nResults from VUMPS")
 @show energy_infinite

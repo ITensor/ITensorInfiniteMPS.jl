@@ -1,37 +1,14 @@
 using ITensors
 using ITensorInfiniteMPS
 
-include(
+src_files = [
   joinpath(
     pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src", "vumps_subspace_expansion.jl"
   ),
-)
-
-function calc_vN_entropy(S)
-  SvN, norm = 0.0, 0.0
-  for n in 1:dim(S, 1)
-    p = S[n, n]^2
-    SvN -= p * log(p)
-    norm += p
-  end
-  return SvN, norm
-end
-
-function entropy_finite(ψ, b)
-  ψ = orthogonalize(ψ, b)
-  U, S, V = svd(ψ[b], (linkind(ψ, b - 1), siteind(ψ, b)))
-  SvN, norm = calc_vN_entropy(S)
-  @assert norm ≈ 1.0
-  return SvN
-end
-
-function entropy_infinite(ψ, b)
-  #calculate entropy
-  C = ψ.C[b]
-  Ũ, S, Ṽ = svd(C, inds(C)[1])
-  SvN, norm = calc_vN_entropy(S)
-  @assert norm ≈ 1.0
-  return SvN
+  joinpath(pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src", "entropy.jl"),
+]
+for f in src_files
+  include(f)
 end
 
 ##############################################################################
@@ -130,10 +107,8 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 @show Sz1_finite, Sz2_finite
 @show Sz1_infinite, Sz2_infinite
 
-S_finite = [
-  entropy_finite(ψ_finite, b) for b in (nsite_finite ÷ 2):(nsite_finite ÷ 2 + nsite - 1)
-]
-S_infinite = [entropy_infinite(ψ, b) for b in 1:nsite]
+S_finite = [entropy(ψ_finite, b) for b in (nsite_finite ÷ 2):(nsite_finite ÷ 2 + nsite - 1)]
+S_infinite = [entropy(ψ, b) for b in 1:nsite]
 @show S_finite
 @show S_infinite
 
