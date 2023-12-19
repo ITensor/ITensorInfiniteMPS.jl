@@ -1,11 +1,9 @@
 using ITensors
 using ITensorInfiniteMPS
 
+base_path = joinpath(pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src")
 src_files = [
-  joinpath(
-    pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src", "vumps_subspace_expansion.jl"
-  ),
-  joinpath(pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src", "entropy.jl"),
+  joinpath(base_path, "vumps_subspace_expansion.jl"), joinpath(base_path, "entropy.jl")
 ]
 for f in src_files
   include(f)
