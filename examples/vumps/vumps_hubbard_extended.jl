@@ -7,29 +7,30 @@ include(
   ),
 )
 
-function entropy_finite(ψ_, b)
-  ψ = orthogonalize(ψ_, b)
-  U, S, V = svd(ψ[b], (linkind(ψ, b - 1), siteind(ψ, b)))
-  SvN = 0.0
+function calc_vN_entropy(S)
+  SvN, norm = 0.0, 0.0
   for n in 1:dim(S, 1)
     p = S[n, n]^2
     SvN -= p * log(p)
+    norm += p
   end
+  return SvN, norm
+end
+
+function entropy_finite(ψ, b)
+  ψ = orthogonalize(ψ, b)
+  U, S, V = svd(ψ[b], (linkind(ψ, b - 1), siteind(ψ, b)))
+  SvN, norm = calc_vN_entropy(S)
+  @assert norm ≈ 1.0
   return SvN
 end
 
-function entropy_infinite(ψ_, b)
-
+function entropy_infinite(ψ, b)
   #calculate entropy
-  C = ψ_.C[b]
+  C = ψ.C[b]
   Ũ, S, Ṽ = svd(C, inds(C)[1])
-  SvN, tot = 0.0, 0.0
-  for n in 1:dim(S, 1)
-    p = S[n, n]^2
-    SvN -= p * log(p)
-    tot += p
-  end
-  @assert tot ≈ 1.0
+  SvN, norm = calc_vN_entropy(S)
+  @assert norm ≈ 1.0
   return SvN
 end
 ##############################################################################
