@@ -2,7 +2,8 @@ using ITensors
 using ITensorInfiniteMPS
 
 # calculate -\sum_i rho_i log(rho_i)
-function calc_vN_entropy(S)
+function entropy(S::ITensor)
+  @assert order(S) == 2
   SvN, norm = 0.0, 0.0
   for n in 1:dim(S, 1)
     p = S[n, n]^2
@@ -16,7 +17,7 @@ end
 function entropy(ψ::MPS, b)
   ψ = orthogonalize(ψ, b)
   U, S, V = svd(ψ[b], (linkind(ψ, b - 1), siteind(ψ, b)))
-  SvN, norm = calc_vN_entropy(S)
+  SvN, norm = entropy(S)
   @assert norm ≈ 1.0
   return SvN
 end
@@ -26,7 +27,7 @@ function entropy(ψ::InfiniteCanonicalMPS, b)
   #calculate entropy
   C = ψ.C[b]
   Ũ, S, Ṽ = svd(C, inds(C)[1])
-  SvN, norm = calc_vN_entropy(S)
+  SvN, norm = entropy(S)
   @assert norm ≈ 1.0
   return SvN
 end
