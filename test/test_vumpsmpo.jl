@@ -105,7 +105,7 @@ end
   ψfinite = randomMPS(sfinite, initstate)
   nsweeps = 20
   energy_finite_total, ψfinite = dmrg(
-    Hfinite, ψfinite; nsweeps, maxdims=10, cutoff=1e-10, outputlevel=0
+    Hfinite, ψfinite; nsweeps, maxdim=10, cutoff=1e-10, outputlevel=0
   )
   Szs_finite = expect(ψfinite, "Sz")
 

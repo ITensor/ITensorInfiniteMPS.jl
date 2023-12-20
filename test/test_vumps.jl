@@ -36,7 +36,7 @@ end
   ψfinite = randomMPS(sfinite, initstate)
   nsweeps = 20
   energy_finite_total, ψfinite = dmrg(
-    Hfinite, ψfinite; nsweeps, maxdims=10, cutoff=1e-10, outputlevel=0
+    Hfinite, ψfinite; nsweeps, maxdim=10, cutoff=1e-10, outputlevel=0
   )
 
   @testset "VUMPS/TDVP with: multisite_update_alg = $multisite_update_alg, conserve_qns = $conserve_qns, nsites = $nsites, time_step = $time_step, localham_type = $localham_type" for multisite_update_alg in
@@ -142,7 +142,7 @@ end
   ψfinite = randomMPS(sfinite, initstate)
   nsweeps = 20
   energy_finite_total, ψfinite = dmrg(
-    Hfinite, ψfinite; nsweeps, maxdims=10, cutoff=1e-10, outputlevel=0
+    Hfinite, ψfinite; nsweeps, maxdim=10, cutoff=1e-10, outputlevel=0
   )
 
   multisite_update_alg = "sequential"

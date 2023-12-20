@@ -1,11 +1,11 @@
 using ITensors
 using ITensorInfiniteMPS
 
-include(
-  joinpath(
-    pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src", "vumps_subspace_expansion.jl"
-  ),
-)
+base_path = joinpath(pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src")
+src_files = ["vumps_subspace_expansion.jl", "entropy.jl"]
+for f in src_files
+  include(joinpath(base_path, f))
+end
 
 ##############################################################################
 # VUMPS parameters
@@ -105,7 +105,7 @@ maxdims =
 ## setcutoff!(sweeps, cutoff)
 
 println("\nRun DMRG on $Nfinite sites")
-energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; nsweeps, maxdims, cutoff)
+energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; nsweeps, maxdim=maxdims, cutoff)
 println("\nEnergy density")
 @show energy_finite_total / Nfinite
 
@@ -125,6 +125,9 @@ corr_finite = correlation_matrix(
   ψfinite, "Cdagup", "Cup"; sites=Int(Nfinite / 2):Int(Nfinite / 2 + 9)
 )
 
+S_finite = [entropy(ψfinite, b) for b in (Nfinite ÷ 2):(Nfinite ÷ 2 + N - 1)]
+S_infinite = [entropy(ψ, b) for b in 1:N]
+
 println("\nResults from VUMPS")
 @show energy_infinite
 @show energy_exact
@@ -133,6 +136,7 @@ println("\nResults from VUMPS")
 @show Nup .+ Ndn
 @show Sz
 @show corr_infinite
+@show S_infinite
 
 println("\nResults from DMRG")
 @show energy_finite
@@ -141,5 +145,6 @@ println("\nResults from DMRG")
 @show Nup_finite .+ Ndn_finite
 @show Sz_finite
 @show corr_finite
+@show S_finite
 
 nothing
