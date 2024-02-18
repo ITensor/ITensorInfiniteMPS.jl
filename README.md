@@ -51,3 +51,9 @@ MPS
 ```
 Useful operations like gauging and optimization are in progress, so stay tuned!
 
+## Papers using `ITensorInfiniteMPS.jl`
+
+- [https://arxiv.org/abs/2310.18300](https://arxiv.org/abs/2310.18300)
+- [https://arxiv.org/abs/2312.10028](https://arxiv.org/abs/2312.10028)
+
+Please reach out if you use this package in your work so we can keep track of which papers make use of it.
