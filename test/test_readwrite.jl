@@ -1,4 +1,4 @@
-using ITensors
+using ITensors, ITensorMPS
 using ITensorInfiniteMPS
 using ITensorInfiniteMPS.HDF5
 using Test

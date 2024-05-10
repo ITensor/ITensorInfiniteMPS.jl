@@ -1,10 +1,7 @@
 module ITensorInfiniteMPS
-
 # For `only`, which was introduced in Julia v1.4
 using Compat
-using ITensors
-# For optional ITensorsVisualization dependency.
-using Requires
+using ITensors, ITensorMPS
 # For using ∞ as lengths, ranges, etc.
 using Infinities
 # For functions like `isdiag`
@@ -85,10 +82,4 @@ export Cell,
   ⊕,
   ⊗,
   ×
-
-function __init__()
-  # This is used for debugging using visualizations
-  @require ITensorsVisualization = "f2aed53d-2f32-47c3-a7b9-1ee253853786" @eval using ITensorsVisualization
-end
-
 end
