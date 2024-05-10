@@ -1,3 +1,8 @@
+using ITensorMPS: ITensorMPS, linkinds, tdvp
+using ITensors: δ, dag, noprime, prime
+using ITensors.NDTensors: denseblocks
+using KrylovKit: exponentiate
+
 struct Hᶜ{T}
   ∑h::InfiniteSum{T}
   Hᴸ::InfiniteMPS
@@ -151,7 +156,7 @@ function tdvp_iteration(args...; multisite_update_alg="sequential", kwargs...)
   end
 end
 
-function tdvp(
+function ITensorMPS.tdvp(
   solver::Function,
   ∑h,
   ψ;
@@ -232,7 +237,9 @@ function vumps(
   )
 end
 
-function tdvp(args...; time_step, solver_tol=(x -> x / 100), eager=true, kwargs...)
+function ITensorMPS.tdvp(
+  args...; time_step, solver_tol=(x -> x / 100), eager=true, kwargs...
+)
   solver = if !isinf(time_step)
     println("Using TDVP solver with time step $time_step")
     flush(stdout)

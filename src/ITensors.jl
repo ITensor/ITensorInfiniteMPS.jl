@@ -1,7 +1,7 @@
 using ITensorMPS: MPS
-using ITensors.NDTensors: NDTensors
-using ITensors: ITensors, IndexSet, QN, Tag, TagSet
-using LinearAlgebra: LinearAlgebra
+using ITensors.NDTensors: NDTensors, tensor
+using ITensors: ITensors, IndexSet, QN, Tag, TagSet, dag, inds, isdiag, sim
+using LinearAlgebra: LinearAlgebra, eigen
 
 ############################################################################
 # imports.jl
@@ -134,8 +134,6 @@ ITensors.noncommoninds(is::IndexSet) = is
 ############################################################################
 # itensor.jl
 #
-
-using ITensors, ITensorMPS.NDTensors
 
 # Helpful for making sure the ITensor doesn't contract
 ITensors.sim(A::ITensor) = ITensors.setinds(A, sim(inds(A)))
