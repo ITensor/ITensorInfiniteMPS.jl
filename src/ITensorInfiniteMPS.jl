@@ -2,8 +2,6 @@ module ITensorInfiniteMPS
 # For `only`, which was introduced in Julia v1.4
 using Compat
 using ITensors, ITensorMPS
-# For optional ITensorsVisualization dependency.
-using Requires
 # For using ∞ as lengths, ranges, etc.
 using Infinities
 # For functions like `isdiag`
