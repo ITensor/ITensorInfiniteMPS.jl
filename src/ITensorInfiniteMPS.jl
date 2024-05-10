@@ -1,5 +1,4 @@
 module ITensorInfiniteMPS
-
 # For `only`, which was introduced in Julia v1.4
 using Compat
 using ITensors, ITensorMPS
@@ -85,10 +84,4 @@ export Cell,
   ⊕,
   ⊗,
   ×
-
-function __init__()
-  # This is used for debugging using visualizations
-  @require ITensorsVisualization = "f2aed53d-2f32-47c3-a7b9-1ee253853786" @eval using ITensors, ITensorMPSVisualization
-end
-
 end
