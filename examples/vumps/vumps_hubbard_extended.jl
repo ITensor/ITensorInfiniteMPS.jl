@@ -1,4 +1,4 @@
-using ITensors
+using ITensors, ITensorMPS
 using ITensorInfiniteMPS
 
 base_path = joinpath(pkgdir(ITensorInfiniteMPS), "examples", "vumps", "src")

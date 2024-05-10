@@ -1,4 +1,4 @@
-using ITensors
+using ITensors, ITensorMPS
 using ITensorInfiniteMPS
 
 # H = -J Σⱼ XⱼXⱼ₊₁ - h Σⱼ Zⱼ

@@ -1,4 +1,4 @@
-using ITensors
+using ITensors, ITensorMPS
 using ITensorInfiniteMPS
 
 # calculate -\sum_i rho_i log(rho_i)

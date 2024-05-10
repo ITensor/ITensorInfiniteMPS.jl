@@ -131,7 +131,7 @@ ITensors.noncommoninds(is::IndexSet) = is
 # itensor.jl
 #
 
-using ITensors.NDTensors
+using ITensors, ITensorMPS.NDTensors
 
 # Helpful for making sure the ITensor doesn't contract
 ITensors.sim(A::ITensor) = ITensors.setinds(A, sim(inds(A)))

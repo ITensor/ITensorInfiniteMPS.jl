@@ -18,7 +18,7 @@ julia> using Pkg; Pkg.add(url="https://github.com/mtfishman/ITensorInfiniteMPS.j
 
 This package is a work in progress. Here are some examples of the interface:
 ```julia
-julia> using ITensors, ITensorInfiniteMPS
+julia> using ITensors, ITensorMPS, ITensorInfiniteMPS
 
 julia> s = siteinds("S=1/2", 3)
 3-element Array{Index{Int64},1}:

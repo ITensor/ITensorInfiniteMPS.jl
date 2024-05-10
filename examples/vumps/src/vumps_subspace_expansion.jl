@@ -1,4 +1,4 @@
-using ITensors
+using ITensors, ITensorMPS
 using ITensorInfiniteMPS
 
 # Alternate steps of running TDVP and increasing the bond dimension.

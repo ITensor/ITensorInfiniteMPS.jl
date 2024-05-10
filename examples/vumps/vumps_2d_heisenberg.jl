@@ -1,5 +1,5 @@
 using ITensorInfiniteMPS
-using ITensors
+using ITensors, ITensorMPS
 
 include(
   joinpath(
