@@ -5,16 +5,16 @@ using Random
 
 @testset "ITensorMap" begin
   i = Index(2)
-  A1 = randomITensor(i'', dag(i))
-  A2 = randomITensor(i', dag(i''))
-  B1 = randomITensor(i'', dag(i))
-  B2 = randomITensor(i', dag(i''))
+  A1 = random_itensor(i'', dag(i))
+  A2 = random_itensor(i', dag(i''))
+  B1 = random_itensor(i'', dag(i))
+  B2 = random_itensor(i', dag(i''))
   c1 = 2.3
   c2 = 3.4
 
   MA = ITensorMap([A1, A2])
   MB = ITensorMap([B1, B2])
-  v = randomITensor(i)
+  v = random_itensor(i)
 
   @test MA(v) ≈ noprime(A2 * A1 * v)
   @test MB(v) ≈ noprime(B2 * B1 * v)

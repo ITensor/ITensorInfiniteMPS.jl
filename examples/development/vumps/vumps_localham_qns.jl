@@ -23,7 +23,7 @@ initstate(n) = isodd(n) ? "↑" : "↓"
 Nfinite = 100
 sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite; model_kwargs...)
-ψfinite = randomMPS(sfinite, initstate)
+ψfinite = random_mps(sfinite, initstate)
 sweeps = Sweeps(20)
 setmaxdim!(sweeps, 1)
 setcutoff!(sweeps, 1E-10)

@@ -70,7 +70,7 @@ energy_exact = reference(model, Observable("energy"))
 Nfinite = 100
 sfinite = siteinds("S=1/2", Nfinite; conserve_qns)
 Hfinite = MPO(model, sfinite)
-ψfinite = randomMPS(sfinite, initstate; linkdims=10)
+ψfinite = random_mps(sfinite, initstate; linkdims=10)
 @show flux(ψfinite)
 
 nsweeps = 10

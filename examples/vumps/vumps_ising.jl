@@ -62,7 +62,7 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 nsite_finite = 100
 s_finite = siteinds("S=1/2", nsite_finite; conserve_szparity=conserve_qns)
 H_finite = MPO(model, s_finite; model_params...)
-ψ_finite = randomMPS(s_finite, initstate)
+ψ_finite = random_mps(s_finite, initstate)
 @show flux(ψ_finite)
 sweeps = Sweeps(10)
 setmaxdim!(sweeps, maxdim)

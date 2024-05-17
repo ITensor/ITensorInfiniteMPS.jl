@@ -19,7 +19,7 @@ end
   Nfinite = 100
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
-  ψfinite = randomMPS(sfinite, initstate)
+  ψfinite = random_mps(sfinite, initstate)
   energy_finite_total, ψfinite = dmrg(
     Hfinite, ψfinite; outputlevel=0, nsweeps=30, maxdim=30, cutoff=1e-10
   )
@@ -89,7 +89,7 @@ end
   space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
   ψ = InfiniteMPS(ComplexF64, s; space=space)
   for n in 1:N
-    ψ[n] = randomITensor(inds(ψ[n]))
+    ψ[n] = random_itensor(inds(ψ[n]))
   end
   ψ = orthogonalize(ψ, :)
   @test contract(ψ.AL[1:N]) * ψ.C[N] ≈ ψ.C[0] * contract(ψ.AR[1:N])

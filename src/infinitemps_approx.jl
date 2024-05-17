@@ -39,7 +39,7 @@ function infinitemps_approx(
   # XXX: Why doesn't this work?
   # randn!.(A)
   for n in 1:N
-    A[n] = randomITensor(inds(A[n]))
+    A[n] = random_itensor(inds(A[n]))
   end
   ψ∞ = orthogonalize(A, :)
 
@@ -62,14 +62,14 @@ function infinitemps_approx(
       TR = TR * ψ[n] * ψ∞.AR[inf_range[n]]
     end
 
-    L0 = randomITensor(linkind(ψ∞.AL, first(inf_range) - 1 => first(inf_range)))
+    L0 = random_itensor(linkind(ψ∞.AL, first(inf_range) - 1 => first(inf_range)))
     vals, vecs, _ = eigsolve(transpose(ITensorMap(ψ∞.AL[inf_range], ψ)), L0)
     L0 = vecs[1]
     λL0 = vals[1]
     LTL = L0 * TL
     LTL = replaceinds(LTL, inds(LTL) => inds(L0))
 
-    RN = randomITensor(linkind(ψ∞.AR, last(inf_range) => last(inf_range) + 1))
+    RN = random_itensor(linkind(ψ∞.AR, last(inf_range) => last(inf_range) + 1))
     vals, vecs, _ = eigsolve(ITensorMap(ψ∞.AR[inf_range], ψ), RN)
     RN = vecs[1]
     λRN = vals[1]

@@ -11,7 +11,7 @@ J = 1.0
 h = 1.5
 model = Model("ising")
 H = MPO(model, s; J=J, h=h)
-ψ0 = randomMPS(s)
+ψ0 = random_mps(s)
 
 sweeps = Sweeps(10)
 maxdim!(sweeps, 10)

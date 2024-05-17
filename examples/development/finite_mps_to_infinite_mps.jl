@@ -21,7 +21,7 @@ function main(; N, J, h, nsites)
   s = siteinds("S=1/2", N)
 
   H = MPO(ising_opsum_finite(N; J=J, h=h), s)
-  ψ0 = randomMPS(s)
+  ψ0 = random_mps(s)
 
   energy, ψ = dmrg(H, ψ0; nsweeps=10, cutoff=1e-10)
   @show energy / N
