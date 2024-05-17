@@ -52,7 +52,7 @@ energy_infinite = expect(ψ_0, H)
 Nfinite = 100
 sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite; J=J, h=h)
-ψfinite = randomMPS(sfinite, initstate; linkdims=10)
+ψfinite = random_mps(sfinite, initstate; linkdims=10)
 @show flux(ψfinite)
 sweeps = Sweeps(15)
 setmaxdim!(sweeps, maxdim)

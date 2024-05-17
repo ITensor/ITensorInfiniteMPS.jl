@@ -92,7 +92,7 @@ energy_infinite = map(b -> expect_two_site(ψ, H[b], b), bs)
 Nfinite = 100
 sfinite = siteinds("Electron", Nfinite; conserve_qns)
 Hfinite = MPO(model, sfinite; model_params...)
-ψfinite = randomMPS(sfinite, initstate; linkdims=10)
+ψfinite = random_mps(sfinite, initstate; linkdims=10)
 println("\nQN sector of starting finite MPS")
 @show flux(ψfinite)
 

@@ -12,7 +12,7 @@ s = siteinds("S=1/2", nsites; conserve_szparity=true)
 space = (("SzParity", 1, 2) => χ ÷ 2) ⊕ (("SzParity", 0, 2) => χ ÷ 2)
 ψ = InfiniteMPS(ComplexF64, s; space=space)
 for n in 1:nsites
-  ψ[n] = randomITensor(inds(ψ[n]))
+  ψ[n] = random_itensor(inds(ψ[n]))
 end
 
 ψ = orthogonalize(ψ, :)

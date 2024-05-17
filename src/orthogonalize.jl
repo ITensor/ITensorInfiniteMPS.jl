@@ -7,7 +7,7 @@ function right_orthogonalize(
   T = TransferMatrix(ψ)
 
   # TODO: make an optional initial state
-  v₁ᴿᴺ = randomITensor(dag(input_inds(T)))
+  v₁ᴿᴺ = random_itensor(dag(input_inds(T)))
 
   # Start by getting the right eivenvector/eigenvalue of T
   # TODO: make a function `right_environments(::InfiniteMPS)` that computes

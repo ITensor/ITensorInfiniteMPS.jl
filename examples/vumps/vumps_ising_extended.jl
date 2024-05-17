@@ -47,7 +47,7 @@ energy_infinite = expect(ψ, H)
 Nfinite = 100
 sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=conserve_qns)
 Hfinite = MPO(model, sfinite; J=J, J₂=J₂, h=h)
-ψfinite = randomMPS(sfinite, initstate; linkdims=10)
+ψfinite = random_mps(sfinite, initstate; linkdims=10)
 @show flux(ψfinite)
 dmrg_kwargs = (nsweeps=10, maxdim, cutoff)
 energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; dmrg_kwargs...)

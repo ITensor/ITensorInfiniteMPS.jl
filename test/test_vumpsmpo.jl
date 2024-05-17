@@ -28,7 +28,7 @@ end
   Nfinite = 100
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
-  ψfinite = randomMPS(sfinite, initstate)
+  ψfinite = random_mps(sfinite, initstate)
 
   sweeps = Sweeps(20)
   setmaxdim!(sweeps, 10)
@@ -102,7 +102,7 @@ end
   Nfinite = 100
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
-  ψfinite = randomMPS(sfinite, initstate)
+  ψfinite = random_mps(sfinite, initstate)
   nsweeps = 20
   energy_finite_total, ψfinite = dmrg(
     Hfinite, ψfinite; nsweeps, maxdim=10, cutoff=1e-10, outputlevel=0
@@ -173,7 +173,7 @@ end
   Nfinite = 100
   sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
   Hfinite = MPO(model, sfinite; model_kwargs...)
-  ψfinite = randomMPS(sfinite, initstate)
+  ψfinite = random_mps(sfinite, initstate)
   sweeps = Sweeps(20)
   setmaxdim!(sweeps, 10)
   setcutoff!(sweeps, 1E-10)

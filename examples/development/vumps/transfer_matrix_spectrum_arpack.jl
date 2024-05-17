@@ -62,7 +62,7 @@ end
 Nfinite = 100
 sfinite = siteinds("S=1/2", Nfinite; conserve_szparity=true)
 Hfinite = MPO(model, sfinite; model_params...)
-ψfinite = randomMPS(sfinite, initstate)
+ψfinite = random_mps(sfinite, initstate)
 @show flux(ψfinite)
 sweeps = Sweeps(10)
 setmaxdim!(sweeps, maxdim)
@@ -111,8 +111,8 @@ using LinearAlgebra
 
 T = TransferMatrix(ψ.AL)
 Tᵀ = transpose(T)
-vⁱᴿ = randomITensor(dag(input_inds(T)))
-vⁱᴸ = randomITensor(dag(input_inds(Tᵀ)))
+vⁱᴿ = random_itensor(dag(input_inds(T)))
+vⁱᴸ = random_itensor(dag(input_inds(Tᵀ)))
 
 neigs = 10
 tol = 1e-10
