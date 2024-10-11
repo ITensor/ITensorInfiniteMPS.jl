@@ -248,7 +248,9 @@ function infinite_terms(opsum::OpSum; kwargs...)
   # check that we don't have terms we will ignore
   dropped = filter(x -> x <= 0, keys(opsum_cell_dict))
   if length(dropped) > 0
-    @warn "The input unit cell terms include terms that are being ignored on sites: $([d for d in dropped])"
+    error(
+      "The input unit cell terms include terms that are being ignored on sites: $([d for d in dropped])",
+    )
   end
 
   # Assumes each site in the unit cell has a term
