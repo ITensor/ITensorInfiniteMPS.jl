@@ -34,7 +34,6 @@ Base.keys(ts::TagSet) = Base.OneTo(length(ts)) # added
 
 import ITensors: Tag, commontags
 
-
 maxlength(tag::Tag) = length(tag.data) # added
 
 function Base.length(tag::Tag) # added
