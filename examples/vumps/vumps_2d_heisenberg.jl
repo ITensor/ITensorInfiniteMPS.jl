@@ -35,17 +35,17 @@ function ITensorInfiniteMPS.unit_cell_terms(::Model"heisenberg2D"; width, yperio
   opsum = OpSum()
   for i in 1:width
     # Vertical
-    opsum += -0.5, "S+", i, "S-", i + 1
-    opsum += -0.5, "S-", i, "S+", i + 1
+    opsum -= 0.5, "S+", i, "S-", i + 1
+    opsum -= 0.5, "S-", i, "S+", i + 1
     opsum += "Sz", i, "Sz", i + 1
     # Horizontal
-    opsum += -0.5, "S+", i, "S-", i + width
-    opsum += -0.5, "S-", i, "S+", i + width
+    opsum -= 0.5, "S+", i, "S-", i + width
+    opsum -= 0.5, "S-", i, "S+", i + width
     opsum += "Sz", i, "Sz", i + width
   end
   if yperiodic
-    opsum += -0.5, "S+", 1, "S-", width
-    opsum += -0.5, "S-", 1, "S+", width
+    opsum -= 0.5, "S+", 1, "S-", width
+    opsum -= 0.5, "S-", 1, "S+", width
     opsum += "Sz", 1, "Sz", width
   end
   return opsum
