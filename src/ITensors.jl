@@ -125,7 +125,7 @@ end
 #
 
 ITensors.IndexSet(is::IndexSet...) = unioninds(is)
-ITensors.IndexSet(is::Tuple{Vararg{<:IndexSet}}) = unioninds(is...)
+ITensors.IndexSet(is::Tuple{Vararg{IndexSet}}) = unioninds(is...)
 
 Base.copy(is::IndexSet) = IndexSet(copy.(ITensors.data(is)))
 
