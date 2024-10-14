@@ -51,7 +51,7 @@ end
 # of Index (Tuple, Vector, ITensor, etc.)
 indtype(i::Index) = typeof(i)
 indtype(T::Type{<:Index}) = T
-indtype(is::Tuple{Vararg{<:Index}}) = eltype(is)
+indtype(is::Tuple{Vararg{Index}}) = eltype(is)
 indtype(is::Vector{<:Index}) = eltype(is)
 indtype(A::ITensor...) = indtype(inds.(A))
 
