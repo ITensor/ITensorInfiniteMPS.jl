@@ -19,6 +19,7 @@ conserve_qns = true
 solver_tol = (x -> x / 10)
 outer_iters = 10 # Number of times to increase the bond dimension
 width = 4
+yperiodic = false # OBC vs cylinder
 
 ##############################################################################
 # CODE BELOW HERE DOES NOT NEED TO BE MODIFIED
@@ -30,24 +31,29 @@ initstate(n) = isodd(n) ? "↑" : "↓"
 s = infsiteinds("S=1/2", N; conserve_qns, initstate)
 ψ = InfMPS(s, initstate)
 
-function ITensorInfiniteMPS.unit_cell_terms(::Model"heisenberg2D"; width)
+function ITensorInfiniteMPS.unit_cell_terms(::Model"heisenberg2D"; width, yperiodic)
   opsum = OpSum()
   for i in 1:width
     # Vertical
-    opsum += -0.5, "S+", i, "S-", mod(i + 1, width)
-    opsum += -0.5, "S-", i, "S+", mod(i + 1, width)
-    opsum += "Sz", i, "Sz", mod(i + 1, width)
+    opsum -= 0.5, "S+", i, "S-", i + 1
+    opsum -= 0.5, "S-", i, "S+", i + 1
+    opsum += "Sz", i, "Sz", i + 1
     # Horizontal
-    opsum += -0.5, "S+", i, "S-", i + width
-    opsum += -0.5, "S-", i, "S+", i + width
+    opsum -= 0.5, "S+", i, "S-", i + width
+    opsum -= 0.5, "S-", i, "S+", i + width
     opsum += "Sz", i, "Sz", i + width
+  end
+  if yperiodic
+    opsum -= 0.5, "S+", 1, "S-", width
+    opsum -= 0.5, "S-", 1, "S+", width
+    opsum += "Sz", 1, "Sz", width
   end
   return opsum
 end
 model = Model("heisenberg2D")
 
 # Form the Hamiltonian
-H = InfiniteSum{MPO}(model, s; width)
+H = InfiniteSum{MPO}(model, s; width, yperiodic)
 
 # Check translational invariance
 # println("\nCheck translation invariance of the initial VUMPS state")
