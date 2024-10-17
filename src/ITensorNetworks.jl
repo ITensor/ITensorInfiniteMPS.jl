@@ -59,7 +59,7 @@ function ITensorNetwork(tensors::Vector{<:ITensor})
   # Determine the neighborhood of each node/tensor
   # through common indices
   for i in 1:N
-    for j in (i + 1):N
+    for j in (i+1):N
       linkindsᵢⱼ = commoninds(tensors[i], tensors[j])
       if !isempty(linkindsᵢⱼ)
         indsnetwork[i][j] = linkindsᵢⱼ
@@ -163,8 +163,8 @@ end
 # Get all tensor pairs for a given number of tensors
 function tensor_pairs(n::Integer)
   pairs = Pair{Int,Int}[]
-  for i in 1:(n - 1)
-    for j in (i + 1):n
+  for i in 1:(n-1)
+    for j in (i+1):n
       push!(pairs, i => j)
     end
   end

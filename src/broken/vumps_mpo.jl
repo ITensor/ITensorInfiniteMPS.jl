@@ -112,9 +112,9 @@ function left_environment(H::InfiniteMPO, ψ::InfiniteMPS, C::InfiniteMPS)
   # The last one is defined to be identity
   L⃗[d⃗ₕ[n]] = δ(l⃗[n - 1]'..., dag(l⃗[n - 1])...)
 
-  for a in reverse(1:(d⃗ₕ[n] - 1))
+  for a in reverse(1:(d⃗ₕ[n]-1))
     YLᵃ = emptyITensor()
-    for b in (a + 1):d⃗ₕ[n]
+    for b in (a+1):d⃗ₕ[n]
       YLᵃ += L⃗[b] * ψ[n] * H⃡[n][b, a] * dag(ψ[n]')
     end
     YLᵃ = translatecell(YLᵃ, -1)
@@ -200,7 +200,7 @@ function right_environment(H::InfiniteMPO, ψ::InfiniteMPS, C::InfiniteMPS)
 
   for a in 2:d⃗ₕ[n]
     YRᵃ = emptyITensor()
-    for b in 1:(a - 1)
+    for b in 1:(a-1)
       YRᵃ += R⃗[b] * ψ[n] * H⃡[n][a, b] * dag(ψ[n]')
     end
     YRᵃ = translatecell(YRᵃ, 1)

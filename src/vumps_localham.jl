@@ -110,7 +110,7 @@ function tdvp_iteration_sequential(
     function left_environment_cell(ψ, ψ̃, hᴸ, n)
       Nsites = nsites(ψ)
       𝕙ᴸ = copy(hᴸ)
-      for k in reverse((n - Nsites + 2):n)
+      for k in reverse((n-Nsites+2):n)
         𝕙ᴸ[k] = 𝕙ᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + 𝕙ᴸ[k]
       end
       return 𝕙ᴸ[n]
@@ -242,7 +242,7 @@ function tdvp_iteration_parallel(
   function left_environment_cell(ψ, ψ̃, hᴸ, n)
     Nsites = nsites(ψ)
     𝕙ᴸ = copy(hᴸ)
-    for k in reverse((n - Nsites + 2):n)
+    for k in reverse((n-Nsites+2):n)
       𝕙ᴸ[k] = 𝕙ᴸ[k - 1] * ψ.AL[k] * ψ̃.AL[k] + 𝕙ᴸ[k]
     end
     return 𝕙ᴸ[n]

@@ -52,8 +52,7 @@ end
                                                                                                                                [
       "sequential"
     ],
-    conserve_qns in [true],
-    nsites in [6],
+    conserve_qns in [true], nsites in [6],
     time_step in [-Inf]
 
     vumps_kwargs = (; multisite_update_alg, tol, maxiter, outputlevel=0, time_step)

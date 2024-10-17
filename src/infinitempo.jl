@@ -39,7 +39,7 @@ function cat_to_itensor(Hm::Matrix{ITensor})
   for x in 1:lx
     #Formatting issues force me to write this as a loop
     input = [Hm[x, 1] * onehot(T, right_links[1] => 1) => right_links[1]]
-    for y in 2:(ly - 1)
+    for y in 2:(ly-1)
       append!(input, [Hm[x, y] => right_links[y]])
     end
     append!(input, [Hm[x, ly] * onehot(T, right_links[ly] => 1) => right_links[ly]])
@@ -52,7 +52,7 @@ function cat_to_itensor(Hm::Matrix{ITensor})
     append!(Ls, [H])
   end
   input = [Ls[1] * onehot(T, left_links[1] => 1) => left_links[1]]
-  for x in 2:(lx - 1)
+  for x in 2:(lx-1)
     append!(input, [Ls[x] => left_links[x]])
   end
   append!(input, [Ls[lx] * onehot(T, left_links[lx] => 1) => left_links[lx]])
@@ -99,7 +99,7 @@ end
 function combineblocks_linkinds_auxiliary(Hcl::InfiniteMPO)
   Hcl = copy(Hcl)
   N = nsites(Hcl)
-  for j in 1:(N - 1)
+  for j in 1:(N-1)
     right_link = only(commoninds(Hcl[j], Hcl[j + 1]))
     top, middle, bottom = local_mpo_block_projectors(right_link)
     if length(right_link.space) == 1

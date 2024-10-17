@@ -17,11 +17,11 @@ function ITensorInfiniteMPS.reference(
   ::Model"xx_extended", ::Observable"energy"; N=1000, J=1.0, J₂=1.0, h=0.0, filling=0.5
 )
   mat = zeros(N, N)
-  for j in 1:(N - 1)
+  for j in 1:(N-1)
     mat[j, j + 1] = -J
     mat[j + 1, j] = -J
   end
-  for j in 1:(N - 2)
+  for j in 1:(N-2)
     mat[j, j + 2] = -J₂
     mat[j + 2, j] = -J₂
   end
@@ -33,6 +33,6 @@ function ITensorInfiniteMPS.reference(
   ::Model"xx_extended", ::Observable"energy"; N=1000, J=1.0, J₂=1.0, h=0.0, filling=0.5
 )
   λ(x) = -J / 2 * cos(x * 2 * pi / N) - J₂ / 2 * cos(x * 4 * pi / N)
-  temp = sort(λ.(0:(N - 1)))
+  temp = sort(λ.(0:(N-1)))
   return sum(temp[1:round(Int64, filling * N)]) / N - h * (2 * filling - 1)
 end

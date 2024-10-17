@@ -21,7 +21,7 @@ function (A::AOᴸ)(x)
   δˡ(n) = δ(l[n], l′[n])
   δʳ(n) = δ(dag(r[n]), prime(r[n]))
   xT = translatecell(translator(ψ), x, -1)
-  for j in (2 - N):1
+  for j in (2-N):1
     xT = xT * H[j][n, n] * ψ.AL[j] * ψ′.AL[j]
   end
   xR = x * ψ.C[1] * (ψ′.C[1] * δʳ(1)) * denseblocks(δˡ(1))
@@ -41,7 +41,7 @@ function initialize_left_environment(
   else
     Ls[end] = ITensor(Float64, link, dag(prime(link)))
   end
-  for j in 2:(dₕ - 1)
+  for j in 2:(dₕ-1)
     mpo_link = only(uniqueinds(H[n + 1][j, 1], sit))
     Ls[j] = ITensor(Float64, dag(mpo_link), link, dag(prime(link)))
   end
@@ -81,7 +81,7 @@ function apply_left_transfer_matrix(
   Lstart::ITensor, m::Int64, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   Ltarget = apply_local_left_transfer_matrix(Lstart, m, H, ψ, n_1)
-  for j in 1:(nsites(ψ) - 1)
+  for j in 1:(nsites(ψ)-1)
     Ltarget = apply_local_left_transfer_matrix(Ltarget, H, ψ, n_1 + j)
   end
   return Ltarget
@@ -112,7 +112,7 @@ function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-
   #Building the L vector for n_1 = 1
   # TM is 2 3 ... N 1
   localR = ψ.C[1] * δʳ(1) * ψ′.C[1] #to revise
-  for n in reverse(1:(dₕ - 1))
+  for n in reverse(1:(dₕ-1))
     temp_Ls = apply_left_transfer_matrix(
       translatecell(translator(ψ), Ls[1][n + 1], -1), n + 1, H, ψ, 2 - N
     )
@@ -191,7 +191,7 @@ function initialize_right_environment(
   else
     Rs[1] = ITensor(Float64, link, dag(prime(link)))
   end
-  for j in 2:(dₕ - 1)
+  for j in 2:(dₕ-1)
     mpo_link = only(uniqueinds(H[n - 1][1, j], sit))
     Rs[j] = ITensor(Float64, dag(mpo_link), link, dag(prime(link)))
   end
@@ -239,7 +239,7 @@ function apply_right_transfer_matrix(
   Lstart::ITensor, m::Int64, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
   Ltarget = apply_local_right_transfer_matrix(Lstart, m, H, ψ, n_1)
-  for j in 1:(nsites(ψ) - 1)
+  for j in 1:(nsites(ψ)-1)
     Ltarget = apply_local_right_transfer_matrix(Ltarget, H, ψ, n_1 - j)
   end
   return Ltarget
@@ -296,7 +296,7 @@ function right_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e
     Rs[N] = apply_local_right_transfer_matrix(
       translatecell(translator(ψ), Rs[1], 1), H, ψ, N
     )
-    for n in reverse(2:(N - 1))
+    for n in reverse(2:(N-1))
       Rs[n] = apply_local_right_transfer_matrix(Rs[n + 1], H, ψ, n)
     end
   end

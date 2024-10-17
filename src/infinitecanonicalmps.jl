@@ -141,7 +141,7 @@ function shift_flux_to_zero(s::Vector{<:Index}, flux::QN)
       Current version: gcd(2, 3) = 1, so a solution actually exists: 3 x 1 = 1 mod 2 => work with QN (0 mod 2, 1 mod 2)
       =#
       multipliers[qn.name] = abs(lcm(qn.val, n) ÷ qn.val)
-      for b in 1:(multipliers[qn.name] - 1)
+      for b in 1:(multipliers[qn.name]-1)
         if mod(n, b) != 0 #It is easy to show that the optimal b divides n
           continue
         end
@@ -200,7 +200,7 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
     1
   end
   l[N] = Index(dim, default_link_tags("l", n, 1); kwargs...)
-  for n in 1:(N - 1)
+  for n in 1:(N-1)
     # TODO: is this correct?
     dim = if hasqns(s)
       qn_ln = flux(A[n]) * left_dir + qn_ln#Fixed a bug on flux conservation
@@ -263,7 +263,7 @@ function finite_mps(ψ::InfiniteCanonicalMPS, range::AbstractRange)
   ψ_finite[1] *= δl0
   ψ_finite[N] *= dag(δlN)
   ψ_finite = MPS([dag(δl0); [ψ_finiteᵢ for ψ_finiteᵢ in ψ_finite]; δlN])
-  set_ortho_lims!(ψ_finite, (N + 1):(N + 1))
+  set_ortho_lims!(ψ_finite, (N+1):(N+1))
   return ψ_finite
 end
 function ITensors.expect(ψ::InfiniteCanonicalMPS, o::String, n::Int)
@@ -286,7 +286,7 @@ function ITensors.expect(ψ::InfiniteCanonicalMPS, h::MPO)
   nrange = ns[end] - ns[1] + 1
   idx = 2
   temp_O = δˡ(ns[1] - 1) * ψ.AL[ns[1]] * ψ′.AL[ns[1]] * h[1]
-  for n in (ns[1] + 1):(ns[1] + nrange - 1)
+  for n in (ns[1]+1):(ns[1]+nrange-1)
     if n == ns[idx]
       temp_O = temp_O * ψ.AL[n] * ψ′.AL[n] * h[idx]
       idx += 1

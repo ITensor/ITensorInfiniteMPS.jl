@@ -5,9 +5,7 @@ end
 siteind(ψ::InfiniteCanonicalMPS, n::Integer) = siteind(ψ.AL, n)
 
 function default_middle_range(N::Integer, ncenter::Integer)
-  return round(Int, N / 2 - ncenter / 2 + 1, RoundDown):round(
-    Int, N / 2 + ncenter / 2, RoundDown
-  )
+  return round(Int, N/2-ncenter/2+1, RoundDown):round(Int, N/2+ncenter/2, RoundDown)
 end
 
 # Get the closest infinite MPS approximation to the finite MPS
@@ -45,7 +43,7 @@ function infinitemps_approx(
 
   # Site indices of the infinite MPS
   # corresponding to those of the finite MPS
-  inf_range = (-first(nrange) + 2):(-first(nrange) + N + 1)
+  inf_range = (-first(nrange)+2):(-first(nrange)+N+1)
 
   s∞ = [siteind(ψ∞, n) for n in inf_range]
 
@@ -85,7 +83,7 @@ function infinitemps_approx(
     for n in 1:N
       L[n] = L[n - 1] * ψ∞.AL[inf_range[n]] * dag(ψ[n])
     end
-    for n in reverse(0:(N - 1))
+    for n in reverse(0:(N-1))
       R[n] = R[n + 1] * ψ∞.AR[inf_range[n + 1]] * dag(ψ[n + 1])
     end
 

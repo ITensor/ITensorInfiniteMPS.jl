@@ -73,7 +73,7 @@ function InfiniteSum{MPO}(opsum::OpSum, s::CelledVector)
   end
   shifted_opsums = [shift_sites(opsum, -first_site(opsum) + 1) for opsum in opsums]
   mpos = [
-    splitblocks(linkinds, MPO(shifted_opsums[j], [s[k] for k in j:(j + nrange - 1)])) for
+    splitblocks(linkinds, MPO(shifted_opsums[j], [s[k] for k in j:(j+nrange-1)])) for
     j in 1:n
   ]
   return InfiniteSum{MPO}(mpos, translator(s))
@@ -111,7 +111,7 @@ function InfiniteBlockMPO(model::Model, s::CelledVector, translator::Function; k
     identity = op("Id", s[j])
     Hmat[1, 1] = identity
     Hmat[end, end] = identity
-    for n in 0:(range_H - 1)
+    for n in 0:(range_H-1)
       idx = findfirst(x -> x == j, findsites(temp_H[j - n]; ncell=N))
       if isnothing(idx)
         Hmat[range_H + 1 - n, range_H - n] = identity
@@ -174,15 +174,14 @@ function InfiniteBlockMPO(model::Model, s::CelledVector, translator::Function; k
     sp = prime(s[x])
     sd = dag(s[x])
     left_inds = [
-      only(uniqueinds(mpos[x][j, 1], mpos[x][1, 1])) for j in 2:(size(mpos[x], 1) - 1)
+      only(uniqueinds(mpos[x][j, 1], mpos[x][1, 1])) for j in 2:(size(mpos[x], 1)-1)
     ]
     right_inds = [
-      only(uniqueinds(mpos[x][end, j], mpos[x][1, 1])) for j in 2:(size(mpos[x], 2) - 1)
+      only(uniqueinds(mpos[x][end, j], mpos[x][1, 1])) for j in 2:(size(mpos[x], 2)-1)
     ]
     if x == N
       new_right_inds = [
-        dag(only(uniqueinds(mpos[1][j, 1], mpos[1][1, 1]))) for
-        j in 2:(size(mpos[1], 1) - 1)
+        dag(only(uniqueinds(mpos[1][j, 1], mpos[1][1, 1]))) for j in 2:(size(mpos[1], 1)-1)
       ]
       for j in 1:length(new_right_inds)
         new_right_inds[j] = translatecell(translator, new_right_inds[j], 1)
@@ -190,11 +189,11 @@ function InfiniteBlockMPO(model::Model, s::CelledVector, translator::Function; k
     else
       new_right_inds = [
         dag(only(uniqueinds(mpos[x + 1][j, 1], mpos[x + 1][1, 1]))) for
-        j in 2:(size(mpos[x], 2) - 1)
+        j in 2:(size(mpos[x], 2)-1)
       ]
     end
-    for j in 2:(size(mpos[x], 1) - 1)
-      for k in 2:(size(mpos[x], 2) - 1)
+    for j in 2:(size(mpos[x], 1)-1)
+      for k in 2:(size(mpos[x], 2)-1)
         if isempty(mpos[x][j, k])
           mpos[x][j, k] = ITensor(left_inds[j - 1], sd, sp, new_right_inds[k - 1])
         else
@@ -203,7 +202,7 @@ function InfiniteBlockMPO(model::Model, s::CelledVector, translator::Function; k
       end
     end
     for j in [1, size(mpos[x], 1)]
-      for k in 2:(size(mpos[x], 2) - 1)
+      for k in 2:(size(mpos[x], 2)-1)
         if isempty(mpos[x][j, k])
           mpos[x][j, k] = ITensor(sd, sp, new_right_inds[k - 1])
         else
@@ -211,7 +210,7 @@ function InfiniteBlockMPO(model::Model, s::CelledVector, translator::Function; k
         end
       end
     end
-    for j in 2:(size(mpos[x], 1) - 1)
+    for j in 2:(size(mpos[x], 1)-1)
       for k in [1, size(mpos[x], 2)]
         if isempty(mpos[x][j, k])
           mpos[x][j, k] = ITensor(left_inds[j - 1], sd, sp)
@@ -338,7 +337,7 @@ end
 function ITensors.ITensor(model::Model, s::CelledVector, n::Int64; kwargs...)
   opsum = infinite_terms(model; kwargs...)[n]
   opsum = shift_sites(opsum, -first_site(opsum) + 1)
-  site_range = n:(n + last_site(opsum) - 1)
+  site_range = n:(n+last_site(opsum)-1)
   return contract(MPO(opsum, [s[j] for j in site_range]))
   # Deprecated version
   # return contract(MPO(model, s, n; kwargs...))

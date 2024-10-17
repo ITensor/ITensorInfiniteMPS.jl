@@ -37,7 +37,7 @@ function Base.:*(H::Hᶜ{MPO}, v::ITensor)
     ψ′.AR[n + range_∑h - 1]
   common_sites = findsites(ψ, ∑h[n])
   idx = length(∑h[n]) - 1 #list the sites Σh, we start at 2 because n is already taken into account
-  for k in reverse(1:(range_∑h - 2))
+  for k in reverse(1:(range_∑h-2))
     if n + k == common_sites[idx]
       Hᶜʰv = Hᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
       idx -= 1
@@ -49,7 +49,7 @@ function Base.:*(H::Hᶜ{MPO}, v::ITensor)
   # Hᶜʰv = v * ψ.AL[n] * δˡ(n - 1) * ∑h[n][1] * ψ′.AL[n] * Hᶜʰv #left extremity
   Hᶜʰv = replaceinds(v * ψ.AL[n], l[n - 1] => l[n - 1]') * ∑h[n][1] * ψ′.AL[n] * Hᶜʰv #left extremity
   #Now we are building contributions of the form AL[n - j] ... AL[n] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
-  for j in 1:(range_∑h - 2)
+  for j in 1:(range_∑h-2)
     # temp_Hᶜʰv = ψ.AL[n - j] * δˡ(n - 1 - j) * ∑h[n - j][1] * ψ′.AL[n - j]
     temp_Hᶜʰv =
       replaceinds(ψ.AL[n - j], l[n - 1 - j] => l[n - 1 - j]') * ∑h[n - j][1] * ψ′.AL[n - j]
@@ -79,7 +79,7 @@ function Base.:*(H::Hᶜ{MPO}, v::ITensor)
       ∑h[n - j][end] *
       ψ′.AR[n - j + range_∑h - 1]
     idx = length(∑h[n]) - 1
-    for k in reverse((j + 1):(range_∑h - 2))
+    for k in reverse((j+1):(range_∑h-2))
       if n - j + k == common_sites[idx]
         temp_Hᶜʰv_r = temp_Hᶜʰv_r * ψ.AR[n - j + k] * ∑h[n - j][idx] * ψ′.AR[n - j + k]
         idx -= 1
@@ -136,7 +136,7 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
     ψ′.AR[n + range_∑h - 1] #rightmost extremity
   common_sites = findsites(ψ, ∑h[n])
   idx = length(∑h[n]) - 1  #list the sites Σh, we start at 2 because n is already taken into account
-  for k in reverse(1:(range_∑h - 2))
+  for k in reverse(1:(range_∑h-2))
     if n + k == common_sites[idx]
       Hᴬᶜʰv = Hᴬᶜʰv * ψ.AR[n + k] * ∑h[n][idx] * ψ′.AR[n + k]
       idx -= 1
@@ -148,13 +148,13 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
   # Hᴬᶜʰv = v * Hᴬᶜʰv * ∑h[n][1] * δˡ(n - 1)
   Hᴬᶜʰv = replaceinds(v * Hᴬᶜʰv * ∑h[n][1], l[n - 1] => l[n - 1]')
   #Now we are building contributions of the form AL[n - j] ... AL[n-1] - v - AR[n + 1] ... AR[n + range_∑h - 1 - j]
-  for j in 1:(range_∑h - 1)
+  for j in 1:(range_∑h-1)
     # temp_Hᴬᶜʰv = ψ.AL[n - j] * δˡ(n - j - 1) * ∑h[n - j][1] * ψ′.AL[n - j]
     temp_Hᴬᶜʰv =
       replaceinds(ψ.AL[n - j], l[n - j - 1] => l[n - j - 1]') * ∑h[n - j][1] * ψ′.AL[n - j]
     common_sites = findsites(ψ, ∑h[n - j])
     idx = 2
-    for k in 1:(j - 1)
+    for k in 1:(j-1)
       if n - j + k == common_sites[idx]
         temp_Hᴬᶜʰv = temp_Hᴬᶜʰv * ψ.AL[n - j + k] * ∑h[n - j][idx] * ψ′.AL[n - j + k]
         idx += 1
@@ -185,7 +185,7 @@ function Base.:*(H::Hᴬᶜ{MPO}, v::ITensor)
         ψ′.AR[n + range_∑h - 1 - j]
 
       idx = length(∑h[n]) - 1
-      for k in reverse((j + 1):(range_∑h - 2))
+      for k in reverse((j+1):(range_∑h-2))
         if n + k - j == common_sites[idx]
           temp_Hᴬᶜʰv_r = temp_Hᴬᶜʰv_r * ψ.AR[n + k - j] * ∑h[n - j][idx] * ψ′.AR[n + k - j]
           idx -= 1
@@ -259,9 +259,9 @@ function left_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol=
   𝕙ᴸ = copy(hᴸ)
   # TODO restrict to the useful ones only?
   for n in 1:Nsites
-    for k in 1:(Nsites - 1)
+    for k in 1:(Nsites-1)
       temp = copy(hᴸ[n - k])
-      for kp in reverse(0:(k - 1))
+      for kp in reverse(0:(k-1))
         temp = temp * ψ.AL[n - kp] * ψ̃.AL[n - kp]
       end
       𝕙ᴸ[n] = temp + 𝕙ᴸ[n]
@@ -293,7 +293,7 @@ function right_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol
     hᴿ[k] = ψ.AR[k + range_∑h] * δʳ(k + range_∑h) * ∑h[k + 1][end] * ψ′.AR[k + range_∑h]
     common_sites = findsites(ψ, ∑h[k + 1])
     idx = length(common_sites) - 1
-    for j in (range_∑h - 1):-1:1
+    for j in (range_∑h-1):-1:1
       if k + j == common_sites[idx]
         hᴿ[k] = hᴿ[k] * ψ.AR[k + j] * ∑h[k + 1][idx] * ψ′.AR[k + j]
         idx -= 1
@@ -311,7 +311,7 @@ function right_environment(∑h::InfiniteSum{MPO}, ψ::InfiniteCanonicalMPS; tol
   𝕙ᴿ = copy(hᴿ)
   #TODO restrict to the useful ones only
   for n in 1:Nsites
-    for k in 1:(Nsites - 1)
+    for k in 1:(Nsites-1)
       temp = copy(hᴿ[n + k])
       for kp in reverse(1:k)
         temp = temp * ψ.AR[n + kp] * ψ̃.AR[n + kp]

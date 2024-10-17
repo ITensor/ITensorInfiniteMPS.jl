@@ -97,8 +97,9 @@ println("\nQN sector of starting finite MPS")
 @show flux(ψfinite)
 
 nsweeps = 15
-maxdims =
-  min.(maxdim, [2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 32, 32, 50])
+maxdims = min.(
+  maxdim, [2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 8, 8, 16, 16, 16, 16, 32, 32, 32, 32, 50]
+)
 @show maxdims
 
 ## setmaxdim!(sweeps, maxdims...)
@@ -118,14 +119,14 @@ Nup_finite = ITensors.expect(ψfinite, "Nup")[nfinite:(nfinite + 1)]
 Ndn_finite = ITensors.expect(ψfinite, "Ndn")[nfinite:(nfinite + 1)]
 Sz_finite = ITensors.expect(ψfinite, "Sz")[nfinite:(nfinite + 1)]
 
-energy_exact = reference(model, Observable("energy"); U=model_params.U / model_params.t)
+energy_exact = reference(model, Observable("energy"); U=(model_params.U / model_params.t))
 
 corr_infinite = correlation_matrix(finite_mps(ψ, 1:10), "Cdagup", "Cup"; sites=2:11)
 corr_finite = correlation_matrix(
-  ψfinite, "Cdagup", "Cup"; sites=Int(Nfinite / 2):Int(Nfinite / 2 + 9)
+  ψfinite, "Cdagup", "Cup"; sites=Int(Nfinite/2):Int(Nfinite/2+9)
 )
 
-S_finite = [entropy(ψfinite, b) for b in (Nfinite ÷ 2):(Nfinite ÷ 2 + N - 1)]
+S_finite = [entropy(ψfinite, b) for b in (Nfinite÷2):(Nfinite÷2+N-1)]
 S_infinite = [entropy(ψ, b) for b in 1:N]
 
 println("\nResults from VUMPS")

@@ -103,7 +103,7 @@ Sz2_infinite = expect(ψ.AL[2] * ψ.C[2], "Sz")
 @show Sz1_finite, Sz2_finite
 @show Sz1_infinite, Sz2_infinite
 
-S_finite = [entropy(ψ_finite, b) for b in (nsite_finite ÷ 2):(nsite_finite ÷ 2 + nsite - 1)]
+S_finite = [entropy(ψ_finite, b) for b in (nsite_finite÷2):(nsite_finite÷2+nsite-1)]
 S_infinite = [entropy(ψ, b) for b in 1:nsite]
 @show S_finite
 @show S_infinite

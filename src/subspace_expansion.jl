@@ -33,7 +33,7 @@ function generate_twobody_nullspace(
       ψ.AR[n2 + range_H - 2] * H[n1][end] * (ψ′.AR[n2 + range_H - 2] * δʳ(n2 + range_H - 2))
     common_sites = findsites(ψ, H[(n1, n2)])
     idx = length(common_sites) - 1
-    for j in reverse(1:(range_H - 3))
+    for j in reverse(1:(range_H-3))
       if n2 + j == common_sites[idx]
         ψH2 = ψH2 * ψ.AR[n2 + j] * H[n1][idx] * ψ′.AR[n2 + j]
         idx -= 1
@@ -55,11 +55,11 @@ function generate_twobody_nullspace(
     end
 
     ψH2 = noprime(ψH2)
-    for n in 1:(range_H - 2)
+    for n in 1:(range_H-2)
       temp_H2_right = δʳ(n2 + range_H - 2 - n)
       common_sites = findsites(ψ, H[n1 - n])
       idx = length(common_sites)
-      for j in (n2 + range_H - 2 - n):-1:(n2 + 1)
+      for j in (n2+range_H-2-n):-1:(n2+1)
         if j == common_sites[idx]
           temp_H2_right = temp_H2_right * ψ.AR[j] * H[n1 - n][idx] * ψ′.AR[j]
           idx -= 1
@@ -134,7 +134,7 @@ function generate_twobody_nullspace(
     @assert non_empty_idx != i - 1 "Empty MPO"
     temp_L[i] =
       L[n_1 - 1][non_empty_idx] * (ψ.AL[n_1] * ψ.C[n_1]) * H[n_1][non_empty_idx, i]
-    for j in reverse(i:(non_empty_idx - 1))
+    for j in reverse(i:(non_empty_idx-1))
       if !isempty(H[n_1][j, i])
         temp_L[i] += L[n_1 - 1][j] * (ψ.AL[n_1] * ψ.C[n_1]) * H[n_1][j, i]
       end
@@ -148,7 +148,7 @@ function generate_twobody_nullspace(
     end
     @assert non_empty_idx != i + 1 "Empty MPO"
     temp_R[i] = H[n_1 + 1][i, non_empty_idx] * (ψ.AR[n_1 + 1] * R[n_1 + 2][non_empty_idx])
-    for j in (non_empty_idx + 1):i
+    for j in (non_empty_idx+1):i
       if !isempty(H[n_1 + 1][i, j])
         temp_R[i] += H[n_1 + 1][i, j] * (ψ.AR[n_1 + 1] * R[n_1 + 2][j])
       end

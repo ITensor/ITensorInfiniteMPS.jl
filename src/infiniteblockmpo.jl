@@ -54,7 +54,7 @@ end
 
 function ITensors.siteinds(A::InfiniteBlockMPO)
   data = [dag(only(filterinds(uniqueinds(A[1][1, 1], A[2][1, 1]); plev=0)))]
-  for x in 2:(nsites(A) - 1)
+  for x in 2:(nsites(A)-1)
     append!(
       data,
       [
@@ -239,9 +239,9 @@ Output: a copy of Hcl fused, and the two array of combiners to apply to left and
 function combineblocks_linkinds_auxiliary(H::InfiniteBlockMPO)
   H = copy(H)
   N = nsites(H)
-  for j in 1:(N - 1)
+  for j in 1:(N-1)
     right_dim = size(H[j], 2)
-    for d in 2:(right_dim - 1)
+    for d in 2:(right_dim-1)
       right_link = only(commoninds(H[j][1, d], H[j + 1][d, 1]))
       comb = combiner(right_link; tags=tags(right_link))
       comb_ind = combinedind(comb)
@@ -266,7 +266,7 @@ function combineblocks_linkinds_auxiliary(H::InfiniteBlockMPO)
   right_dim = size(H[N], 2)
   left_combs = []
   right_combs = []
-  for d in 2:(right_dim - 1)
+  for d in 2:(right_dim-1)
     right_link = only(commoninds(H[N][1, d], H[N + 1][d, 1]))
     comb = combiner(right_link; tags=tags(right_link))
     comb_ind = combinedind(comb)

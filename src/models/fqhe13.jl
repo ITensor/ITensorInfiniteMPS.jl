@@ -73,7 +73,7 @@ function build_two_body_coefficient_pseudopotential_factorized_cylinder(
     admissible_m = 0:2:maximalMoment
   end
   coefficients = Dict{Float64,Array{Float64,1}}()
-  for k in 0.5:0.5:(N_phi / 2 - 0.5)
+  for k in 0.5:0.5:(N_phi/2-0.5)
     coefficients[k] = zeros(Float64, length(admissible_m))
     for (idx_m, m) in enumerate(admissible_m)
       coefficients[k][idx_m] +=
@@ -88,8 +88,8 @@ end
 
 function build_two_body_coefficient_pseudopotential_cylinder(coeff, Vs, N_phi)
   full_coeff = Dict()
-  for j in 0.5:0.5:(N_phi - 1.5)
-    for l in mod1(j, 1):1:min(j, N_phi - 1 - j)
+  for j in 0.5:0.5:(N_phi-1.5)
+    for l in mod1(j, 1):1:min(j, N_phi-1-j)
       sg_1 = 1
       n_1 = mod(round(Int64, j + l), N_phi)
       n_2 = mod(round(Int64, j - l), N_phi)
@@ -101,7 +101,7 @@ function build_two_body_coefficient_pseudopotential_cylinder(coeff, Vs, N_phi)
       elseif n_1 == n_2
         continue
       end
-      for k in mod1(j, 1):1:min(j, N_phi - 1 - j)
+      for k in mod1(j, 1):1:min(j, N_phi-1-j)
         sg_2 = 1
         m_1 = mod(round(Int64, j + k), N_phi)
         m_2 = mod(round(Int64, j - k), N_phi)
@@ -264,7 +264,7 @@ end
 #Building the Hamiltonian
 #########################
 function get_perm!(lis, name)
-  for j in 1:(length(lis) - 1)
+  for j in 1:(length(lis)-1)
     if lis[j] > lis[j + 1]
       c = lis[j]
       lis[j] = lis[j + 1]
@@ -308,7 +308,7 @@ function optimize_coefficients(coeff::Dict; prec=1e-12)
     k = Base.copy(ke)
     sg = get_perm!(k, name)
     filter_op!(k, name)
-    new_k = [isodd(n) ? name[n ÷ 2 + 1] : k[n ÷ 2] + 1 for n in 1:(2 * length(name))]
+    new_k = [isodd(n) ? name[n ÷ 2 + 1] : k[n ÷ 2] + 1 for n in 1:(2*length(name))]
     optimized_dic[new_k] = sg * v
   end
   return optimized_dic

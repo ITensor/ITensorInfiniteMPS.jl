@@ -53,7 +53,7 @@ function (A::Aᴸ)(x)
   r′ = linkinds(only, ψ′.AR)
 
   xT = translatecell(translator(ψ), x, -1)
-  for k in (n - N + 1):n
+  for k in (n-N+1):n
     xT = xT * ψ.AL[k] * ψ̃.AL[k]
   end
   δˡ = δ(l[n], l′[n])
@@ -71,7 +71,7 @@ function left_environment(hᴸ, 𝕙ᴸ, ψ; tol=1e-15)
   # Get the rest of the environments in the unit cell
   Hᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
   Hᴸ[N] = Hᴸᴺ¹
-  for n in 1:(N - 1)
+  for n in 1:(N-1)
     Hᴸ[n] = Hᴸ[n - 1] * ψ.AL[n] * ψ̃.AL[n] + hᴸ[n]
   end
   return Hᴸ
@@ -122,7 +122,7 @@ function right_environment(hᴿ, ψ; tol=1e-15)
   # Get the rest of the environments in the unit cell
   Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
   Hᴿ[N] = Hᴿᴺ¹
-  for n in reverse(1:(N - 1))
+  for n in reverse(1:(N-1))
     Hᴿ[n] = Hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
   end
   return Hᴿ
@@ -138,7 +138,7 @@ function right_environment(hᴿ, 𝕙ᴿ, ψ; tol=1e-15)
   # Get the rest of the environments in the unit cell
   Hᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
   Hᴿ[N] = Hᴿᴺ¹
-  for n in reverse(1:(N - 1))
+  for n in reverse(1:(N-1))
     Hᴿ[n] = Hᴿ[n + 1] * ψ.AR[n + 1] * ψ̃.AR[n + 1] + hᴿ[n]
   end
   return Hᴿ
@@ -222,7 +222,7 @@ end
 
 function vumps(
   args...;
-  time_step=-Inf,
+  time_step=(-Inf),
   eigsolve_tol=(x -> x / 100),
   solver_tol=eigsolve_tol,
   eager=true,

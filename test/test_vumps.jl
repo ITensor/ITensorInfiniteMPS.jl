@@ -43,9 +43,7 @@ end
                                                                                                                                                                                        [
       "sequential", "parallel"
     ],
-    conserve_qns in [true, false],
-    nsites in [1, 2, 3, 4],
-    time_step in [-Inf, -0.5],
+    conserve_qns in [true, false], nsites in [1, 2, 3, 4], time_step in [-Inf, -0.5],
     localham_type in [ITensor, MPO]
 
     if (localham_type == ITensor) && (nsites > 2)

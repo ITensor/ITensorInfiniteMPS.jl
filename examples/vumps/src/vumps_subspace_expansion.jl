@@ -25,6 +25,6 @@ function vumps_subspace_expansion(
   H, ψ; outer_iters, subspace_expansion_kwargs, vumps_kwargs
 )
   return tdvp_subspace_expansion(
-    H, ψ; time_step=-Inf, outer_iters, subspace_expansion_kwargs, vumps_kwargs
+    H, ψ; time_step=(-Inf), outer_iters, subspace_expansion_kwargs, vumps_kwargs
   )
 end

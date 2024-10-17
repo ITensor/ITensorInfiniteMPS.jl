@@ -10,10 +10,10 @@ function expect_over_unit_cell(ψ::InfiniteCanonicalMPS, h::InfiniteSum{MPO})
   energy = expect(ψ, h[1])
   for j in 2:Ncell
     hf = MPO(Ncell)
-    for x in 1:(j - 1)
+    for x in 1:(j-1)
       hf[x] = op("Id", s[x])
     end
-    for x in j:min(j + length(h[j]) - 1, Ncell)
+    for x in j:min(j+length(h[j])-1, Ncell)
       hf[x] = h[j][x + 1 - j]
     end
     if j + length(h[j]) - 1 > Ncell
@@ -21,7 +21,7 @@ function expect_over_unit_cell(ψ::InfiniteCanonicalMPS, h::InfiniteSum{MPO})
       #dim_right = dim(right_link)
       hf[end] *= onehot(dag(right_link) => 1)
     elseif Ncell > j + length(h[j]) - 1
-      for x in (j + length(h[j])):Ncell
+      for x in (j+length(h[j])):Ncell
         hf[x] = op("Id", s[x])
       end
     end
@@ -48,7 +48,7 @@ function terminate(h::InfiniteMPO)::MPO
   hf = MPO(Ncell)
   hf[1] = dag(l) * h[1] #left terminate
   hf[Ncell] = h[Ncell] * dag(r) #right terminate
-  for n in 2:(Ncell - 1)
+  for n in 2:(Ncell-1)
     hf[n] = h[n] #fill in the bulk.
   end
   return hf
@@ -66,7 +66,7 @@ function generate_edges(h::InfiniteBlockMPO)
   # left termination vector
   Ls = Matrix{ITensor}(undef, 1, size(h[1], 1))
   Ls[1] = ITensor(0)
-  for x in 2:(size(h[0], 2) - 1)
+  for x in 2:(size(h[0], 2)-1)
     il0 = commonind(h[0][1, x], h[1][x, 1])
     Ls[x] = ITensor(0, il0)
   end
@@ -74,7 +74,7 @@ function generate_edges(h::InfiniteBlockMPO)
 
   Rs = Vector{ITensor}(undef, size(h[Ncell], 2))
   Rs[1] = ITensor(1)
-  for x in 2:(size(h[Ncell + 1], 1) - 1)
+  for x in 2:(size(h[Ncell + 1], 1)-1)
     ir0 = commonind(h[Ncell + 1][x, 1], h[Ncell][1, x])
     Rs[x] = ITensor(0, ir0)
   end
@@ -146,9 +146,7 @@ end
   models = [(Model"heisenbergNNN"(), "S=1/2"), (Model"hubbardNNN"(), "Electron")]
   @testset "H=$model, Ncell=$Ncell, NNN=$NNN, Antiferro=$Af, qns=$qns" for (model, site) in
                                                                            models,
-    qns in [false, true],
-    Ncell in 2:6,
-    NNN in 1:(Ncell - 1),
+    qns in [false, true], Ncell in 2:6, NNN in 1:(Ncell-1),
     Af in [true, false]
 
     if isodd(Ncell) && Af #skip test since Af state does fit inside odd cells.
@@ -173,7 +171,7 @@ end
     R = Vector{ITensor}(undef, size(Hm[Ncell], 2))
     R[1] = ITensor(1)
     R[end] = ITensor()
-    for x in 2:(length(L) - 1)
+    for x in 2:(length(L)-1)
       L[x] = ITensor(only(commoninds(Hm[0][x, x], Hm[1][x, x])))
       R[x] = ITensor(only(commoninds(Hm[Ncell + 1][x, x], Hm[Ncell][x, x])))
     end
