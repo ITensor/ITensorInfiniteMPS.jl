@@ -32,8 +32,8 @@ function InfiniteSum{ITensor}(model::Model, s::CelledVector; kwargs...)
 end
 
 # Get the first site with nontrivial support of the OpSum
-first_site(opsum::OpSum) = minimum(ITensorMPS.sites(opsum))
-last_site(opsum::OpSum) = maximum(ITensorMPS.sites(opsum))
+first_site(opsum::OpSum) = minimum(ITensors.sites(opsum))
+last_site(opsum::OpSum) = maximum(ITensors.sites(opsum))
 
 function set_site(o::Op, s::Int)
   return Op(ITensorMPS.which_op(o), s; ITensorMPS.params(o)...)
@@ -66,7 +66,7 @@ function InfiniteSum{MPO}(opsum::OpSum, s::CelledVector)
   nrange = 0 # Maximum operator support
   opsums = [OpSum() for _ in 1:n]
   for o in ITensorMPS.terms(opsum)
-    js = sort(ITensorMPS.sites(o))
+    js = sort(ITensors.sites(o))
     j1 = first(js)
     nrange = max(nrange, last(js) - j1 + 1)
     opsums[j1] += o
@@ -243,7 +243,7 @@ function infinite_terms(opsum::OpSum; kwargs...)
   # contains the terms with support starting on that
   # site of the unit cell, i.e. `opsum_cell[i]`
   # stores all terms starting on site `i`.
-  opsum_cell_dict = groupreduce(minimum ∘ ITensorMPS.sites, +, opsum)
+  opsum_cell_dict = groupreduce(minimum ∘ ITensors.sites, +, opsum)
   nsites = maximum(keys(opsum_cell_dict))
   # check that we don't have terms we will ignore
   dropped = filter(x -> x <= 0, keys(opsum_cell_dict))
@@ -299,7 +299,7 @@ function finite_terms(model::Model, n::Int; kwargs...)
   _finite_terms = OpSum[]
   for j in 1:n
     term_j = _infite_terms[j]
-    filtered_term_j = filter_terms(s -> all(≤(n), s), term_j; by=ITensorMPS.sites)
+    filtered_term_j = filter_terms(s -> all(≤(n), s), term_j; by=ITensors.sites)
     push!(_finite_terms, filtered_term_j)
   end
   return _finite_terms

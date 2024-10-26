@@ -100,21 +100,21 @@ function ITensorMPS.findfirstsiteind(ψ::InfiniteCanonicalMPS, i::Index)
 end
 
 function ITensorMPS.findsites(ψ::InfiniteCanonicalMPS, is::Union{<:Tuple,<:Vector})
-  return sort([ITensors.findfirstsiteind(ψ, i) for i in is])
+  return sort([ITensorMPS.findfirstsiteind(ψ, i) for i in is])
 end
 function ITensorMPS.findsites(ψ::InfiniteMPS, is::Union{<:Tuple,<:Vector})
-  return sort([ITensors.findfirstsiteind(ψ, i) for i in is])
+  return sort([ITensorMPS.findfirstsiteind(ψ, i) for i in is])
 end
 function ITensorMPS.findsites(ψ::InfiniteMPS, T::MPO)
   s = [noprime(filterinds(T[x]; plev=1)[1]) for x in 1:length(T)]
-  return sort([ITensors.findfirstsiteind(ψ, i) for i in s])
+  return sort([ITensorMPS.findfirstsiteind(ψ, i) for i in s])
 end
 ITensorMPS.findsites(ψ::InfiniteCanonicalMPS, T::MPO) = findsites(ψ.AL, T)
 
 #Kept for historical reason
 function ITensorMPS.findsites(ψ::InfiniteMPS, T::ITensor)
   s = filterinds(T; plev=0)
-  return sort([ITensors.findfirstsiteind(ψ, i) for i in s])
+  return sort([ITensorMPS.findfirstsiteind(ψ, i) for i in s])
 end
 ITensorMPS.findsites(ψ::InfiniteCanonicalMPS, T::ITensor) = findsites(ψ.AL, T)
 
@@ -230,7 +230,7 @@ function ITensorMPS.findfirstsiteind(h::ITensor, i::Index, ncell::Int64)
 end
 function ITensorMPS.findsites(h::ITensor; ncell::Int64=1)
   s = filterinds(h; plev=0)
-  return sort([ITensors.findfirstsiteind(h, i, ncell) for i in s])
+  return sort([ITensorMPS.findfirstsiteind(h, i, ncell) for i in s])
 end
 
 ## HDF5 support for the InfiniteCanonicalMPS type
