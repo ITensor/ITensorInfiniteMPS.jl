@@ -57,14 +57,14 @@ function ITensors.dag(ψ::InfiniteCanonicalMPS, args...; kwargs...)
   return fmap(x -> dag(x, args...; kwargs...), ψ)
 end
 
-ITensors.siteinds(f::typeof(only), ψ::InfiniteCanonicalMPS) = siteinds(f, ψ.AL)
+ITensorMPS.siteinds(f::typeof(only), ψ::InfiniteCanonicalMPS) = siteinds(f, ψ.AL)
 
 getcell(i::Index) = ITensorInfiniteMPS.getcell(tags(i))
 getsite(i::Index) = getsite(tags(i))
 
 #Before, for a two site Hamiltonian, findsites(ψ, H[3]) would return [1, 2]
 #Appeared unsafe for index purpose
-function ITensors.findfirstsiteind(ψ::InfiniteMPS, i::Index)
+function ITensorMPS.findfirstsiteind(ψ::InfiniteMPS, i::Index)
   c = ITensorInfiniteMPS.getcell(i)
   n1 = getsite(i)
   # if translator(ψ) == translatecelltags
@@ -95,28 +95,28 @@ function ITensors.findfirstsiteind(ψ::InfiniteMPS, i::Index)
   #   return 0
   # end
 end
-function ITensors.findfirstsiteind(ψ::InfiniteCanonicalMPS, i::Index)
-  return ITensors.findfirstsiteind(ψ.AL, i)
+function ITensorMPS.findfirstsiteind(ψ::InfiniteCanonicalMPS, i::Index)
+  return ITensorMPS.findfirstsiteind(ψ.AL, i)
 end
 
-function ITensors.findsites(ψ::InfiniteCanonicalMPS, is::Union{<:Tuple,<:Vector})
+function ITensorMPS.findsites(ψ::InfiniteCanonicalMPS, is::Union{<:Tuple,<:Vector})
   return sort([ITensors.findfirstsiteind(ψ, i) for i in is])
 end
-function ITensors.findsites(ψ::InfiniteMPS, is::Union{<:Tuple,<:Vector})
+function ITensorMPS.findsites(ψ::InfiniteMPS, is::Union{<:Tuple,<:Vector})
   return sort([ITensors.findfirstsiteind(ψ, i) for i in is])
 end
-function ITensors.findsites(ψ::InfiniteMPS, T::MPO)
+function ITensorMPS.findsites(ψ::InfiniteMPS, T::MPO)
   s = [noprime(filterinds(T[x]; plev=1)[1]) for x in 1:length(T)]
   return sort([ITensors.findfirstsiteind(ψ, i) for i in s])
 end
-ITensors.findsites(ψ::InfiniteCanonicalMPS, T::MPO) = findsites(ψ.AL, T)
+ITensorMPS.findsites(ψ::InfiniteCanonicalMPS, T::MPO) = findsites(ψ.AL, T)
 
 #Kept for historical reason
-function ITensors.findsites(ψ::InfiniteMPS, T::ITensor)
+function ITensorMPS.findsites(ψ::InfiniteMPS, T::ITensor)
   s = filterinds(T; plev=0)
   return sort([ITensors.findfirstsiteind(ψ, i) for i in s])
 end
-ITensors.findsites(ψ::InfiniteCanonicalMPS, T::ITensor) = findsites(ψ.AL, T)
+ITensorMPS.findsites(ψ::InfiniteCanonicalMPS, T::ITensor) = findsites(ψ.AL, T)
 
 # For now, only represents nearest neighbor interactions
 # on a linear chain
@@ -193,20 +193,20 @@ function nrange(h::MPO; ncell=1)
   return ns[end] - ns[1] + 1
 end
 
-ITensors.findsites(h::InfiniteSum) = [findsites(h, n) for n in 1:nsites(h)]
-ITensors.findsites(h::InfiniteSum, n::Int64) = findsites(h.data[n]; ncell=nsites(h))
-#ITensors.findsites(h::InfiniteSum, is::Union{<:Tuple,<:Vector}) = [findsites(h.data[n], is) for n in 1:nsites(h)]
-#ITensors.findsites(h::InfiniteSum, i::Index) = [findsites(h.data[n], i) for n in 1:nsites(h)]
+ITensorMPS.findsites(h::InfiniteSum) = [findsites(h, n) for n in 1:nsites(h)]
+ITensorMPS.findsites(h::InfiniteSum, n::Int64) = findsites(h.data[n]; ncell=nsites(h))
+#ITensorMPS.findsites(h::InfiniteSum, is::Union{<:Tuple,<:Vector}) = [findsites(h.data[n], is) for n in 1:nsites(h)]
+#ITensorMPS.findsites(h::InfiniteSum, i::Index) = [findsites(h.data[n], i) for n in 1:nsites(h)]
 #TODO improve the findsites routines for Infinite Sum
 
-function ITensors.findfirstsiteind(i::Index, ncell::Int64)
+function ITensorMPS.findfirstsiteind(i::Index, ncell::Int64)
   c = ITensorInfiniteMPS.getcell(i)
   n1 = getsite(i)
   return (c - 1) * ncell + n1
 end
-function ITensors.findsites(h::MPO; ncell::Int64=1)
+function ITensorMPS.findsites(h::MPO; ncell::Int64=1)
   s = [filterinds(h[x]; plev=1)[1] for x in 1:length(h)]
-  return sort([ITensors.findfirstsiteind(i, ncell) for i in s])
+  return sort([ITensorMPS.findfirstsiteind(i, ncell) for i in s])
 end
 
 #Kept for historical reasons
@@ -223,12 +223,12 @@ function nrange(ψ::InfiniteCanonicalMPS, h::MPO)
   return ns[end] - ns[1] + 1
 end
 
-function ITensors.findfirstsiteind(h::ITensor, i::Index, ncell::Int64)
+function ITensorMPS.findfirstsiteind(h::ITensor, i::Index, ncell::Int64)
   c = getcell(i)
   n1 = getsite(i)
   return (c - 1) * ncell + n1
 end
-function ITensors.findsites(h::ITensor; ncell::Int64=1)
+function ITensorMPS.findsites(h::ITensor; ncell::Int64=1)
   s = filterinds(h; plev=0)
   return sort([ITensors.findfirstsiteind(h, i, ncell) for i in s])
 end
