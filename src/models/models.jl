@@ -36,16 +36,16 @@ first_site(opsum::OpSum) = minimum(ITensors.sites(opsum))
 last_site(opsum::OpSum) = maximum(ITensors.sites(opsum))
 
 function set_site(o::Op, s::Int)
-  return Op(ITensorMPS.which_op(o), s; ITensorMPS.params(o)...)
+  return Op(ITensors.which_op(o), s; ITensors.params(o)...)
 end
 
 function shift_site(o::Op, shift::Int)
-  return set_site(o, ITensorMPS.site(o) + shift)
+  return set_site(o, ITensors.site(o) + shift)
 end
 
 function shift_sites(term::Scaled{C,Prod{Op}}, shift::Int) where {C}
-  shifted_term = ITensorMPS.coefficient(term)
-  for o in ITensorMPS.terms(term)
+  shifted_term = ITensors.coefficient(term)
+  for o in ITensors.terms(term)
     shifted_term *= shift_site(o, shift)
   end
   return shifted_term
@@ -55,7 +55,7 @@ end
 # By default, it shifts
 function shift_sites(opsum::OpSum, shift::Int)
   shifted_opsum = OpSum()
-  for o in ITensorMPS.terms(opsum)
+  for o in ITensors.terms(opsum)
     shifted_opsum += shift_sites(o, shift)
   end
   return shifted_opsum
@@ -65,7 +65,7 @@ function InfiniteSum{MPO}(opsum::OpSum, s::CelledVector)
   n = cell_length(s)
   nrange = 0 # Maximum operator support
   opsums = [OpSum() for _ in 1:n]
-  for o in ITensorMPS.terms(opsum)
+  for o in ITensors.terms(opsum)
     js = sort(ITensors.sites(o))
     j1 = first(js)
     nrange = max(nrange, last(js) - j1 + 1)
@@ -286,7 +286,7 @@ end
 
 function filter_terms(f, opsum::OpSum; by=identity)
   filtered_opsum = OpSum()
-  for t in ITensorMPS.terms(opsum)
+  for t in ITensors.terms(opsum)
     if f(by(t))
       filtered_opsum += t
     end
