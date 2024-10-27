@@ -222,7 +222,7 @@ function InfiniteBlockMPO(model::Model, s::CelledVector, translator::Function; k
   return mpos
 end
 
-function ITensors.MPO(model::Model, s::Vector{<:Index}; kwargs...)
+function ITensorMPS.MPO(model::Model, s::Vector{<:Index}; kwargs...)
   opsum = opsum_finite(model, length(s); kwargs...)
   return splitblocks(linkinds, MPO(opsum, s))
 end

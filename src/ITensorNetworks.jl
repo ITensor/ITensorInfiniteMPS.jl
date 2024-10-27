@@ -82,7 +82,7 @@ end
 
 ITensors.inds(tn::ITensorNetwork, ij::Pair{<:Integer,<:Integer}) = inds(tn)[ij]
 
-function ITensors.linkinds(tn::ITensorNetwork, ij::Pair{<:Integer,<:Integer})
+function ITensorMPS.linkinds(tn::ITensorNetwork, ij::Pair{<:Integer,<:Integer})
   i, j = ij
   @assert i ≠ j
   return inds(tn, ij)

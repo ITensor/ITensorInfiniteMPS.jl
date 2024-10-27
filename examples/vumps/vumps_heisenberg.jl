@@ -79,7 +79,7 @@ energy_finite_total, ψfinite = dmrg(Hfinite, ψfinite; nsweeps, maxdim, cutoff)
 
 energy_exact_finite = reference(model, Observable("energy"); N=Nfinite)
 
-function ITensors.expect(ψ::ITensor, o::String)
+function ITensorMPS.expect(ψ::ITensor, o::String)
   return inner(ψ, apply(op(o, filterinds(ψ, "Site")...), ψ))
 end
 

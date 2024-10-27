@@ -166,7 +166,7 @@ function infsiteinds(
   return infsiteinds(s, translator)
 end
 
-function ITensors.linkinds(ψ::InfiniteMPS)
+function ITensorMPS.linkinds(ψ::InfiniteMPS)
   N = nsites(ψ)
   return CelledVector([linkinds(ψ, (n, n + 1)) for n in 1:N], translator(ψ))
 end
@@ -266,14 +266,14 @@ function finite_mps(ψ::InfiniteCanonicalMPS, range::AbstractRange)
   set_ortho_lims!(ψ_finite, (N + 1):(N + 1))
   return ψ_finite
 end
-function ITensors.expect(ψ::InfiniteCanonicalMPS, o::String, n::Int)
+function ITensorMPS.expect(ψ::InfiniteCanonicalMPS, o::String, n::Int)
   s = siteinds(only, ψ.AL)
   O = op(o, s[n])
   ϕ = ψ.AL[n] * ψ.C[n]
   return inner(ϕ, apply(O, ϕ))
 end
 
-function ITensors.expect(ψ::InfiniteCanonicalMPS, h::MPO)
+function ITensorMPS.expect(ψ::InfiniteCanonicalMPS, h::MPO)
   l = linkinds(ITensorInfiniteMPS.only, ψ.AL)
   r = linkinds(ITensorInfiniteMPS.only, ψ.AR)
   s = siteinds(ITensorInfiniteMPS.only, ψ)
@@ -298,6 +298,6 @@ function ITensors.expect(ψ::InfiniteCanonicalMPS, h::MPO)
   return temp_O[]
 end
 
-function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteSum)
+function ITensorMPS.expect(ψ::InfiniteCanonicalMPS, h::InfiniteSum)
   return [expect(ψ, h[j]) for j in 1:nsites(ψ)]
 end

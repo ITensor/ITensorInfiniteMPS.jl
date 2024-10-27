@@ -75,7 +75,7 @@ function energy_local(ψ1, ψ2, h)
   return (noprime(ϕ * h) * dag(ϕ))[]
 end
 
-function ITensors.expect(ψ, o)
+function ITensorMPS.expect(ψ, o)
   return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
 end
 

@@ -114,9 +114,9 @@ bsfinite = [(nfinite, nfinite + 1), (nfinite + 1, nfinite + 2)]
 hfinite(b) = ITensor(model, [sfinite[b[1]], sfinite[b[2]]]; model_params...)
 energy_finite = map(b -> expect_two_site(ψfinite, hfinite(b), b), bsfinite)
 
-Nup_finite = ITensors.expect(ψfinite, "Nup")[nfinite:(nfinite + 1)]
-Ndn_finite = ITensors.expect(ψfinite, "Ndn")[nfinite:(nfinite + 1)]
-Sz_finite = ITensors.expect(ψfinite, "Sz")[nfinite:(nfinite + 1)]
+Nup_finite = ITensorMPS.expect(ψfinite, "Nup")[nfinite:(nfinite + 1)]
+Ndn_finite = ITensorMPS.expect(ψfinite, "Ndn")[nfinite:(nfinite + 1)]
+Sz_finite = ITensorMPS.expect(ψfinite, "Sz")[nfinite:(nfinite + 1)]
 
 energy_exact = reference(model, Observable("energy"); U=model_params.U / model_params.t)
 
