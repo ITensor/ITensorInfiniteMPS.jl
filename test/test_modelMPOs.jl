@@ -62,6 +62,7 @@ end
       @test [i, i + 1] ∈ connections
       @test [i] ∈ connections
     end
+    @test [width] ∈ connections
   end
 end
 
