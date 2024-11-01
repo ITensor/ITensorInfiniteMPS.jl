@@ -44,7 +44,7 @@ function unit_cell_terms(::Model"heisenberg2D"; width, yperiodic)
 end
 
 """
-    reference(::Model"heisenberg2d", ::Observable"energy"; N)
+    reference(::Model"heisenberg2D", ::Observable"energy"; width, yperiodic)
 
 Report the reference isotropic 2D square heisenberg ground energy per site for length `N`.
 Taken from [1,2]. Note that periodic results have an errorbar of ~1e-4 - 1e-3
