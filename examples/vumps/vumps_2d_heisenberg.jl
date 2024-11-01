@@ -31,22 +31,6 @@ initstate(n) = isodd(n) ? "↑" : "↓"
 s = infsiteinds("S=1/2", N; conserve_qns, initstate)
 ψ = InfMPS(s, initstate)
 
-function ITensorInfiniteMPS.unit_cell_terms(::Model"heisenberg2D"; width, yperiodic)
-  opsum = OpSum()
-  for i in 1:width
-    # Vertical
-    if i < width || yperiodic
-      opsum -= 0.5, "S+", i, "S-", mod(i, width) + 1
-      opsum -= 0.5, "S-", i, "S+", mod(i, width) + 1
-      opsum += "Sz", i, "Sz", mod(i, width) + 1
-    end
-    # Horizontal
-    opsum -= 0.5, "S+", i, "S-", i + width
-    opsum -= 0.5, "S-", i, "S+", i + width
-    opsum += "Sz", i, "Sz", i + width
-  end
-  return opsum
-end
 model = Model("heisenberg2D")
 
 # Form the Hamiltonian
@@ -72,6 +56,11 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
 energy_infinite = expect(ψ, H)
 @show energy_infinite
+@show sum(energy_infinite) / width
 
+energy_approx_exact = reference(model, Observable("energy"); width, yperiodic)
+@show energy_approx_exact
+
+@show isapprox(sum(energy_infinite) / width, energy_approx_exact, atol=1e-4)
 ## using JLD2
 ## jldsave("infmps.jld2"; ψ)
