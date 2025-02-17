@@ -11,7 +11,7 @@ This is a package for working with infinite MPS based on the [ITensors.jl](https
 
 The package is currently not registered. Please install with the commands:
 ```julia
-julia> using Pkg; Pkg.add(url="https://github.com/mtfishman/ITensorInfiniteMPS.jl.git")
+julia> using Pkg; Pkg.add(url="https://github.com/ITensor/ITensorInfiniteMPS.jl.git")
 ```
 
 ## Examples
