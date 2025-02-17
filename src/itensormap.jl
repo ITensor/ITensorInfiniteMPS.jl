@@ -1,37 +1,3 @@
-
-#
-# TODO: should ITensorMap be a special version of
-# an ITensorNetwork with input and output indices specified?
-#
-
-# T is however the nodes are indexed
-# TODO: how to deal with 2D, multiple networks, etc.?
-# struct IndexSetNetwork{T}
-#   # Use Vector{SortedVector{Pair{T, IndexSet}}}
-#   data::Vector{Vector{Pair{T, IndexSet}}}
-# end
-
-# Make MPS, PEPS, etc. wrappers around `ITensorNetwork`,
-# which could be subclasses of `AbstractITensorNetwork`
-#
-# Also `InfiniteITensorNetwork`, `AbstractInfiniteITensorNetwork`:
-#
-# struct InfiniteMPS <: AbstractInfiniteITensorNetwork
-#   tensornetwork::InfiniteITensorNetwork
-# end
-#
-# struct ITensorNetwork <: AbstractITensorNetwork
-#   itensors::Vector{ITensor}
-#   indnetwork::IndexSetNetwork # Adjacency list of IndexSets
-#   input_inds::IndexSet
-#   output_inds::IndexSet
-# end
-#
-# TODO: how to deal with networks of ITensorNetwork,
-# for example a network of MPS and MPO?
-# ITensorNetworkNetwork that is a tree of ITensorNetwork?
-#
-
 abstract type AbstractITensorMap end
 
 input_inds(T::AbstractITensorMap) = T.input_inds

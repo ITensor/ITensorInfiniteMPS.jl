@@ -1,6 +1,6 @@
 using ITensorMPS: MPS
 using ITensors.NDTensors: NDTensors, tensor
-using ITensors: ITensors, IndexSet, QN, Tag, TagSet, dag, inds, isdiag, sim
+using ITensors: ITensors, QN, Tag, TagSet, dag, inds, isdiag, sim
 using LinearAlgebra: LinearAlgebra, eigen
 
 ############################################################################
@@ -119,17 +119,6 @@ function ⊕(
   return [QN(first(qn1)) => last(qn1), QN(first(qn2)) => last(qn2)]
 end
 ⊕(qns::Vector{Pair{QN,Int}}, qn::Pair{QN,Int}) = push!(copy(qns), qn)
-
-############################################################################
-# indexset.jl
-#
-
-ITensors.IndexSet(is::IndexSet...) = unioninds(is)
-ITensors.IndexSet(is::Tuple{Vararg{IndexSet}}) = unioninds(is...)
-
-Base.copy(is::IndexSet) = IndexSet(copy.(ITensors.data(is)))
-
-ITensors.noncommoninds(is::IndexSet) = is
 
 ############################################################################
 # itensor.jl
