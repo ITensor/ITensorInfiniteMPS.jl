@@ -30,13 +30,13 @@ end
 #
 
 # Used for findfirst
-Base.keys(ts::TagSet) = Base.OneTo(length(ts)) # added
+Base.keys(ts::TagSet) = Base.OneTo(length(ts)) # TODO: to remove
 
 import ITensors: Tag, commontags
 
-maxlength(tag::Tag) = length(tag.data) # added
+maxlength(tag::Tag) = length(tag.data) # TODO: to remove
 
-function Base.length(tag::Tag) # added
+function Base.length(tag::Tag) # TODO: to remove
   n = 1
   while n <= maxlength(tag) && tag[n] != zero(eltype(tag))
     n += 1
@@ -44,7 +44,7 @@ function Base.length(tag::Tag) # added
   return n - 1
 end
 
-Base.lastindex(tag::Tag) = length(tag) # added
+Base.lastindex(tag::Tag) = length(tag)  # TODO: to remove
 
 Base.getindex(tag::Tag, r::UnitRange) = Tag([tag[n] for n in r]) #added
 
@@ -144,4 +144,4 @@ end
 
 # TODO: make this definition AbstractMPS
 # Handle orthogonality center correctly
-Base.getindex(ψ::MPS, r::UnitRange{Int}) = MPS([ψ[n] for n in r]) # added
+Base.getindex(ψ::MPS, r::UnitRange{Int}) = MPS([ψ[n] for n in r])  # TODO: to remove
