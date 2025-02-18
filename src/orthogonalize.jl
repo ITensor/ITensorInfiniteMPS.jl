@@ -113,7 +113,7 @@ function mixed_canonical(
   return InfiniteCanonicalMPS(ψᴸ, C, ψᴿ)
 end
 
-ITensors.orthogonalize(ψ::InfiniteMPS, ::Colon; kwargs...) = mixed_canonical(ψ; kwargs...)
+ITensorMPS.orthogonalize(ψ::InfiniteMPS, ::Colon; kwargs...) = mixed_canonical(ψ; kwargs...)
 
 #TODO put these functions somewhere else
 function ortho_overlap(AC, C)

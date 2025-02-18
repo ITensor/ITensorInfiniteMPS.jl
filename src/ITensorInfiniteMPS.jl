@@ -23,7 +23,8 @@ using KrylovKit: eigsolve, linsolve, exponentiate
 
 import Base: getindex, length, setindex!, +, -, *
 
-import ITensors: AbstractMPS, ⊕
+using ITensorMPS: AbstractMPS
+import ITensors: ⊕
 
 include("ITensors.jl")
 include("itensormap.jl")

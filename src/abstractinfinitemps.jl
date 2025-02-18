@@ -186,26 +186,26 @@ function ITensors.dag(ψ::AbstractInfiniteMPS)
   return typeof(ψ)(ψdag, translator(ψ); reverse=ψ.reverse)
 end
 
-ITensors.linkinds(ψ::AbstractInfiniteMPS, n1n2) = linkinds(ψ, Pair(n1n2...))
+ITensorMPS.linkinds(ψ::AbstractInfiniteMPS, n1n2) = linkinds(ψ, Pair(n1n2...))
 
-function ITensors.linkinds(ψ::AbstractInfiniteMPS, n1n2::Pair{<:Integer,<:Integer})
+function ITensorMPS.linkinds(ψ::AbstractInfiniteMPS, n1n2::Pair{<:Integer,<:Integer})
   return commoninds(ψ[n1n2[1]], ψ[n1n2[2]])
 end
 
-function ITensors.linkind(ψ::AbstractInfiniteMPS, n1n2::Pair{<:Integer,<:Integer})
+function ITensorMPS.linkind(ψ::AbstractInfiniteMPS, n1n2::Pair{<:Integer,<:Integer})
   return commonind(ψ[n1n2[1]], ψ[n1n2[2]])
 end
 
-function ITensors.siteind(ψ::AbstractInfiniteMPS, n::Integer)
+function ITensorMPS.siteind(ψ::AbstractInfiniteMPS, n::Integer)
   return uniqueind(ψ[n], ψ[n - 1], ψ[n + 1])
 end
 
-function ITensors.siteinds(ψ::AbstractInfiniteMPS, n::Integer)
+function ITensorMPS.siteinds(ψ::AbstractInfiniteMPS, n::Integer)
   return uniqueinds(ψ[n], ψ[n - 1], ψ[n + 1])
 end
 
 # TODO: return a Dictionary or IndexSetNetwork?
-function ITensors.siteinds(ψ::AbstractInfiniteMPS, r::AbstractRange)
+function ITensorMPS.siteinds(ψ::AbstractInfiniteMPS, r::AbstractRange)
   return [siteind(ψ, n) for n in r]
 end
 
@@ -216,9 +216,9 @@ function siterange(ψ::AbstractInfiniteMPS, c::Cell)
   return start:stop
 end
 
-ITensors.siteinds(ψ::AbstractInfiniteMPS, c::Cell) = siteinds(ψ, siterange(ψ, c))
+ITensorMPS.siteinds(ψ::AbstractInfiniteMPS, c::Cell) = siteinds(ψ, siterange(ψ, c))
 
-function ITensors.siteinds(ψ::AbstractInfiniteMPS)
+function ITensorMPS.siteinds(ψ::AbstractInfiniteMPS)
   return CelledVector(siteinds(ψ, Cell(1)), translator(ψ))
 end
 infsiteinds(ψ::AbstractInfiniteMPS) = siteinds(ψ)
@@ -238,12 +238,12 @@ end
 
 (::Colon)(n::Int, f::typeof(nsites)) = UnitRangeToFunction(n, f)
 
-function ITensors.linkinds(f::typeof(only), ψ::AbstractInfiniteMPS)
+function ITensorMPS.linkinds(f::typeof(only), ψ::AbstractInfiniteMPS)
   N = nsites(ψ)
   return CelledVector([f(commoninds(ψ[n], ψ[n + 1])) for n in 1:N], translator(ψ))
 end
 
-function ITensors.siteinds(f::typeof(only), ψ::AbstractInfiniteMPS)
+function ITensorMPS.siteinds(f::typeof(only), ψ::AbstractInfiniteMPS)
   N = nsites(ψ)
   return CelledVector([f(uniqueinds(ψ[n], ψ[n - 1], ψ[n + 1])) for n in 1:N], translator(ψ))
 end

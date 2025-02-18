@@ -57,7 +57,7 @@ end
 # Terminate and then call expect
 # for inf ψ and finite h, which is already supported in src/infinitecanonicalmps.jl
 #
-function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteMPO)
+function ITensorMPS.expect(ψ::InfiniteCanonicalMPS, h::InfiniteMPO)
   return expect(ψ, terminate(h)) #defer to src/infinitecanonicalmps.jl
 end
 
@@ -82,7 +82,7 @@ function generate_edges(h::InfiniteBlockMPO)
   return Ls, Rs
 end
 
-function ITensors.expect(ψ::InfiniteCanonicalMPS, h::InfiniteBlockMPO)
+function ITensorMPS.expect(ψ::InfiniteCanonicalMPS, h::InfiniteBlockMPO)
   Ncell = nsites(h)
   L, R = generate_edges(h)
   l = commoninds(ψ.AL[0], ψ.AL[1])

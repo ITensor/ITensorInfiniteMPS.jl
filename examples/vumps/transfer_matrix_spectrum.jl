@@ -76,7 +76,7 @@ function energy_local(ψ1, ψ2, h)
   return inner(ϕ, apply(h, ϕ))
 end
 
-function ITensors.expect(ψ::ITensor, o::String)
+function ITensorMPS.expect(ψ::ITensor, o::String)
   return inner(ψ, apply(op(o, filterinds(ψ, "Site")...), ψ))
 end
 

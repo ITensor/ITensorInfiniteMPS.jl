@@ -222,7 +222,7 @@ function InfiniteBlockMPO(model::Model, s::CelledVector, translator::Function; k
   return mpos
 end
 
-function ITensors.MPO(model::Model, s::Vector{<:Index}; kwargs...)
+function ITensorMPS.MPO(model::Model, s::Vector{<:Index}; kwargs...)
   opsum = opsum_finite(model, length(s); kwargs...)
   return splitblocks(linkinds, MPO(opsum, s))
 end
@@ -245,6 +245,14 @@ function infinite_terms(opsum::OpSum; kwargs...)
   # stores all terms starting on site `i`.
   opsum_cell_dict = groupreduce(minimum ∘ ITensors.sites, +, opsum)
   nsites = maximum(keys(opsum_cell_dict))
+  # check that we don't have terms we will ignore
+  dropped = filter(x -> x <= 0, keys(opsum_cell_dict))
+  if length(dropped) > 0
+    error(
+      "The input unit cell terms include terms that are being ignored on sites: $([d for d in dropped])",
+    )
+  end
+
   # Assumes each site in the unit cell has a term
   for j in 1:nsites
     if !haskey(opsum_cell_dict, j)

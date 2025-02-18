@@ -77,7 +77,7 @@ end
 
 energy_local(ψ1, ψ2, h::MPO) = energy_local(ψ1, ψ2, prod(h))
 
-function ITensors.expect(ψ, o)
+function ITensorMPS.expect(ψ, o)
   return (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
 end
 
