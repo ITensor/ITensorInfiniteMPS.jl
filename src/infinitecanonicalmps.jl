@@ -249,26 +249,28 @@ function InfMPS(s::CelledVector, f::Function)
   return ψ = InfiniteCanonicalMPS(ψL, ψC, ψR)
 end
 
-function finite_mps(ψ::InfiniteCanonicalMPS, range::AbstractRange; ortho::String="right")
+function finite_mps(
+  ψ::InfiniteCanonicalMPS,
+  range::AbstractRange;
+  ortho_lims::UnitRange=last(range):last(range),
+)
   @assert isone(step(range))
+  @assert first(ortho_lims) == last(ortho_lims) # TODO: variable ortho_lims
+  @assert first(ortho_lims) ∈ range
+
   N = length(range)
-  if ortho == "right"
-    ψ_finite = ψ.AL[range]
-    ψ_finite[N] *= ψ.C[last(range)]
-    l0 = linkind(ψ.AL, first(range) - 1 => first(range))
-    lN = linkind(ψ.AR, last(range) => last(range) + 1)
-    center = N + 1
-  elseif ortho == "left"
-    ψ_finite = (ψ.AR[range])
-    # C gets applied to the left here
-    ψ_finite[1] *= (ψ.C[first(range) - 1])
-    l0 = linkind(ψ.AL, first(range) - 1 => first(range))
-    lN = linkind(ψ.AR, last(range) => last(range) + 1)
-    center = 2
-  else
-    error("Unknown ortho option $ortho. Please use left or right")
+  ψ_finite = Vector{ITensor}(undef, N)
+  for i in first(range):first(ortho_lims)
+    ψ_finite[i] = ψ.AL[i]
+  end
+  ψ_finite[first(ortho_lims)] *= ψ.C[first(ortho_lims)]
+
+  for i in (last(ortho_lims) + 1):last(range)
+    ψ_finite[i] = ψ.AR[i]
   end
 
+  l0 = linkind(ψ.AL, first(range) - 1 => first(range))
+  lN = linkind(ψ.AR, last(range) => last(range) + 1)
   l̃0 = sim(l0)
   l̃N = sim(lN)
   δl0 = δ(dag(l̃0), l0)
@@ -276,7 +278,7 @@ function finite_mps(ψ::InfiniteCanonicalMPS, range::AbstractRange; ortho::Strin
   ψ_finite[1] *= δl0
   ψ_finite[N] *= dag(δlN)
   ψ_finite = MPS(
-    [dag(δl0); [ψ_finiteᵢ for ψ_finiteᵢ in ψ_finite]; δlN]; ortho_lims=center:center
+    [dag(δl0); ψ_finite; δlN]; ortho_lims=(first(ortho_lims) + 1):(last(ortho_lims) + 1)
   )
   return ψ_finite
 end
