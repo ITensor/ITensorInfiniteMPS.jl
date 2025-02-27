@@ -2,7 +2,7 @@ using KrylovKit: schursolve, Arnoldi
 # TODO: call as `orthogonalize(ψ, -∞)`
 # TODO: could use commontags(ψ) as a default for left_tags
 function right_orthogonalize(
-  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12, eager=true
+  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12, eager=false
 )
   # A transfer matrix made from the 1st unit cell of the infinite MPS
   T = TransferMatrix(ψ)
