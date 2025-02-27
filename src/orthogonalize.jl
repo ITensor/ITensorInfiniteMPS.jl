@@ -45,7 +45,7 @@ function right_orthogonalize(
     #@show λ₁ᴿᴺ
     #@show v₁ᴿᴺ
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
-    @warn("v₁ᴿᴺ is not hermitian within rtol=$ishermitian_rtol")
+    @warn("v₁ᴿᴺ is not hermitian, passed kwargs: $ishermitian_kwargs")
   end
   if norm(imag(v₁ᴿᴺ)) / norm(v₁ᴿᴺ) > 1e-13
     println(
