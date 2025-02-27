@@ -2,7 +2,12 @@ using KrylovKit: schursolve, Arnoldi
 # TODO: call as `orthogonalize(ψ, -∞)`
 # TODO: could use commontags(ψ) as a default for left_tags
 function right_orthogonalize(
-  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12, eager=false
+  ψ::InfiniteMPS;
+  left_tags=ts"Left",
+  right_tags=ts"Right",
+  tol::Real=1e-12,
+  eager=true,
+  htol::Real=1e-10,
 )
   # A transfer matrix made from the 1st unit cell of the infinite MPS
   T = TransferMatrix(ψ)
@@ -36,7 +41,7 @@ function right_orthogonalize(
 
   # Fix the phase of the diagonal to make Hermitian
   v₁ᴿᴺ .*= conj(sign(v₁ᴿᴺ[1, 1]))
-  if !ishermitian(v₁ᴿᴺ; rtol=tol)
+  if !ishermitian(v₁ᴿᴺ; rtol=htol)
     @show λ₁ᴿᴺ
     @show v₁ᴿᴺ
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
