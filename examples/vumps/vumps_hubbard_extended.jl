@@ -56,6 +56,7 @@ subspace_expansion_kwargs = (cutoff=cutoff, maxdim=maxdim)
 
 println("\nRun VUMPS on initial product state, unit cell size $N")
 ψ = vumps_subspace_expansion(H, ψ; outer_iters, subspace_expansion_kwargs, vumps_kwargs)
+ψ = orthogonalize(ψ.AL, :; tol=1e-14) # ensure translation invariance
 
 # Check translational invariance
 println("\nCheck translational invariance of optimized infinite MPS")
