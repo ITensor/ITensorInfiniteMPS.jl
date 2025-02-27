@@ -249,21 +249,35 @@ function InfMPS(s::CelledVector, f::Function)
   return ψ = InfiniteCanonicalMPS(ψL, ψC, ψR)
 end
 
-function finite_mps(ψ::InfiniteCanonicalMPS, range::AbstractRange)
+function finite_mps(ψ::InfiniteCanonicalMPS, range::AbstractRange; ortho::String="right")
   @assert isone(step(range))
   N = length(range)
-  ψ_finite = ψ.AL[range]
-  ψ_finite[N] *= ψ.C[last(range)]
-  l0 = linkind(ψ.AL, first(range) - 1 => first(range))
+  if ortho == "right"
+    ψ_finite = ψ.AL[range]
+    ψ_finite[N] *= ψ.C[last(range)]
+    l0 = linkind(ψ.AL, first(range) - 1 => first(range))
+    lN = linkind(ψ.AR, last(range) => last(range) + 1)
+    center = N + 1
+  elseif ortho == "left"
+    ψ_finite = (ψ.AR[range])
+    # C gets applied to the left here
+    ψ_finite[1] *= (ψ.C[first(range) - 1])
+    l0 = linkind(ψ.AL, first(range) - 1 => first(range))
+    lN = linkind(ψ.AR, last(range) => last(range) + 1)
+    center = 2
+  else
+    error("Unknown ortho option $ortho. Please use left or right")
+  end
+
   l̃0 = sim(l0)
-  lN = linkind(ψ.AR, last(range) => last(range) + 1)
   l̃N = sim(lN)
   δl0 = δ(dag(l̃0), l0)
   δlN = δ(dag(l̃N), lN)
   ψ_finite[1] *= δl0
   ψ_finite[N] *= dag(δlN)
-  ψ_finite = MPS([dag(δl0); [ψ_finiteᵢ for ψ_finiteᵢ in ψ_finite]; δlN])
-  set_ortho_lims!(ψ_finite, (N + 1):(N + 1))
+  ψ_finite = MPS(
+    [dag(δl0); [ψ_finiteᵢ for ψ_finiteᵢ in ψ_finite]; δlN]; ortho_lims=center:center
+  )
   return ψ_finite
 end
 function ITensorMPS.expect(ψ::InfiniteCanonicalMPS, o::String, n::Int)
