@@ -7,7 +7,7 @@ function right_orthogonalize(
   right_tags=ts"Right",
   tol::Real=1e-12,
   eager=true,
-  htol::Real=1e-10,
+  ishermitian_rtol::Real=tol * 100,
 )
   # A transfer matrix made from the 1st unit cell of the infinite MPS
   T = TransferMatrix(ψ)
@@ -41,11 +41,11 @@ function right_orthogonalize(
 
   # Fix the phase of the diagonal to make Hermitian
   v₁ᴿᴺ .*= conj(sign(v₁ᴿᴺ[1, 1]))
-  if !ishermitian(v₁ᴿᴺ; rtol=htol)
-    @show λ₁ᴿᴺ
-    @show v₁ᴿᴺ
+  if !ishermitian(v₁ᴿᴺ; rtol=ishermitian_rtol)
+    #@show λ₁ᴿᴺ
+    #@show v₁ᴿᴺ
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
-    error("v₁ᴿᴺ not hermitian")
+    @warn("v₁ᴿᴺ is not hermitian within rtol=$ishermitian_rtol")
   end
   if norm(imag(v₁ᴿᴺ)) / norm(v₁ᴿᴺ) > 1e-13
     println(
@@ -122,11 +122,16 @@ end
 function mixed_canonical(
   ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12
 )
-  _, ψᴿ, _ = right_orthogonalize(ψ; left_tags=ts"", right_tags=ts"Right")
-  ψᴸ, C, λ = left_orthogonalize(ψᴿ; left_tags=ts"Left", right_tags=ts"Right")
+  _, ψᴿ, _ = right_orthogonalize(ψ; left_tags=ts"", right_tags)
+  ψᴸ, C, λ = left_orthogonalize(ψᴿ; left_tags, right_tags)
   if λ ≉ one(λ)
     error("λ should be approximately 1 after orthogonalization, instead it is $λ")
   end
+  # tags have been added, remove them now
+  # This is broken until we fix the tags for C
+  #removetags!(ψᴸ, left_tags)
+  #removetags!(ψᴿ, right_tags)
+  #removetags!(C,addtags(right_tags,left_tags))
   return InfiniteCanonicalMPS(ψᴸ, C, ψᴿ)
 end
 
