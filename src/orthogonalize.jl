@@ -7,7 +7,7 @@ function right_orthogonalize(
   right_tags=ts"Right",
   tol::Real=1e-12,
   eager=true,
-  ishermitian_rtol::Real=tol * 100,
+  ishermitian_kwargs=(; rtol=tol * 100),
 )
   # A transfer matrix made from the 1st unit cell of the infinite MPS
   T = TransferMatrix(ψ)
@@ -41,7 +41,7 @@ function right_orthogonalize(
 
   # Fix the phase of the diagonal to make Hermitian
   v₁ᴿᴺ .*= conj(sign(v₁ᴿᴺ[1, 1]))
-  if !ishermitian(v₁ᴿᴺ; rtol=ishermitian_rtol)
+  if !ishermitian(v₁ᴿᴺ; ishermitian_kwargs...)
     #@show λ₁ᴿᴺ
     #@show v₁ᴿᴺ
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
