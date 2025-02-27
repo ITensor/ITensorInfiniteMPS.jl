@@ -2,7 +2,7 @@ using KrylovKit: schursolve, Arnoldi
 # TODO: call as `orthogonalize(ψ, -∞)`
 # TODO: could use commontags(ψ) as a default for left_tags
 function right_orthogonalize(
-  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12
+  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12, eager=true
 )
   # A transfer matrix made from the 1st unit cell of the infinite MPS
   T = TransferMatrix(ψ)
@@ -15,13 +15,18 @@ function right_orthogonalize(
   # all of the right environments using `eigsolve` and shifting unit cells
 
   # original eigsolve function, switch to schur which enforces real
-  #λ⃗₁ᴿᴺ, v⃗₁ᴿᴺ, eigsolve_info = eigsolve(T, v₁ᴿᴺ, 1, :LM; tol, eager=true)
-  TT, v⃗₁ᴿᴺ, λ⃗₁ᴿᴺ, eigsolve_info = schursolve(T, v₁ᴿᴺ, 1, :LM, Arnoldi(; tol))
+  #λ⃗₁ᴿᴺ, v⃗₁ᴿᴺ, eigsolve_info = eigsolve(T, v₁ᴿᴺ, 1, :LM; tol, eager)
+  TT, v⃗₁ᴿᴺ, λ⃗₁ᴿᴺ, info = schursolve(T, v₁ᴿᴺ, 1, :LM, Arnoldi(; tol, eager))
   λ₁ᴿᴺ, v₁ᴿᴺ = λ⃗₁ᴿᴺ[1], v⃗₁ᴿᴺ[1]
 
-  if size(TT, 2) > 1 && TT[2, 1] != 0
-    @warn("Largest transfer matrix eigenvector is not real?")
+  if info.converged == 0
+    @warn "orthogonalize not converged after $(info.numiter) iterations"
   end
+
+  if size(TT, 2) > 1 && TT[2, 1] != 0
+    @warn("Non-unique largest eigenvector of transfer matrix found")
+  end
+
   if imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) > 1e-15
     @show λ₁ᴿᴺ
     error(
