@@ -252,7 +252,7 @@ end
 function finite_mps(
   ψ::InfiniteCanonicalMPS,
   range::AbstractRange;
-  ortho_lims::UnitRange=last(range):last(range),
+  ortho_lims::AbstractUnitRange=last(range):last(range),
 )
   @assert isone(step(range))
   @assert first(ortho_lims) == last(ortho_lims) # TODO: variable ortho_lims
