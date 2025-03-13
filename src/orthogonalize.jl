@@ -42,8 +42,6 @@ function right_orthogonalize(
   # Fix the phase of the diagonal to make Hermitian
   v₁ᴿᴺ .*= conj(sign(v₁ᴿᴺ[1, 1]))
   if !ishermitian(v₁ᴿᴺ; ishermitian_kwargs...)
-    #@show λ₁ᴿᴺ
-    #@show v₁ᴿᴺ
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
     @warn("v₁ᴿᴺ is not hermitian, passed kwargs: $ishermitian_kwargs")
   end
