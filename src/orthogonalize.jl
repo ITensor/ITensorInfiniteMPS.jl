@@ -1,7 +1,13 @@
+using KrylovKit: schursolve, Arnoldi
 # TODO: call as `orthogonalize(ψ, -∞)`
 # TODO: could use commontags(ψ) as a default for left_tags
 function right_orthogonalize(
-  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12
+  ψ::InfiniteMPS;
+  left_tags=ts"Left",
+  right_tags=ts"Right",
+  tol::Real=1e-12,
+  eager=true,
+  ishermitian_kwargs=(; rtol=tol * 100),
 )
   # A transfer matrix made from the 1st unit cell of the infinite MPS
   T = TransferMatrix(ψ)
@@ -12,8 +18,19 @@ function right_orthogonalize(
   # Start by getting the right eivenvector/eigenvalue of T
   # TODO: make a function `right_environments(::InfiniteMPS)` that computes
   # all of the right environments using `eigsolve` and shifting unit cells
-  λ⃗₁ᴿᴺ, v⃗₁ᴿᴺ, eigsolve_info = eigsolve(T, v₁ᴿᴺ, 1, :LM; tol=tol)
+
+  # original eigsolve function, switch to schur which enforces real
+  #λ⃗₁ᴿᴺ, v⃗₁ᴿᴺ, eigsolve_info = eigsolve(T, v₁ᴿᴺ, 1, :LM; tol, eager)
+  TT, v⃗₁ᴿᴺ, λ⃗₁ᴿᴺ, info = schursolve(T, v₁ᴿᴺ, 1, :LM, Arnoldi(; tol, eager))
   λ₁ᴿᴺ, v₁ᴿᴺ = λ⃗₁ᴿᴺ[1], v⃗₁ᴿᴺ[1]
+
+  if info.converged == 0
+    @warn "orthogonalize not converged after $(info.numiter) iterations"
+  end
+
+  if size(TT, 2) > 1 && TT[2, 1] != 0
+    @warn("Non-unique largest eigenvector of transfer matrix found")
+  end
 
   if imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) > 1e-15
     @show λ₁ᴿᴺ
@@ -24,11 +41,9 @@ function right_orthogonalize(
 
   # Fix the phase of the diagonal to make Hermitian
   v₁ᴿᴺ .*= conj(sign(v₁ᴿᴺ[1, 1]))
-  if !ishermitian(v₁ᴿᴺ; rtol=tol)
-    @show λ₁ᴿᴺ
-    @show v₁ᴿᴺ
+  if !ishermitian(v₁ᴿᴺ; ishermitian_kwargs...)
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
-    error("v₁ᴿᴺ not hermitian")
+    @warn("v₁ᴿᴺ is not hermitian, passed kwargs: $ishermitian_kwargs")
   end
   if norm(imag(v₁ᴿᴺ)) / norm(v₁ᴿᴺ) > 1e-13
     println(
@@ -105,8 +120,8 @@ end
 function mixed_canonical(
   ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12
 )
-  _, ψᴿ, _ = right_orthogonalize(ψ; left_tags=ts"", right_tags=ts"Right")
-  ψᴸ, C, λ = left_orthogonalize(ψᴿ; left_tags=ts"Left", right_tags=ts"Right")
+  _, ψᴿ, _ = right_orthogonalize(ψ; left_tags=ts"", right_tags)
+  ψᴸ, C, λ = left_orthogonalize(ψᴿ; left_tags, right_tags)
   if λ ≉ one(λ)
     error("λ should be approximately 1 after orthogonalization, instead it is $λ")
   end

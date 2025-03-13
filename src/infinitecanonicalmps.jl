@@ -249,21 +249,37 @@ function InfMPS(s::CelledVector, f::Function)
   return ψ = InfiniteCanonicalMPS(ψL, ψC, ψR)
 end
 
-function finite_mps(ψ::InfiniteCanonicalMPS, range::AbstractRange)
+function finite_mps(
+  ψ::InfiniteCanonicalMPS,
+  range::AbstractRange;
+  ortho_lims::AbstractUnitRange=last(range):last(range),
+)
   @assert isone(step(range))
+  @assert first(ortho_lims) == last(ortho_lims) # TODO: variable ortho_lims
+  @assert first(ortho_lims) ∈ range
+
   N = length(range)
-  ψ_finite = ψ.AL[range]
-  ψ_finite[N] *= ψ.C[last(range)]
+  ψ_finite = Vector{ITensor}(undef, N)
+  for i in first(range):first(ortho_lims)
+    ψ_finite[i] = ψ.AL[i]
+  end
+  ψ_finite[first(ortho_lims)] *= ψ.C[first(ortho_lims)]
+
+  for i in (last(ortho_lims) + 1):last(range)
+    ψ_finite[i] = ψ.AR[i]
+  end
+
   l0 = linkind(ψ.AL, first(range) - 1 => first(range))
-  l̃0 = sim(l0)
   lN = linkind(ψ.AR, last(range) => last(range) + 1)
+  l̃0 = sim(l0)
   l̃N = sim(lN)
   δl0 = δ(dag(l̃0), l0)
   δlN = δ(dag(l̃N), lN)
   ψ_finite[1] *= δl0
   ψ_finite[N] *= dag(δlN)
-  ψ_finite = MPS([dag(δl0); [ψ_finiteᵢ for ψ_finiteᵢ in ψ_finite]; δlN])
-  set_ortho_lims!(ψ_finite, (N + 1):(N + 1))
+  ψ_finite = MPS(
+    [dag(δl0); ψ_finite; δlN]; ortho_lims=(first(ortho_lims) + 1):(last(ortho_lims) + 1)
+  )
   return ψ_finite
 end
 function ITensorMPS.expect(ψ::InfiniteCanonicalMPS, o::String, n::Int)
