@@ -125,11 +125,6 @@ function mixed_canonical(
   if λ ≉ one(λ)
     error("λ should be approximately 1 after orthogonalization, instead it is $λ")
   end
-  # tags have been added, remove them now
-  # This is broken until we fix the tags for C
-  #removetags!(ψᴸ, left_tags)
-  #removetags!(ψᴿ, right_tags)
-  #removetags!(C,addtags(right_tags,left_tags))
   return InfiniteCanonicalMPS(ψᴸ, C, ψᴿ)
 end
 
