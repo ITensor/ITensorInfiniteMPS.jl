@@ -103,7 +103,11 @@ function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-
   s = siteinds(only, ψ)
   δʳ(n) = δ(dag(r[n]), prime(r[n]))
   δˡ(n) = δ(l[n], l′[n])
+  # op("Id", s[1]) is permuted w.r.t. below line
   δˢ(n) = δ(dag(s[n]), prime(s[n]))
+
+  # this code is limited to homogeneous physical spaces on each site within the unit cell!
+  phys_dim = dim(s[1])
 
   eₗ = [0.0]
   dₕ = size(H[1])[1]
@@ -112,11 +116,11 @@ function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-
   #Building the L vector for n_1 = 1
   # TM is 2 3 ... N 1
   localR = ψ.C[1] * δʳ(1) * ψ′.C[1] #to revise
-  for n in reverse(1:(dₕ - 1))
+  for a in reverse(1:(dₕ - 1))
     temp_Ls = apply_left_transfer_matrix(
-      translatecell(translator(ψ), Ls[1][n + 1], -1), n + 1, H, ψ, 2 - N
+      translatecell(translator(ψ), Ls[1][a + 1], -1), a + 1, H, ψ, 2 - N
     )
-    for j in 1:n
+    for j in 1:a
       if isassigned(temp_Ls, j)
         if isassigned(Ls[1], j)
           Ls[1][j] += temp_Ls[j]
@@ -125,25 +129,45 @@ function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-
         end
       end
     end
-    if !isempty(H[1][n, n])
-      λ = H[1][n, n][1, 1]
-      δiag = δˢ(1)
+    # starting and ending identity OPs are order 2,
+    # as they have NO link dimension,
+    # because they terminate and do not transport QN numbers.
+    # Intermediate OPs proportional to the identity DO transport QNs and must be order 4!
+    if (!isempty(H[1][a, a])) && (order(H[1][a, a]) == 2 )
+      λ = H[1][a, a][1, 1]
+      # δiag = δˢ(1) # not used
       #@assert norm(H[1][n, n] - λ * δiag) == 0 "Non identity diagonal not implemented in MPO"
       @assert abs(λ) <= 1 "Diverging term"
-      eₗ[1] = (Ls[1][n] * localR)[]
-      Ls[1][n] += -(eₗ[1] * denseblocks(δˡ(1)))
+      eₗ[1] = (Ls[1][a] * localR)[]
+      Ls[1][a] += -(eₗ[1] * denseblocks(δˡ(1)))
       if λ == 1
-        A = AOᴸ(ψ, H, n)
-        Ls[1][n], info = linsolve(A, Ls[1][n], 1, -1; tol=tol)
+        A = AOᴸ(ψ, H, a)
+        Ls[1][a], info = linsolve(A, Ls[1][a], 1, -1; tol=tol)
       else
-        println("Not implemented")
+        # println("Not implemented")
+        error("This case cannot exist! The last and first term of the diagonal of the MPO must be the identity.")
         flush(stdout)
         flush(stderr)
       end
+    elseif (!isempty(H[1][a, a])) && (order(H[1][a, a]) == 4 )
+      # assert diagonal operator!
+      λ = H[1][a, a][1, 1, 1, 1]
+      test_Tensor = reshape(diagm(λ*ones(phys_dim)), (1,phys_dim,phys_dim,1))
+      # verify that this OP = λ⋅Id
+      @assert norm(test_Tensor - array(H[1][a, a])) ≈ 0.0 "Only operators proportional to the identity are allowed on the diagonal!"
+
+      @assert (λ <= 1.0) && (λ >= 0.0) "The proportionality factor of the operator to the identity must be 0 ≤ λ ≤ 1"
+      
+      # solve equations with linsolve
+      eₗ[1] = (Ls[1][a] * localR)[]
+      solo_link = inds(Ls[1][a])[1]
+      Ls[1][a] += -(eₗ[1] * denseblocks(δˡ(1))*setelt(solo_link[1]))
+      A = AOᴸ(ψ, H, a)
+      Ls[1][a], info = linsolve(A, Ls[1][a], 1, -1; tol=tol)
     end
   end
-  for n in 2:N
-    Ls[n] = apply_local_left_transfer_matrix(Ls[n - 1], H, ψ, n)
+  for a in 2:N
+    Ls[a] = apply_local_left_transfer_matrix(Ls[a - 1], H, ψ, a)
   end
   return CelledVector(Ls), eₗ[1]
 end
@@ -192,11 +216,13 @@ function initialize_right_environment(
     Rs[1] = ITensor(Float64, link, dag(prime(link)))
   end
   for j in 2:(dₕ - 1)
-    mpo_link = only(uniqueinds(H[n - 1][1, j], sit))
+    mpo_link = only(uniqueinds(H[n - 1][dₕ,j], sit))
     Rs[j] = ITensor(Float64, dag(mpo_link), link, dag(prime(link)))
   end
   return Rs
 end
+
+Index{Vector{Pair{QN, Int64}}}, Index{Vector{Pair{QN, Int64}}}
 
 function apply_local_right_transfer_matrix(
   Lstart::Vector{ITensor}, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
@@ -256,17 +282,20 @@ function right_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e
   δˡ(n) = δ(l[n], dag(prime(l[n])))
   δˢ(n) = δ(dag(s[n]), prime(s[n]))
 
+  # this code is limited to homogeneous physical spaces on each site within the unit cell!
+  phys_dim = dim(s[1])
+
   eᵣ = [0.0]
   dₕ = size(H[1])[1]
   Rs = [initialize_right_environment(H, ψ, j; init_first=true) for j in 1:N]
   #Building the R vector for n_1 = 1
   # TM is 2-N 3-N ... 0
   localL = ψ.C[0] * δˡ(0) * dag(prime(ψ.C[0]))
-  for n in 2:dₕ
+  for a in 2:dₕ
     temp_Rs = apply_right_transfer_matrix(
-      translatecell(translator(ψ), Rs[1][n - 1], 1), n - 1, H, ψ, N
+      translatecell(translator(ψ), Rs[1][a - 1], 1), a - 1, H, ψ, N
     )
-    for j in n:dₕ
+    for j in a:dₕ
       if isassigned(temp_Rs, j)
         if isassigned(Rs[1], j)
           Rs[1][j] += temp_Rs[j]
@@ -275,21 +304,40 @@ function right_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e
         end
       end
     end
-    if !isempty(H[1][n, n])
-      λ = H[1][n, n][1, 1]
-      δiag = δˢ(1)
+    # starting and ending identity OPs are order 2,
+    # as they have NO link dimension,
+    # because they terminate and do not transport QN numbers.
+    # Intermediate OPs proportional to the identity DO transport QNs and must be order 4!
+    if (!isempty(H[1][a, a])) && (order(H[1][a, a]) == 2 )
+      λ = H[1][a, a][1, 1]
+      # δiag = δˢ(1)
       #@assert norm(H[1][n, n] - λ * δiag) == 0 "Non identity diagonal not implemented in MPO"
       @assert abs(λ) <= 1 "Diverging term"
-      eᵣ[1] = (localL * Rs[1][n])[]
-      Rs[1][n] += -(eᵣ[1] * denseblocks(δʳ(0)))
+      eᵣ[1] = (localL * Rs[1][a])[]
+      Rs[1][a] += -(eᵣ[1] * denseblocks(δʳ(0)))
       if λ == 1
-        A = AOᴿ(ψ, H, n)
-        Rs[1][n], info = linsolve(A, Rs[1][n], 1, -1; tol=tol)
+        A = AOᴿ(ψ, H, a)
+        Rs[1][a], info = linsolve(A, Rs[1][a], 1, -1; tol=tol)
       else
-        println("Not yet implemented")
+        error("This case cannot exist! The last and first term of the diagonal of the MPO must be the identity.")
         flush(stdout)
         flush(stderr)
       end
+    elseif (!isempty(H[1][a, a])) && (order(H[1][a, a]) == 4 )
+      # assert diagonal operator!
+      λ = H[1][a, a][1, 1, 1, 1]
+      test_Tensor = reshape(diagm(λ*ones(phys_dim)), (1,phys_dim,phys_dim,1))
+      # verify that this OP = λ⋅Id
+      @assert norm(test_Tensor - array(H[1][a, a])) ≈ 0.0 "Only operators proportional to the identity are allowed on the diagonal!"
+
+      @assert (λ <= 1.0) && (λ >= 0.0) "The proportionality factor of the operator to the identity must be 0 ≤ λ ≤ 1"
+      
+      # solve euqations with linsolve
+      eᵣ[1] = (localL * Rs[1][a])[]
+      solo_link = inds(Rs[1][a])[1]
+      Rs[1][a] += -(eᵣ[1] * denseblocks(δʳ(0)) * setelt(solo_link[1]))
+      A = AOᴿ(ψ, H, a)
+      Rs[1][a], info = linsolve(A, Rs[1][a], 1, -1; tol=tol)
     end
   end
   if N > 1
