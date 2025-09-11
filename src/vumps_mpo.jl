@@ -109,7 +109,9 @@ function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-
   # this code is limited to homogeneous physical spaces on each site within the unit cell!
   phys_dim = dim(s[1])
 
-  eₗ = [0.0]
+  eltype = ITensorMPS.promote_itensor_eltype(ψ)
+
+  eₗ = [zero(eltype)]
   dₕ = size(H[1])[1]
   #Ls = [Vector{ITensor}(undef, dₕ) for j in 1:N]
   Ls = [initialize_left_environment(H, ψ, j; init_last=true) for j in 1:N]
@@ -285,7 +287,9 @@ function right_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e
   # this code is limited to homogeneous physical spaces on each site within the unit cell!
   phys_dim = dim(s[1])
 
-  eᵣ = [0.0]
+  eltype = ITensorMPS.promote_itensor_eltype(ψ)
+
+  eᵣ = [zero(eltype)]
   dₕ = size(H[1])[1]
   Rs = [initialize_right_environment(H, ψ, j; init_first=true) for j in 1:N]
   #Building the R vector for n_1 = 1
@@ -413,8 +417,14 @@ function tdvp_iteration_sequential(
   Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
   Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
 
-  eL = zeros(N)
-  eR = zeros(N)
+  eltype_ψ = ITensorMPS.promote_itensor_eltype(ψ)
+
+  eltype_t = typeof(time_step)
+
+  eltype = typeof(one(eltype_ψ) * one(eltype_t))
+
+  eL = zeros(eltype,N)
+  eR = zeros(eltype,N)
   for n in 1:N
     L, eL[n] = left_environment(H, ψ; tol=_solver_tol) #TODO currently computing two many of them
     R, eR[n] = right_environment(H, ψ; tol=_solver_tol) #TODO currently computing two many of them
@@ -475,8 +485,13 @@ function tdvp_iteration_parallel(
   Ãᴸ = InfiniteMPS(Vector{ITensor}(undef, N))
   Ãᴿ = InfiniteMPS(Vector{ITensor}(undef, N))
 
-  eL = zeros(1)
-  eR = zeros(1)
+  eltype_ψ = ITensorMPS.promote_itensor_eltype(ψ)
+  eltype_t = typeof(time_step)
+  eltype = typeof(one(eltype_ψ) * one(eltype_t))
+
+  eL = zeros(eltype,1)
+  eR = zeros(eltype,1)
+
   L, eL[1] = left_environment(H, ψ; tol=_solver_tol) #TODO currently computing two many of them
   R, eR[1] = right_environment(H, ψ; tol=_solver_tol) #TODO currently computing two many of them
   for n in 1:N
