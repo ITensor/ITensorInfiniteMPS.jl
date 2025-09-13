@@ -226,7 +226,10 @@ function initialize_right_environment(
   return Rs
 end
 
+<<<<<<< HEAD
 Index{Vector{Pair{QN,Int64}}}, Index{Vector{Pair{QN,Int64}}}
+=======
+>>>>>>> 21446374b8b806571aa46667a272c24595aa8d75
 
 function apply_local_right_transfer_matrix(
   Lstart::Vector{ITensor}, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
