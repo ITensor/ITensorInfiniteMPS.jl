@@ -226,7 +226,6 @@ function initialize_right_environment(
   return Rs
 end
 
-
 function apply_local_right_transfer_matrix(
   Lstart::Vector{ITensor}, H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS, n_1::Int64
 )
