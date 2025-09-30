@@ -172,13 +172,13 @@ function ITensorMPS.linkinds(ψ::InfiniteMPS)
 end
 
 function InfMPS(
-  eltype::Type{<:Number}, s::Vector, f::Function, translator::Function=translatecelltags
+  eltype::Type{<:Number}, s::Vector, f::Function, translator::Function=translatecelltags; kwargs...
 )
-  return InfMPS(eltype, infsiteinds(s, translator), f)
+  return InfMPS(eltype, infsiteinds(s, translator), f; kwargs...)
 end
 
-function InfMPS(s::Vector, f::Function, translator::Function=translatecelltags)
-  return InfMPS(Float64, infsiteinds(s, translator), f)
+function InfMPS(s::Vector, f::Function, translator::Function=translatecelltags; kwargs...)
+  return InfMPS(Float64, infsiteinds(s, translator), f; kwargs...)
 end
 
 function indval(iv::Pair)
@@ -241,7 +241,7 @@ function UniformMPS(
   return A
 end
 
-InfMPS(s::CelledVector, f::Function; kwargs) = InfMPS(Float64, s::CelledVector, f::Function; kwargs...)
+InfMPS(s::CelledVector, f::Function; kwargs...) = InfMPS(Float64, s::CelledVector, f::Function; kwargs...)
 
 function InfMPS(eltype::Type{<:Number}, s::CelledVector, f::Function; extended_linkdim::Int=1)
   # TODO: rename cell_length
