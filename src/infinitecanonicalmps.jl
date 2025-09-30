@@ -191,7 +191,7 @@ function zero_qn(i::Index)
   return zero(qn(first(space(i))))
 end
 
-function insert_linkinds!(A; left_dir=ITensors.Out)
+function insert_linkinds!(A; left_dir=ITensors.Out, extended_linkdim::Int=1)
   # TODO: use `celllength` here
   N = nsites(A)
   l = CelledVector{indtype(A)}(undef, N, translator(A))
@@ -200,19 +200,19 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   dim = if hasqns(s)
     kwargs = (; dir=left_dir)
     qn_ln = zero_qn(s)
-    [qn_ln => 1] #Default to 0 on the right
+    [qn_ln => extended_linkdim] #Default to 0 on the right
   else
     kwargs = ()
-    1
+    extended_linkdim
   end
   l[N] = Index(dim, default_link_tags("l", n, 1); kwargs...)
   for n in 1:(N - 1)
     # TODO: is this correct?
     dim = if hasqns(s)
       qn_ln = flux(A[n]) * left_dir + qn_ln#Fixed a bug on flux conservation
-      [qn_ln => 1]
+      [qn_ln => extended_linkdim]
     else
-      1
+      extended_linkdim
     end
     l[n] = Index(dim, default_link_tags("l", n, 1); kwargs...)
   end
@@ -226,7 +226,7 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
 end
 
 function UniformMPS(
-  eltype::Type{<:Number}, s::CelledVector, f::Function; left_dir=ITensors.Out
+  eltype::Type{<:Number}, s::CelledVector, f::Function; left_dir=ITensors.Out, extended_linkdim::Int=1
 )
   sᶜ¹ = s[Cell(1)]
   A = InfiniteMPS([ITensor(eltype, sⁿ) for sⁿ in sᶜ¹], translator(s))
@@ -237,17 +237,17 @@ function UniformMPS(
     Aⁿ[indval(s[n] => f(n))] = 1.0
     A[n] = Aⁿ
   end
-  insert_linkinds!(A; left_dir=left_dir)
+  insert_linkinds!(A; left_dir=left_dir, extended_linkdim=extended_linkdim)
   return A
 end
 
-InfMPS(s::CelledVector, f::Function) = InfMPS(Float64, s::CelledVector, f::Function)
+InfMPS(s::CelledVector, f::Function; kwargs) = InfMPS(Float64, s::CelledVector, f::Function; kwargs...)
 
-function InfMPS(eltype::Type{<:Number}, s::CelledVector, f::Function)
+function InfMPS(eltype::Type{<:Number}, s::CelledVector, f::Function; extended_linkdim::Int=1)
   # TODO: rename cell_length
   N = length(s)
-  ψL = UniformMPS(eltype, s, f; left_dir=ITensors.Out)
-  ψR = UniformMPS(eltype, s, f; left_dir=ITensors.In)
+  ψL = UniformMPS(eltype, s, f; left_dir=ITensors.Out, extended_linkdim)
+  ψR = UniformMPS(eltype, s, f; left_dir=ITensors.In, extended_linkdim)
   ψC = InfiniteMPS(N, translator(s))
   l = linkinds(ψL)
   r = linkinds(ψR)
