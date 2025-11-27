@@ -6,6 +6,7 @@ function right_orthogonalize(
   left_tags=ts"Left",
   right_tags=ts"Right",
   tol::Real=1e-12,
+  tol_imag::Real = 1e-15,
   eager=true,
   ishermitian_kwargs=(; rtol=tol * 100),
 )
@@ -32,7 +33,7 @@ function right_orthogonalize(
     @warn("Non-unique largest eigenvector of transfer matrix found")
   end
 
-  if imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) > 1e-15
+  if imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) > tol_imag
     @show λ₁ᴿᴺ
     error(
       "Imaginary part of eigenvalue is large: imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) = $(imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ))",
@@ -45,9 +46,9 @@ function right_orthogonalize(
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
     @warn("v₁ᴿᴺ is not hermitian, passed kwargs: $ishermitian_kwargs")
   end
-  if norm(imag(v₁ᴿᴺ)) / norm(v₁ᴿᴺ) > 1e-13
+  if norm(imag(v₁ᴿᴺ)) / norm(v₁ᴿᴺ) > tol_imag
     println(
-      "Norm of the imaginary part $(norm(imag(v₁ᴿᴺ))) is larger than the tolerance value 1e-15. Keeping as complex.",
+      "Norm of the imaginary part $(norm(imag(v₁ᴿᴺ))) is larger than the tolerance value $(tol_imag). Keeping as complex.",
     )
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
   else
