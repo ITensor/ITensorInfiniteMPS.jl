@@ -102,10 +102,10 @@ function right_orthogonalize_polar(
 end
 
 function left_orthogonalize(
-  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12
+  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12, tol_imag::Real = 1e-15,
 )
   Cᴸ, ψᴸ, λᴸ = right_orthogonalize(
-    reverse(ψ); left_tags=right_tags, right_tags=left_tags, tol=tol
+    reverse(ψ); left_tags=right_tags, right_tags=left_tags, tol=tol, tol_imag=tol_imag,
   )
   # Cᴸ has the unit cell shifted from what is expected
   Cᴸ = reverse(Cᴸ)
@@ -119,10 +119,10 @@ end
 # TODO: rename to `orthogonalize(ψ)`? With no limit specified, it is like orthogonalizing to over point.
 # Alternatively, it could be called as `orthogonalize(ψ, :)`
 function mixed_canonical(
-  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12
+  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12, tol_imag::Real = 1e-15,
 )
-  _, ψᴿ, _ = right_orthogonalize(ψ; left_tags=ts"", right_tags)
-  ψᴸ, C, λ = left_orthogonalize(ψᴿ; left_tags, right_tags)
+  _, ψᴿ, _ = right_orthogonalize(ψ; left_tags=ts"", right_tags, tol, tol_imag)
+  ψᴸ, C, λ = left_orthogonalize(ψᴿ; left_tags, right_tags, tol, tol_imag)
   if λ ≉ one(λ)
     error("λ should be approximately 1 after orthogonalization, instead it is $λ")
   end
