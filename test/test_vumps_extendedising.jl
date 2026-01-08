@@ -43,8 +43,7 @@ end
   maxiter = 20
   outer_iters = 4
   for multisite_update_alg in ["sequential", "parallel"],
-    conserve_qns in [true, false],
-    nsites in [1, 2],
+    conserve_qns in [true, false], nsites in [1, 2],
     time_step in [-Inf, -0.5]
 
     vumps_kwargs = (
