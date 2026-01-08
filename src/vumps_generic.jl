@@ -222,7 +222,7 @@ end
 
 function vumps(
   args...;
-  time_step=-Inf,
+  time_step=(-Inf),
   eigsolve_tol=(x -> x / 100),
   solver_tol=eigsolve_tol,
   eager=true,

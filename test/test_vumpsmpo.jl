@@ -45,8 +45,7 @@ end
                                                                                                                                [
       "sequential", "parallel"
     ],
-    conserve_qns in [true, false],
-    N in [1, 2],
+    conserve_qns in [true, false], N in [1, 2],
     time_step in [-Inf]
 
     vumps_kwargs = (
@@ -117,8 +116,7 @@ end
   energy_finite = expect_three_site(ψfinite, hnfinite, nfinite)
 
   for multisite_update_alg in ["sequential"],
-    conserve_qns in [true, false],
-    nsites in [1, 2],
+    conserve_qns in [true, false], nsites in [1, 2],
     time_step in [-Inf]
 
     vumps_kwargs = (
@@ -190,8 +188,7 @@ end
   temp_translatecell(i::Index, n::Integer) = ITensorInfiniteMPS.translatecelltags(i, n)
 
   for multisite_update_alg in ["sequential"],
-    conserve_qns in [true, false],
-    nsite in [1, 2, 3],
+    conserve_qns in [true, false], nsite in [1, 2, 3],
     time_step in [-Inf]
 
     if nsite > 1 && isodd(nsite) && conserve_qns
