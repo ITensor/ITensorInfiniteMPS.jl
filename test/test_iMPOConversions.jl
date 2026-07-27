@@ -146,9 +146,7 @@ end
   models = [(Model"heisenbergNNN"(), "S=1/2"), (Model"hubbardNNN"(), "Electron")]
   @testset "H=$model, Ncell=$Ncell, NNN=$NNN, Antiferro=$Af, qns=$qns" for (model, site) in
                                                                            models,
-    qns in [false, true],
-    Ncell in 2:6,
-    NNN in 1:(Ncell - 1),
+    qns in [false, true], Ncell in 2:6, NNN in 1:(Ncell - 1),
     Af in [true, false]
 
     if isodd(Ncell) && Af #skip test since Af state does fit inside odd cells.
