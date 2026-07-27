@@ -171,8 +171,14 @@ function ITensorMPS.linkinds(ψ::InfiniteMPS)
   return CelledVector([linkinds(ψ, (n, n + 1)) for n in 1:N], translator(ψ))
 end
 
-function InfMPS(s::Vector, f::Function, translator::Function=translatecelltags)
-  return InfMPS(infsiteinds(s, translator), f)
+function InfMPS(
+  eltype::Type{<:Number}, s::Vector, f::Function, translator::Function=translatecelltags; kwargs...
+)
+  return InfMPS(eltype, infsiteinds(s, translator), f; kwargs...)
+end
+
+function InfMPS(s::Vector, f::Function, translator::Function=translatecelltags; kwargs...)
+  return InfMPS(Float64, infsiteinds(s, translator), f; kwargs...)
 end
 
 function indval(iv::Pair)
@@ -185,7 +191,7 @@ function zero_qn(i::Index)
   return zero(qn(first(space(i))))
 end
 
-function insert_linkinds!(A; left_dir=ITensors.Out)
+function insert_linkinds!(A; left_dir=ITensors.Out, extended_linkdim::Int=1)
   # TODO: use `celllength` here
   N = nsites(A)
   l = CelledVector{indtype(A)}(undef, N, translator(A))
@@ -194,19 +200,19 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   dim = if hasqns(s)
     kwargs = (; dir=left_dir)
     qn_ln = zero_qn(s)
-    [qn_ln => 1] #Default to 0 on the right
+    [qn_ln => extended_linkdim] #Default to 0 on the right
   else
     kwargs = ()
-    1
+    extended_linkdim
   end
   l[N] = Index(dim, default_link_tags("l", n, 1); kwargs...)
   for n in 1:(N - 1)
     # TODO: is this correct?
     dim = if hasqns(s)
       qn_ln = flux(A[n]) * left_dir + qn_ln#Fixed a bug on flux conservation
-      [qn_ln => 1]
+      [qn_ln => extended_linkdim]
     else
-      1
+      extended_linkdim
     end
     l[n] = Index(dim, default_link_tags("l", n, 1); kwargs...)
   end
@@ -219,9 +225,11 @@ function insert_linkinds!(A; left_dir=ITensors.Out)
   return A
 end
 
-function UniformMPS(s::CelledVector, f::Function; left_dir=ITensors.Out)
+function UniformMPS(
+  eltype::Type{<:Number}, s::CelledVector, f::Function; left_dir=ITensors.Out, extended_linkdim::Int=1
+)
   sᶜ¹ = s[Cell(1)]
-  A = InfiniteMPS([ITensor(sⁿ) for sⁿ in sᶜ¹], translator(s))
+  A = InfiniteMPS([ITensor(eltype, sⁿ) for sⁿ in sᶜ¹], translator(s))
   #A.data.translator = translator(s)
   N = length(sᶜ¹)
   for n in 1:N
@@ -229,20 +237,22 @@ function UniformMPS(s::CelledVector, f::Function; left_dir=ITensors.Out)
     Aⁿ[indval(s[n] => f(n))] = 1.0
     A[n] = Aⁿ
   end
-  insert_linkinds!(A; left_dir=left_dir)
+  insert_linkinds!(A; left_dir=left_dir, extended_linkdim=extended_linkdim)
   return A
 end
 
-function InfMPS(s::CelledVector, f::Function)
+InfMPS(s::CelledVector, f::Function; kwargs...) = InfMPS(Float64, s::CelledVector, f::Function; kwargs...)
+
+function InfMPS(eltype::Type{<:Number}, s::CelledVector, f::Function; extended_linkdim::Int=1)
   # TODO: rename cell_length
   N = length(s)
-  ψL = UniformMPS(s, f; left_dir=ITensors.Out)
-  ψR = UniformMPS(s, f; left_dir=ITensors.In)
+  ψL = UniformMPS(eltype, s, f; left_dir=ITensors.Out, extended_linkdim)
+  ψR = UniformMPS(eltype, s, f; left_dir=ITensors.In, extended_linkdim)
   ψC = InfiniteMPS(N, translator(s))
   l = linkinds(ψL)
   r = linkinds(ψR)
   for n in 1:N
-    ψCₙ = ITensor(dag(l[n])..., r[n]...)
+    ψCₙ = ITensor(eltype, dag(l[n])..., r[n]...)
     ψCₙ[l[n]... => 1, r[n]... => 1] = 1.0
     ψC[n] = ψCₙ
   end

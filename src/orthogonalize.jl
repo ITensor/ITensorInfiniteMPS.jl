@@ -6,6 +6,7 @@ function right_orthogonalize(
   left_tags=ts"Left",
   right_tags=ts"Right",
   tol::Real=1e-12,
+  tol_imag::Real = 1e-15,
   eager=true,
   ishermitian_kwargs=(; rtol=tol * 100),
 )
@@ -32,7 +33,7 @@ function right_orthogonalize(
     @warn("Non-unique largest eigenvector of transfer matrix found")
   end
 
-  if imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) > 1e-15
+  if imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) > tol_imag
     @show λ₁ᴿᴺ
     error(
       "Imaginary part of eigenvalue is large: imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ) = $(imag(λ₁ᴿᴺ) / norm(λ₁ᴿᴺ))",
@@ -45,9 +46,9 @@ function right_orthogonalize(
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
     @warn("v₁ᴿᴺ is not hermitian, passed kwargs: $ishermitian_kwargs")
   end
-  if norm(imag(v₁ᴿᴺ)) / norm(v₁ᴿᴺ) > 1e-13
+  if norm(imag(v₁ᴿᴺ)) / norm(v₁ᴿᴺ) > tol_imag
     println(
-      "Norm of the imaginary part $(norm(imag(v₁ᴿᴺ))) is larger than the tolerance value 1e-15. Keeping as complex.",
+      "Norm of the imaginary part $(norm(imag(v₁ᴿᴺ))) is larger than the tolerance value $(tol_imag). Keeping as complex.",
     )
     @show norm(v₁ᴿᴺ - swapinds(dag(v₁ᴿᴺ), reverse(Pair(inds(v₁ᴿᴺ)...))))
   else
@@ -101,10 +102,10 @@ function right_orthogonalize_polar(
 end
 
 function left_orthogonalize(
-  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12
+  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12, tol_imag::Real = 1e-15,
 )
   Cᴸ, ψᴸ, λᴸ = right_orthogonalize(
-    reverse(ψ); left_tags=right_tags, right_tags=left_tags, tol=tol
+    reverse(ψ); left_tags=right_tags, right_tags=left_tags, tol=tol, tol_imag=tol_imag,
   )
   # Cᴸ has the unit cell shifted from what is expected
   Cᴸ = reverse(Cᴸ)
@@ -118,10 +119,10 @@ end
 # TODO: rename to `orthogonalize(ψ)`? With no limit specified, it is like orthogonalizing to over point.
 # Alternatively, it could be called as `orthogonalize(ψ, :)`
 function mixed_canonical(
-  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12
+  ψ::InfiniteMPS; left_tags=ts"Left", right_tags=ts"Right", tol::Real=1e-12, tol_imag::Real = 1e-15,
 )
-  _, ψᴿ, _ = right_orthogonalize(ψ; left_tags=ts"", right_tags)
-  ψᴸ, C, λ = left_orthogonalize(ψᴿ; left_tags, right_tags)
+  _, ψᴿ, _ = right_orthogonalize(ψ; left_tags=ts"", right_tags, tol, tol_imag)
+  ψᴸ, C, λ = left_orthogonalize(ψᴿ; left_tags, right_tags, tol, tol_imag)
   if λ ≉ one(λ)
     error("λ should be approximately 1 after orthogonalization, instead it is $λ")
   end
