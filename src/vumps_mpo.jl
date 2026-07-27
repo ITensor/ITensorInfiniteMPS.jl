@@ -1,9 +1,29 @@
-# Struct for use in linear system solver
+#
+# The fixed point equations for the environments of an `InfiniteBlockMPO` follow
+# appendix C 2 of Zauner-Stijl et al., arXiv:1701.07035. With a lower triangular
+# MPO `W` and diagonal blocks `W[a, a] = λₐ 1`, the unit cell transfer matrix of
+# channel `a` is `T^{aa} = λₐ T`, and the fixed point equations (C19)/(C20) are
+# solved recursively (their table VI) by dispatching on `λₐ`:
+#
+#   T^{aa} = 0        -> (Lₐ| = (Y_Lₐ|                                  (nothing to solve)
+#   |λₐ| < 1          -> (Lₐ|[1 - λₐ T] = (Y_Lₐ|                        (C21)/(C22)
+#   λₐ = 1            -> (Lₐ|[1 - T + |R)(1|] = (Y_Lₐ| - (Y_Lₐ|R)(1|    (C25a)/(C25b)
+#
+# Only the last case has a zero mode to project out, and only there is the energy
+# density (C27) subtracted. Applying that regularization to a `|λₐ| < 1` channel
+# shifts `(Lₐ|` by a spurious `(Y_Lₐ|R)/(1 - λₐ) (1|`, which then contaminates the
+# energy through (C17).
+
+# Struct for use in linear system solver.
+# `projector = true` gives the operator of (C25a), `false` the one of (C21).
 struct AOᴸ
   ψ::InfiniteCanonicalMPS
   H::InfiniteBlockMPO
   n::Int
+  projector::Bool
 end
+
+AOᴸ(ψ::InfiniteCanonicalMPS, H::InfiniteBlockMPO, n::Int) = AOᴸ(ψ, H, n, true)
 
 function (A::AOᴸ)(x)
   ψ = A.ψ
@@ -24,8 +44,67 @@ function (A::AOᴸ)(x)
   for j in (2 - N):1
     xT = xT * H[j][n, n] * ψ.AL[j] * ψ′.AL[j]
   end
+  A.projector || return xT
   xR = x * ψ.C[1] * (ψ′.C[1] * δʳ(1)) * denseblocks(δˡ(1))
   return xT - xR
+end
+
+"""
+    local_diagonal_scalar(W::ITensor, s::Index; rtol=1e-12)
+
+The scalar `λ` such that the diagonal MPO block `W` equals `λ` times the identity on
+the physical index `s`, and the identity (a pass through) on the MPO link indices.
+
+Errors if `W` is not of that form, which is the assumption under which the fixed point
+equations (C19)/(C20) of arXiv:1701.07035 decouple channel by channel.
+"""
+function local_diagonal_scalar(W::ITensor, s::Index; rtol=1e-12)
+  δˢ = δ(dag(s), prime(s))
+  links = uniqueinds(W, δˢ)
+  identity_block = if length(links) == 0
+    denseblocks(δˢ)
+  elseif length(links) == 2
+    il, ir = links
+    if dim(il) != dim(ir)
+      error(
+        "Diagonal MPO block has left link $(il) and right link $(ir) of different dimension, so it cannot be proportional to the identity.",
+      )
+    end
+    # densify before the outer product, NDTensors has no `outer!` for two Diag tensors
+    denseblocks(δˢ) * denseblocks(δ(il, ir))
+  else
+    error("Diagonal MPO block of order $(order(W)) is not supported.")
+  end
+  λ = (W * dag(identity_block))[] / (identity_block * dag(identity_block))[]
+  if norm(W - λ * identity_block) > rtol * max(norm(W), one(real(eltype(W))))
+    error(
+      "Only diagonal MPO blocks proportional to the identity are supported, the block on site index $(s) is not.",
+    )
+  end
+  return λ
+end
+
+"""
+    mpo_diagonal_scalar(H::InfiniteBlockMPO, s, a::Int; rtol=1e-12)
+
+The scalar `λ` of the unit cell transfer matrix `T^{aa} = λ T` of channel `a`, i.e. the
+product of the per site scalars of the diagonal blocks `H[n][a, a]`. Returns `nothing`
+when `T^{aa} = 0`, i.e. when the diagonal block vanishes on at least one site of the
+unit cell.
+
+This is the quantity that table VI of arXiv:1701.07035 dispatches on when solving the
+environment fixed point equations.
+"""
+function mpo_diagonal_scalar(H::InfiniteBlockMPO, s, a::Int; rtol=1e-12)
+  λ = nothing
+  for n in 1:nsites(H)
+    W = H[n][a, a]
+    isempty(W) && return nothing
+    λₙ = local_diagonal_scalar(W, s[n]; rtol=rtol)
+    iszero(λₙ) && return nothing
+    λ = isnothing(λ) ? λₙ : λ * λₙ
+  end
+  return λ
 end
 
 function initialize_left_environment(
@@ -89,7 +168,13 @@ end
 
 # Also input C bond matrices to help compute the right fixed points
 # of ψ (R ≈ C * dag(C))
-function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-10)
+function left_environment(
+  H::InfiniteBlockMPO,
+  ψ::InfiniteCanonicalMPS;
+  tol=1e-10,
+  geometric_tol=1e-14,
+  identity_tol=1e-12,
+)
   N = nsites(H)
   @assert N == nsites(ψ)
 
@@ -105,9 +190,6 @@ function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-
   δˡ(n) = δ(l[n], l′[n])
   # op("Id", s[1]) is permuted w.r.t. below line
   δˢ(n) = δ(dag(s[n]), prime(s[n]))
-
-  # this code is limited to homogeneous physical spaces on each site within the unit cell!
-  phys_dim = dim(s[1])
 
   EType = ITensorMPS.promote_itensor_eltype(ψ)
 
@@ -131,43 +213,34 @@ function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-
         end
       end
     end
-    # starting and ending identity OPs are order 2,
-    # as they have NO link dimension,
-    # because they terminate and do not transport QN numbers.
-    # Intermediate OPs proportional to the identity DO transport QNs and must be order 4!
-    if (!isempty(H[1][a, a])) && (order(H[1][a, a]) == 2)
-      λ = H[1][a, a][1, 1]
-      # δiag = δˢ(1) # not used
-      #@assert norm(H[1][n, n] - λ * δiag) == 0 "Non identity diagonal not implemented in MPO"
-      @assert abs(λ) <= 1 "Diverging term"
-      eₗ[1] = (Ls[1][a] * localR)[]
-      Ls[1][a] += -(eₗ[1] * denseblocks(δˡ(1)))
-      if λ == 1
-        A = AOᴸ(ψ, H, a)
-        Ls[1][a], info = linsolve(A, Ls[1][a], 1, -1; tol=tol)
-      else
-        # println("Not implemented")
+    # Dispatch on the scalar of the unit cell transfer matrix T^{aa} = λ T of this
+    # channel, following table VI of arXiv:1701.07035.
+    λ = mpo_diagonal_scalar(H, s, a)
+    if isnothing(λ)
+      # T^{aa} = 0, the fixed point equation reduces to (Lₐ| = (Y_Lₐ|.
+      continue
+    elseif abs(λ - one(λ)) <= identity_tol
+      # Eq. (C25a). This is the only channel with a zero mode, and the only one whose
+      # diagonal correction (C27) is the energy density. Per the paper it can only be
+      # the first one, whose diagonal block is the terminating identity.
+      if a != 1
         error(
-          "This case cannot exist! The last and first term of the diagonal of the MPO must be the identity.",
+          "The identity is only allowed on the first and last entry of the diagonal of the MPO, found it on entry $a of $dₕ.",
         )
-        flush(stdout)
-        flush(stderr)
       end
-    elseif (!isempty(H[1][a, a])) && (order(H[1][a, a]) == 4)
-      # assert diagonal operator!
-      λ = H[1][a, a][1, 1, 1, 1]
-      test_Tensor = reshape(diagm(λ * ones(phys_dim)), (1, phys_dim, phys_dim, 1))
-      # verify that this OP = λ⋅Id
-      @assert norm(test_Tensor - array(H[1][a, a])) ≈ 0.0 "Only operators proportional to the identity are allowed on the diagonal!"
-
-      @assert (λ <= 1.0) && (λ >= 0.0) "The proportionality factor of the operator to the identity must be 0 ≤ λ ≤ 1"
-
-      # solve equations with linsolve
       eₗ[1] = (Ls[1][a] * localR)[]
-      solo_link = inds(Ls[1][a])[1]
-      Ls[1][a] += -(eₗ[1] * denseblocks(δˡ(1)) * setelt(solo_link[1]))
-      A = AOᴸ(ψ, H, a)
-      Ls[1][a], info = linsolve(A, Ls[1][a], 1, -1; tol=tol)
+      Ls[1][a] -= eₗ[1] * denseblocks(δˡ(1))
+      Ls[1][a], info = linsolve(AOᴸ(ψ, H, a), Ls[1][a], 1, -1; tol=tol)
+    elseif abs(λ) < one(abs(λ))
+      # Eq. (C21). 1 - λ T is invertible, so there is neither a zero mode to project out
+      # nor an energy to subtract. The paper solves this to machine precision.
+      Ls[1][a], info = linsolve(
+        AOᴸ(ψ, H, a, false), Ls[1][a], 1, -1; tol=min(tol, geometric_tol)
+      )
+    else
+      error(
+        "Diagonal MPO entry $a of $dₕ is $λ times the identity, |λ| ≥ 1 gives a diverging geometric series.",
+      )
     end
   end
   for a in 2:N
@@ -176,12 +249,16 @@ function left_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-
   return CelledVector(Ls), eₗ[1]
 end
 
-# Struct for use in linear system solver
+# Struct for use in linear system solver.
+# `projector = true` gives the operator of (C25b), `false` the one of (C22).
 struct AOᴿ
   ψ::InfiniteCanonicalMPS
   H::InfiniteBlockMPO
   n::Int
+  projector::Bool
 end
+
+AOᴿ(ψ::InfiniteCanonicalMPS, H::InfiniteBlockMPO, n::Int) = AOᴿ(ψ, H, n, true)
 
 function (A::AOᴿ)(x)
   ψ = A.ψ
@@ -202,6 +279,7 @@ function (A::AOᴿ)(x)
   for j in reverse(1:N)
     xT = xT * ψ.AR[j] * H[j][n, n] * ψ′.AR[j]
   end
+  A.projector || return xT
   xR = x * ψ.C[0] * (ψ′.C[0] * δˡ(0)) * denseblocks(δʳ(0))
   return xT - xR
 end
@@ -273,7 +351,13 @@ function apply_right_transfer_matrix(
   return Ltarget
 end
 
-function right_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e-10)
+function right_environment(
+  H::InfiniteBlockMPO,
+  ψ::InfiniteCanonicalMPS;
+  tol=1e-10,
+  geometric_tol=1e-14,
+  identity_tol=1e-12,
+)
   N = nsites(H)
   @assert N == nsites(ψ)
 
@@ -283,9 +367,6 @@ function right_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e
   δʳ(n) = δ(dag(r[n]), prime(r[n]))
   δˡ(n) = δ(l[n], dag(prime(l[n])))
   δˢ(n) = δ(dag(s[n]), prime(s[n]))
-
-  # this code is limited to homogeneous physical spaces on each site within the unit cell!
-  phys_dim = dim(s[1])
 
   EType = ITensorMPS.promote_itensor_eltype(ψ)
 
@@ -308,42 +389,34 @@ function right_environment(H::InfiniteBlockMPO, ψ::InfiniteCanonicalMPS; tol=1e
         end
       end
     end
-    # starting and ending identity OPs are order 2,
-    # as they have NO link dimension,
-    # because they terminate and do not transport QN numbers.
-    # Intermediate OPs proportional to the identity DO transport QNs and must be order 4!
-    if (!isempty(H[1][a, a])) && (order(H[1][a, a]) == 2)
-      λ = H[1][a, a][1, 1]
-      # δiag = δˢ(1)
-      #@assert norm(H[1][n, n] - λ * δiag) == 0 "Non identity diagonal not implemented in MPO"
-      @assert abs(λ) <= 1 "Diverging term"
-      eᵣ[1] = (localL * Rs[1][a])[]
-      Rs[1][a] += -(eᵣ[1] * denseblocks(δʳ(0)))
-      if λ == 1
-        A = AOᴿ(ψ, H, a)
-        Rs[1][a], info = linsolve(A, Rs[1][a], 1, -1; tol=tol)
-      else
+    # Dispatch on the scalar of the unit cell transfer matrix T^{aa} = λ T of this
+    # channel, following table VI of arXiv:1701.07035.
+    λ = mpo_diagonal_scalar(H, s, a)
+    if isnothing(λ)
+      # T^{aa} = 0, the fixed point equation reduces to |Rₐ) = |Y_Rₐ).
+      continue
+    elseif abs(λ - one(λ)) <= identity_tol
+      # Eq. (C25b). This is the only channel with a zero mode, and the only one whose
+      # diagonal correction (C27) is the energy density. Per the paper it can only be
+      # the last one, whose diagonal block is the terminating identity.
+      if a != dₕ
         error(
-          "This case cannot exist! The last and first term of the diagonal of the MPO must be the identity.",
+          "The identity is only allowed on the first and last entry of the diagonal of the MPO, found it on entry $a of $dₕ.",
         )
-        flush(stdout)
-        flush(stderr)
       end
-    elseif (!isempty(H[1][a, a])) && (order(H[1][a, a]) == 4)
-      # assert diagonal operator!
-      λ = H[1][a, a][1, 1, 1, 1]
-      test_Tensor = reshape(diagm(λ * ones(phys_dim)), (1, phys_dim, phys_dim, 1))
-      # verify that this OP = λ⋅Id
-      @assert norm(test_Tensor - array(H[1][a, a])) ≈ 0.0 "Only operators proportional to the identity are allowed on the diagonal!"
-
-      @assert (λ <= 1.0) && (λ >= 0.0) "The proportionality factor of the operator to the identity must be 0 ≤ λ ≤ 1"
-
-      # solve euqations with linsolve
       eᵣ[1] = (localL * Rs[1][a])[]
-      solo_link = inds(Rs[1][a])[1]
-      Rs[1][a] += -(eᵣ[1] * denseblocks(δʳ(0)) * setelt(solo_link[1]))
-      A = AOᴿ(ψ, H, a)
-      Rs[1][a], info = linsolve(A, Rs[1][a], 1, -1; tol=tol)
+      Rs[1][a] -= eᵣ[1] * denseblocks(δʳ(0))
+      Rs[1][a], info = linsolve(AOᴿ(ψ, H, a), Rs[1][a], 1, -1; tol=tol)
+    elseif abs(λ) < one(abs(λ))
+      # Eq. (C22). 1 - λ T is invertible, so there is neither a zero mode to project out
+      # nor an energy to subtract. The paper solves this to machine precision.
+      Rs[1][a], info = linsolve(
+        AOᴿ(ψ, H, a, false), Rs[1][a], 1, -1; tol=min(tol, geometric_tol)
+      )
+    else
+      error(
+        "Diagonal MPO entry $a of $dₕ is $λ times the identity, |λ| ≥ 1 gives a diverging geometric series.",
+      )
     end
   end
   if N > 1
