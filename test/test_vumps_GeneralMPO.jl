@@ -216,7 +216,7 @@ energy_local(ψ1, ψ2, h::MPO) = energy_local(ψ1, ψ2, prod(h))
 local_expect(ψ, o) = (noprime(ψ * op(o, filterinds(ψ, "Site")...)) * dag(ψ))[]
 
 @testset "environments of an exponentially decaying InfiniteBlockMPO" begin
-  # Regression test for the fixed point equations of appendix C 2 of arXiv:1701.07035.
+  # cross check for the fixed point equations of appendix C 2 of arXiv:1701.07035.
   # A diagonal MPO block λ⋅Id with |λ| < 1 must be solved with Eq. (C21)/(C22), i.e.
   # (Lₐ|[1 - λ T] = (Y_Lₐ|, with no energy subtraction and no |R)(1| projector. Using the
   # regularized Eq. (C25a)/(C25b) there instead shifts (Lₐ| by (Y_Lₐ|R)/(1-λ) (1|, which
