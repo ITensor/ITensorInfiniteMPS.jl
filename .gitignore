@@ -3,3 +3,4 @@
 /test/Manifest.toml
 *.swp
 .vscode/
+.DS_Store
